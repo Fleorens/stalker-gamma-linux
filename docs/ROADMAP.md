@@ -20,7 +20,8 @@ Livrable : `stalker-gamma-linux install` → GAMMA jouable via MO2 sous Proton.
 - **T08** GUI GTK4/libadwaita : Installer / Mettre à jour / Jouer / logs.
 
 ## Phase 3 — Distribution
-- **T09** Packaging : Flatpak (cible Steam Deck), AppImage, AUR.
+- **T09** Packaging : Flatpak, AppImage, AUR — toutes distributions, Steam
+  Deck inclus.
 - **T10** CI : test d'installation conteneurisé à chaque release amont de GAMMA,
   lint, release automatisée.
 

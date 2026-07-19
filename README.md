@@ -14,7 +14,7 @@ This project is the **Linux integration layer** that makes GAMMA a one-command
 - **Mod Organizer 2 running under Proton as the primary mode** — you keep full
   mod flexibility (enable/disable/add mods), exactly like on Windows
 - Incremental updates that follow upstream GAMMA releases
-- Steam / Steam Deck first-class support
+- Works on any Linux distribution — desktop (Fedora, Arch, Debian/Ubuntu, …) as well as Steam Deck
 - GUI on top (GTK4/libadwaita), Flatpak/AppImage/AUR packaging
 
 ## How it works

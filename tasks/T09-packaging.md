@@ -8,7 +8,9 @@
 Tu travailles dans le repo `stalker-gamma-linux` (lis `README.md`,
 `docs/ARCHITECTURE.md` et `src/`).
 
-Objectif : trois canaux de distribution, Steam Deck en cible prioritaire.
+Objectif : trois canaux de distribution couvrant toutes les distributions
+Linux (le Steam Deck est un cas supporté parmi d'autres, pas la cible
+principale).
 
 1. **Flatpak** (canal principal) : manifest sous `packaging/flatpak/`,
    runtime GNOME récent, permissions minimales mais suffisantes (réseau,
