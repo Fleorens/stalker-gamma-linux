@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Tooling
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+
+# Local test installs (never commit game/mod data)
+/testenv/
+*.7z
+*.zip
+*.rar
+
+# Editors
+.idea/
+.vscode/
