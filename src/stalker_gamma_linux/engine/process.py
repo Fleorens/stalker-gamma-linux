@@ -55,6 +55,10 @@ def run(
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        # Décodage tolérant : un octet non-UTF-8 dans la sortie ne doit jamais
+        # crasher le lecteur (constaté en réel avec Wine côté prefix/).
+        encoding="utf-8",
+        errors="replace",
         bufsize=1,
         env=_engine_environment(),
     )

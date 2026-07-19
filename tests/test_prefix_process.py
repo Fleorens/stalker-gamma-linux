@@ -28,6 +28,7 @@ def _patch_popen(
     def factory(command: list[str], **kwargs: Any) -> _FakeProcess:
         captured["command"] = command
         captured["env"] = kwargs["env"]
+        captured["errors"] = kwargs.get("errors")
         return _FakeProcess(lines, returncode)
 
     monkeypatch.setattr(subprocess, "Popen", factory)
@@ -64,6 +65,8 @@ def test_run_in_prefix_builds_command_and_structural_env(
     )
 
     assert captured["command"] == ["/usr/bin/umu-run", "winetricks", "-q", "vcrun2022"]
+    # Wine émet parfois des octets non-UTF-8 : le décodage doit être tolérant.
+    assert captured["errors"] == "replace"
     # Les variables structurelles gagnent toujours sur celles de l'appelant.
     assert captured["env"]["WINEPREFIX"] == str(paths.prefix)
     assert captured["env"]["GAMEID"] == process.UMU_GAME_ID

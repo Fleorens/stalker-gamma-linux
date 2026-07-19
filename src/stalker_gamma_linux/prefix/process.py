@@ -95,6 +95,10 @@ def run_in_prefix(
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            # Wine émet des octets non-UTF-8 (constaté en réel : 0x88) ; sans
+            # errors="replace", le décodage strict crashe le lecteur en plein vol.
+            encoding="utf-8",
+            errors="replace",
             bufsize=1,
             env=_prefix_environment(paths, proton_path, env),
         )

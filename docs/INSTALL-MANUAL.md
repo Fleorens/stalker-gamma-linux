@@ -230,19 +230,27 @@ ls ~/.steam/steam/steamapps/compatdata/<APPID>/pfx/drive_c/windows/system32/d3dc
 
 ### 6.3 Variante sans Steam (umu-launcher) — voie cible pour l'automatisation
 
-`⚠ À VALIDER en entier` : aucun guide publié ne documente GAMMA via umu, mais
-c'est la voie scriptable (pas de clic dans Steam, préfixe à l'emplacement
-qu'on choisit) :
+**Validée en réel le 2026-07-19** (umu 1.4.1, GE-Proton11-1, Fedora 44) pour
+la création du préfixe et l'injection des verbs — c'est le chemin principal
+de `stalker-gamma-linux` (T04, `prefix-doctor --repair`). Le lancement de
+MO2 lui-même via umu reste à valider en T05 :
 
 ```bash
-# principe attendu :
+# création du préfixe seul (sentinelle officielle umu, sans rien lancer) :
 WINEPREFIX=~/Games/stalker-gamma/prefix GAMEID=umu-stalkergamma \
-  PROTONPATH=GE-Proton umu-run ~/Games/stalker-gamma/gamma/ModOrganizer.exe
-# + verbs via : umu-run winetricks <verbs>  (protonfixes embarque winetricks)
+  PROTONPATH=<compatibilitytools.d>/GE-ProtonX-Y umu-run createprefix
+# verbs (un à la fois ; protonfixes embarque winetricks) :
+WINEPREFIX=... GAMEID=... PROTONPATH=... umu-run winetricks -q vcrun2022
+# MO2 (⚠ À VALIDER → T05) :
+WINEPREFIX=... GAMEID=... PROTONPATH=... umu-run \
+  ~/Games/stalker-gamma/gamma/ModOrganizer.exe
 ```
 
-Si validée, cette variante devient le chemin principal de `stalker-gamma-linux`
-(T04) et l'ajout Steam se fait ensuite par `shortcuts.vdf` (T06).
+Constats du test réel : umu crée le préfixe *à plat* dans `WINEPREFIX` avec
+un symlink `pfx -> .` ; la sortie Wine contient des octets non-UTF-8 (lire
+en décodage tolérant) ; le premier run télécharge le runtime Steam
+(`steamrt4`, ~500 Mo) dans `~/.local/share/umu/`. L'ajout Steam se fait
+ensuite par `shortcuts.vdf` (T06).
 
 ---
 

@@ -78,3 +78,19 @@ def test_run_disables_gamma_launcher_persistent_config(monkeypatch: pytest.Monke
     process.run("check-md5", ["--gamma", "/tmp/g"])
 
     assert captured_env["GAMMA_LAUNCHER_NO_CONFIG"] == "1"
+
+
+def test_run_decodes_output_tolerantly(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/gamma-launcher")
+    captured: dict[str, Any] = {}
+
+    def factory(*args: Any, **kwargs: Any) -> _FakeProcess:
+        captured["errors"] = kwargs.get("errors")
+        return _FakeProcess([], 0)
+
+    monkeypatch.setattr(subprocess, "Popen", factory)
+
+    process.run("check-md5", ["--gamma", "/tmp/g"])
+
+    # Un octet non-UTF-8 dans la sortie ne doit jamais crasher le lecteur.
+    assert captured["errors"] == "replace"

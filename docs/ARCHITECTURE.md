@@ -144,13 +144,16 @@ Le module `prefix/` crée et entretient le préfixe **unique et partagé**
    Steam existante — donc un APPID créé seulement en T06 — et des clics dans
    Steam : il reste manuel, il n'est pas automatisé ici. `UmuNotFoundError`
    pointe vers ce fallback.
-2. **Layout du préfixe** : on passe `WINEPREFIX=<install>/prefix` à umu, qui
-   traite ce répertoire comme un compat data Proton — la racine Wine réelle
-   est `<install>/prefix/pfx/`. `PrefixPaths.wine_root` absorbe les deux
-   layouts (pfx/ ou plat). `GAMEID=umu-stalkergamma` fixe la clé protonfixes.
+2. **Layout du préfixe** : on passe `WINEPREFIX=<install>/prefix` à umu.
+   Validé en réel (umu 1.4.1, 2026-07-19) : umu crée le préfixe **à plat**
+   dans ce répertoire et y ajoute un symlink de compatibilité `pfx -> .`
+   (layout compatdata Proton). `PrefixPaths.wine_root` absorbe les deux
+   layouts. `GAMEID=umu-stalkergamma` fixe la clé protonfixes.
 3. **Création** : sentinelle `createprefix` d'umu-run (initialise le préfixe
-   sans rien lancer). ⚠ À VALIDER sur machine réelle — la variante serait
-   `umu-run wineboot -u`. Après création on vérifie `system.reg`.
+   sans rien lancer). Validé en réel : sentinelle officielle d'umu 1.4.1
+   (chaîne vide ou `createprefix` dans `umu_run.py`) ; création du préfixe
+   observée (« Upgrading prefix from None to GE-Proton11-1 »). Après
+   création on vérifie `system.reg`.
 4. **Idempotence des verbs** : la source de vérité est le `winetricks.log`
    que winetricks tient lui-même à la racine du préfixe (y compris posé par
    protontricks, qui délègue à winetricks). On n'applique que les verbs
@@ -165,7 +168,9 @@ Le module `prefix/` crée et entretient le préfixe **unique et partagé**
    aucun résidu en cas d'échec.
 6. **Toute commande externe** passe par `run_in_prefix()` : sortie capturée
    dans `<install>/logs/*.log`, code non nul ⇒ `PrefixCommandError` avec le
-   chemin du journal et les dernières lignes. Les variables structurelles
+   chemin du journal et les dernières lignes. Décodage en
+   `errors="replace"` : Wine émet des octets non-UTF-8 (crash constaté en
+   réel avec un décodage strict). Les variables structurelles
    (`WINEPREFIX`, `GAMEID`, `PROTONPATH`) sont imposées en dernier :
    l'appelant (T05/T06/T07) ne peut pas casser l'invariant du préfixe
    partagé.
