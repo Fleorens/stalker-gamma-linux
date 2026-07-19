@@ -42,3 +42,33 @@ def test_main_returns_doctor_failure_code(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(cli, "run_doctor", lambda target: 1)
 
     assert cli.main(["doctor"]) == 1
+
+
+def test_build_parser_prefix_doctor_defaults() -> None:
+    args = cli.build_parser().parse_args(["prefix-doctor"])
+
+    assert args.command == "prefix-doctor"
+    assert args.target is None
+    assert args.repair is False
+
+
+def test_build_parser_prefix_doctor_flags() -> None:
+    args = cli.build_parser().parse_args(["prefix-doctor", "--target", "/tmp/game", "--repair"])
+
+    assert args.target == Path("/tmp/game")
+    assert args.repair is True
+
+
+def test_main_dispatches_to_prefix_doctor(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[Path | None, bool]] = []
+
+    def fake_run_prefix_doctor(target: Path | None, *, repair: bool) -> int:
+        calls.append((target, repair))
+        return 0
+
+    monkeypatch.setattr(cli, "run_prefix_doctor", fake_run_prefix_doctor)
+
+    exit_code = cli.main(["prefix-doctor", "--target", "/tmp/game", "--repair"])
+
+    assert exit_code == 0
+    assert calls == [(Path("/tmp/game"), True)]

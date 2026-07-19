@@ -131,6 +131,48 @@ vers `cache/` et qu'on ne le supprime jamais entre deux appels, relancer
 archives déjà présentes et vérifiées (`use_cached=True` en amont) — aucune
 logique de reprise à réimplémenter côté `stalker-gamma-linux`.
 
+## Gestion du préfixe Proton (T04)
+
+Le module `prefix/` crée et entretient le préfixe **unique et partagé**
+(décision 3) dans `<install>/prefix/`, via **umu-launcher** (décision 4).
+
+### Choix d'implémentation
+
+1. **umu = voie principale, protontricks = fallback documenté.** umu est
+   scriptable hors Steam et laisse choisir l'emplacement du préfixe. Le
+   fallback protontricks (docs/INSTALL-MANUAL.md §6.1-6.2) exige une entrée
+   Steam existante — donc un APPID créé seulement en T06 — et des clics dans
+   Steam : il reste manuel, il n'est pas automatisé ici. `UmuNotFoundError`
+   pointe vers ce fallback.
+2. **Layout du préfixe** : on passe `WINEPREFIX=<install>/prefix` à umu, qui
+   traite ce répertoire comme un compat data Proton — la racine Wine réelle
+   est `<install>/prefix/pfx/`. `PrefixPaths.wine_root` absorbe les deux
+   layouts (pfx/ ou plat). `GAMEID=umu-stalkergamma` fixe la clé protonfixes.
+3. **Création** : sentinelle `createprefix` d'umu-run (initialise le préfixe
+   sans rien lancer). ⚠ À VALIDER sur machine réelle — la variante serait
+   `umu-run wineboot -u`. Après création on vérifie `system.reg`.
+4. **Idempotence des verbs** : la source de vérité est le `winetricks.log`
+   que winetricks tient lui-même à la racine du préfixe (y compris posé par
+   protontricks, qui délègue à winetricks). On n'applique que les verbs
+   absents, **un à la fois** : échec attribuable, et chaque verb réussi est
+   acté — une relance ne rejoue que le reste.
+5. **Proton-GE** : détection dans les `compatibilitytools.d` connus (Steam
+   natif, `~/.steam`, Flatpak — umu y installe aussi les siens) ; sinon
+   téléchargement de la release épinglée `GE-Proton10-34` (dernière lignée 10
+   au 2026-07-19, alignée « Proton 9/10 » du manuel ; lignée 11 et matrice
+   MO2/GE ⚠ À VALIDER → T05) avec vérification SHA-512 contre le
+   `.sha512sum` publié, extraction en répertoire temporaire puis rename —
+   aucun résidu en cas d'échec.
+6. **Toute commande externe** passe par `run_in_prefix()` : sortie capturée
+   dans `<install>/logs/*.log`, code non nul ⇒ `PrefixCommandError` avec le
+   chemin du journal et les dernières lignes. Les variables structurelles
+   (`WINEPREFIX`, `GAMEID`, `PROTONPATH`) sont imposées en dernier :
+   l'appelant (T05/T06/T07) ne peut pas casser l'invariant du préfixe
+   partagé.
+7. **`prefix-doctor`** vérifie umu, Proton, initialisation, verbs et DXVK
+   (marqueur `DXVK` dans `d3d11.dll`/`dxgi.dll` de system32 — les builtin
+   Wine ne l'ont pas) ; `--repair` rejoue le provisioning idempotent.
+
 ## Références
 
 - Moteur : https://github.com/Mord3rca/gamma-launcher
