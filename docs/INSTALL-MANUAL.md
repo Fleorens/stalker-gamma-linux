@@ -252,6 +252,13 @@ WINEPREFIX=... GAMEID=... PROTONPATH=... umu-run \
   ~/Games/stalker-gamma/gamma/ModOrganizer.exe "moshortcut://:Anomaly (DX11)"
 ```
 
+Constat T05 (umu 1.4.1 + GE-Proton11-1, préfixe **neuf** sur un autre disque) :
+`umu-run createprefix` **crée bien** le préfixe (« Upgrading prefix from None… »)
+mais umu tente ensuite de *lancer* la sentinelle comme un exécutable et sort en
+**code non nul** (`ShellExecuteEx: Fichier introuvable`). `create_prefix` traite
+donc l'initialisation du préfixe (`system.reg`), et non le code de retour, comme
+vérité : échec de commande + préfixe initialisé = succès.
+
 Constats du test réel : umu crée le préfixe *à plat* dans `WINEPREFIX` avec
 un symlink `pfx -> .` ; la sortie Wine contient des octets non-UTF-8 (lire
 en décodage tolérant) ; le premier run télécharge le runtime Steam

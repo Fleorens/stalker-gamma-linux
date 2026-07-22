@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 
 from stalker_gamma_linux.prefix import process, proton, provision
-from stalker_gamma_linux.prefix.errors import PrefixError
+from stalker_gamma_linux.prefix.errors import PrefixCommandError, PrefixError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 from stalker_gamma_linux.prefix.proton import ProtonBuild
 
@@ -62,6 +62,40 @@ def test_create_prefix_runs_umu_sentinel(
 
     assert calls == ["createprefix"]
     assert provision.is_initialized(paths)
+
+
+def test_create_prefix_tolerates_nonzero_exit_when_prefix_initialized(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # umu-run createprefix crée le préfixe puis sort en code non nul (il tente
+    # de « lancer » la sentinelle). Le préfixe étant initialisé, c'est un succès.
+    paths = PrefixPaths.under(tmp_path)
+
+    def fake_run(exe: Path | str, *args: Any, paths: PrefixPaths, **kwargs: Any) -> Path:
+        pfx = paths.prefix / "pfx"
+        pfx.mkdir(parents=True, exist_ok=True)
+        (pfx / "system.reg").write_text("WINE REGISTRY\n")
+        raise PrefixCommandError("umu-run createprefix", 1, paths.logs / "x.log", "ShellExecuteEx")
+
+    monkeypatch.setattr(process, "run_in_prefix", fake_run)
+
+    provision.create_prefix(paths, tmp_path / "GE")  # ne lève pas
+
+    assert provision.is_initialized(paths)
+
+
+def test_create_prefix_reraises_when_command_fails_and_prefix_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    paths = PrefixPaths.under(tmp_path)
+
+    def fake_run(*args: Any, **kwargs: Any) -> Path:
+        raise PrefixCommandError("umu-run createprefix", 1, paths.logs / "x.log", "boom")
+
+    monkeypatch.setattr(process, "run_in_prefix", fake_run)
+
+    with pytest.raises(PrefixError):
+        provision.create_prefix(paths, tmp_path / "GE")
 
 
 def test_create_prefix_raises_when_prefix_still_absent(

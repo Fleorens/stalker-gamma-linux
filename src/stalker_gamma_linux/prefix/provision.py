@@ -7,13 +7,12 @@ from pathlib import Path
 
 from stalker_gamma_linux.environment import system
 from stalker_gamma_linux.prefix import process, proton, verbs
-from stalker_gamma_linux.prefix.errors import PrefixError
+from stalker_gamma_linux.prefix.errors import PrefixCommandError, PrefixError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 from stalker_gamma_linux.prefix.process import ProgressCallback
 from stalker_gamma_linux.prefix.proton import ProtonBuild
 
 # Sentinelle umu-run : initialise le préfixe sans lancer d'exécutable.
-# ⚠ À VALIDER sur machine réelle (docs/INSTALL-MANUAL.md §6.3).
 _CREATE_PREFIX_EXE = "createprefix"
 
 
@@ -26,16 +25,33 @@ def create_prefix(
     paths: PrefixPaths, proton_path: Path, *, on_progress: ProgressCallback | None = None
 ) -> None:
     """Crée le préfixe s'il n'existe pas encore. Idempotent : ne touche jamais
-    à un préfixe déjà initialisé."""
+    à un préfixe déjà initialisé.
+
+    La **vérité** est l'initialisation du préfixe (`system.reg`), pas le code de
+    retour d'umu. Constaté en réel (umu 1.4.1 + GE-Proton11-1, préfixe neuf) : la
+    sentinelle `createprefix` **crée bien** le préfixe (« Upgrading prefix from
+    None… ») mais umu tente ensuite de la *lancer* comme un exécutable et sort en
+    code non nul (`ShellExecuteEx: Fichier introuvable`). On traite donc un échec
+    de commande comme un succès **si et seulement si** le préfixe est initialisé.
+    """
     if is_initialized(paths):
         return
-    log_path = process.run_in_prefix(
-        _CREATE_PREFIX_EXE,
-        paths=paths,
-        proton_path=proton_path,
-        log_label="createprefix",
-        on_progress=on_progress,
-    )
+    try:
+        log_path = process.run_in_prefix(
+            _CREATE_PREFIX_EXE,
+            paths=paths,
+            proton_path=proton_path,
+            log_label="createprefix",
+            on_progress=on_progress,
+        )
+    except PrefixCommandError as error:
+        if is_initialized(paths):
+            return
+        raise PrefixError(
+            f"La création du préfixe {paths.prefix} a échoué : la commande a rendu "
+            f"un code non nul et le préfixe n'est pas initialisé (system.reg absent)."
+            f"\n{error}"
+        ) from error
     if not is_initialized(paths):
         raise PrefixError(
             f"umu-run a terminé sans erreur mais le préfixe {paths.prefix} n'est "
