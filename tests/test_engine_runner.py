@@ -95,6 +95,34 @@ def test_verify_wraps_execution_error_as_verification_error(
     assert excinfo.value.subcommand == "check-anomaly"
 
 
+def test_build_flat_install_invokes_usvfs_workaround(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls: list[tuple[str, list[str]]] = []
+    monkeypatch.setattr(
+        runner, "run", lambda subcommand, args, **kw: calls.append((subcommand, args))
+    )
+
+    paths = _paths(tmp_path)
+    final = tmp_path / "flat"
+    runner.build_flat_install(paths, final)
+
+    assert calls == [
+        (
+            "usvfs-workaround",
+            [
+                "--anomaly",
+                str(paths.anomaly),
+                "--gamma",
+                str(paths.gamma),
+                "--final",
+                str(final),
+            ],
+        )
+    ]
+    assert final.is_dir()
+
+
 def test_progress_callback_is_forwarded(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     received: list[str] = []
 

@@ -7,6 +7,8 @@ n'est réimplémentée ici : tout est délégué au binaire `gamma-launcher` via
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from stalker_gamma_linux.engine.errors import EngineExecutionError, VerificationError
 from stalker_gamma_linux.engine.paths import InstallPaths
 from stalker_gamma_linux.engine.process import ProgressCallback, run
@@ -51,6 +53,30 @@ def update_gamma(paths: InstallPaths, *, on_progress: ProgressCallback | None = 
     `full-install` sert aux deux usages (voir docs/ARCHITECTURE.md).
     """
     install_gamma(paths, on_progress=on_progress)
+
+
+def build_flat_install(
+    paths: InstallPaths, final_dir: Path, *, on_progress: ProgressCallback | None = None
+) -> None:
+    """Construit l'install fusionnée sans MO2 (`gamma-launcher usvfs-workaround`).
+
+    Fusionne Anomaly + les mods GAMMA en une installation jouable directement
+    (fallback du mode principal, cf. `mo2/flat.py` et docs/INSTALL-MANUAL.md
+    annexe A). `final_dir` est le dossier de sortie (`<install>/flat`).
+    """
+    final_dir.mkdir(parents=True, exist_ok=True)
+    run(
+        "usvfs-workaround",
+        [
+            "--anomaly",
+            str(paths.anomaly),
+            "--gamma",
+            str(paths.gamma),
+            "--final",
+            str(final_dir),
+        ],
+        on_progress=on_progress,
+    )
 
 
 def verify(paths: InstallPaths, *, on_progress: ProgressCallback | None = None) -> None:

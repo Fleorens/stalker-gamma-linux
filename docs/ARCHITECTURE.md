@@ -183,9 +183,46 @@ Le module `prefix/` crée et entretient le préfixe **unique et partagé**
    (marqueur `DXVK` dans `d3d11.dll`/`dxgi.dll` de system32 — les builtin
    Wine ne l'ont pas) ; `--repair` rejoue le provisioning idempotent.
 
+## MO2 sous Proton — mode principal (T05)
+
+Le module `mo2/` fait tourner Mod Organizer 2 dans le préfixe partagé avec
+**USVFS actif** : c'est la raison d'être du projet côté jeu (flexibilité des
+mods). Découpage :
+
+1. **Configuration de l'instance (`instance.py`)** — l'étape que gamma-launcher
+   ne fait pas. L'instance MO2 livrée par GAMMA est construite hors Wine, donc
+   son `gamePath` est invalide. On l'édite **chirurgicalement** dans
+   `ModOrganizer.ini` : `gamePath` → dossier Anomaly en **chemin Windows**
+   (`Z:\...`, traduit par `winepath.py`), `selected_profile` → `G.A.M.M.A`.
+   On ne réécrit jamais tout le fichier (`ini.py` remplace ligne à ligne) : MO2
+   y sérialise des blobs Qt (`@ByteArray(...)`, `[customExecutables]`) qu'un
+   `configparser` corromprait. Sauvegarde `.bak` du fichier d'origine, idempotent.
+2. **Lancement (`launch.py`)** — on ne lance jamais l'exe du jeu directement
+   (l'USVFS est local au processus MO2). `launch_mo2()` ouvre l'interface ;
+   `launch_game()` passe à `ModOrganizer.exe` un URI `moshortcut://:Anomaly (DX11)`
+   (instance portable = partie instance vide), ce qui monte l'USVFS et lance le
+   jeu à travers lui. Tout passe par `run_in_prefix` (T04).
+3. **Diagnostic (`diagnostics.py`)** — symptôme n°1 : jeu lancé « vanilla »
+   (USVFS mort). Après un lancement, on lit le dernier `logs/usvfs-*.log` de
+   l'instance : marqueur `proxy run successful` ⇒ VFS monté ; absent ⇒ USVFS
+   probablement mort. On vérifie aussi que le profil a des mods activés
+   (`modlist.txt`). Les remèdes renvoient vers `docs/MO2-PROTON-COMPAT.md`.
+4. **Version de Proton** : arbitrée par `docs/MO2-PROTON-COMPAT.md`. Défaut =
+   dernier GE (décision T04) ; repli documenté sur Proton 9/10 *vanilla* si le
+   diagnostic détecte un USVFS mort.
+5. **Fallback flat (`flat.py`)** — accessible uniquement par flag explicite
+   (`play --flat`). Délègue la fusion à `engine.build_flat_install`
+   (`gamma-launcher usvfs-workaround`) puis lance `AnomalyLauncher.exe` du
+   dossier fusionné. **Perte de la flexibilité des mods** — d'où le flag et
+   l'avertissement (docs/INSTALL-MANUAL.md annexe A).
+
+`session.py` orchestre les commandes `mo2` et `play` : préfixe prêt (T04) →
+instance configurée → lancement → diagnostic.
+
 ## Références
 
 - Moteur : https://github.com/Mord3rca/gamma-launcher
+- Compatibilité MO2 × Proton × USVFS : `docs/MO2-PROTON-COMPAT.md`
 - Modpack : https://github.com/Grokitach/Stalker_GAMMA (AGPL-3.0)
 - API modlist : https://stalker-gamma.com/api/list
 - Guide historique : https://github.com/FaithBeam/stalker-gamma-cli/wiki/Linux-Install

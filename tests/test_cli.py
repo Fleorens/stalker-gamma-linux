@@ -72,3 +72,65 @@ def test_main_dispatches_to_prefix_doctor(monkeypatch: pytest.MonkeyPatch) -> No
 
     assert exit_code == 0
     assert calls == [(Path("/tmp/game"), True)]
+
+
+def test_build_parser_mo2_default_target() -> None:
+    args = cli.build_parser().parse_args(["mo2"])
+
+    assert args.command == "mo2"
+    assert args.target is None
+
+
+def test_main_dispatches_to_mo2(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[Path | None] = []
+
+    def fake_run_mo2(target: Path | None) -> int:
+        calls.append(target)
+        return 0
+
+    monkeypatch.setattr(cli, "run_mo2", fake_run_mo2)
+
+    assert cli.main(["mo2", "--target", "/tmp/game"]) == 0
+    assert calls == [Path("/tmp/game")]
+
+
+def test_build_parser_play_defaults() -> None:
+    args = cli.build_parser().parse_args(["play"])
+
+    assert args.command == "play"
+    assert args.target is None
+    assert args.flat is False
+    assert args.no_diagnose is False
+    assert args.executable == "Anomaly (DX11)"
+
+
+def test_main_dispatches_to_play_with_flags(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run_play(
+        target: Path | None, *, flat_mode: bool, executable: str, diagnose: bool
+    ) -> int:
+        captured.update(
+            target=target, flat_mode=flat_mode, executable=executable, diagnose=diagnose
+        )
+        return 0
+
+    monkeypatch.setattr(cli, "run_play", fake_run_play)
+
+    exit_code = cli.main(
+        ["play", "--target", "/tmp/g", "--flat", "--executable", "Anomaly (DX10)", "--no-diagnose"]
+    )
+
+    assert exit_code == 0
+    assert captured == {
+        "target": Path("/tmp/g"),
+        "flat_mode": True,
+        "executable": "Anomaly (DX10)",
+        "diagnose": False,
+    }
+
+
+def test_main_play_returns_run_play_code(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli, "run_play", lambda *a, **k: 1)
+
+    assert cli.main(["play"]) == 1

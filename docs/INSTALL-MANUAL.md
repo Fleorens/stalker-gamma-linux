@@ -233,8 +233,10 @@ ls ~/.steam/steam/steamapps/compatdata/<APPID>/pfx/drive_c/windows/system32/d3dc
 
 **Validée en réel le 2026-07-19** (umu 1.4.1, GE-Proton11-1, Fedora 44) pour
 la création du préfixe et l'injection des verbs — c'est le chemin principal
-de `stalker-gamma-linux` (T04, `prefix-doctor --repair`). Le lancement de
-MO2 lui-même via umu reste à valider en T05 :
+de `stalker-gamma-linux` (T04, `prefix-doctor --repair`). Le lancement de MO2
+et du jeu via umu est **implémenté en T05** (`mo2/launch.py`, commandes `mo2`
+et `play`) ; `⚠ À VALIDER` : le lancement effectif + montage USVFS sur machine
+réelle.
 
 ```bash
 # création du préfixe seul (sentinelle officielle umu, sans rien lancer) :
@@ -242,9 +244,12 @@ WINEPREFIX=~/Games/stalker-gamma/prefix GAMEID=umu-stalkergamma \
   PROTONPATH=<compatibilitytools.d>/GE-ProtonX-Y umu-run createprefix
 # verbs (un à la fois ; protonfixes embarque winetricks) :
 WINEPREFIX=... GAMEID=... PROTONPATH=... umu-run winetricks -q vcrun2022
-# MO2 (⚠ À VALIDER → T05) :
+# MO2 (interface) — équivalent de `stalker-gamma-linux mo2` :
 WINEPREFIX=... GAMEID=... PROTONPATH=... umu-run \
   ~/Games/stalker-gamma/gamma/ModOrganizer.exe
+# jeu via MO2 (USVFS) — équivalent de `stalker-gamma-linux play` :
+WINEPREFIX=... GAMEID=... PROTONPATH=... umu-run \
+  ~/Games/stalker-gamma/gamma/ModOrganizer.exe "moshortcut://:Anomaly (DX11)"
 ```
 
 Constats du test réel : umu crée le préfixe *à plat* dans `WINEPREFIX` avec
@@ -272,9 +277,12 @@ Relancer l'entrée Steam (MO2 s'ouvre dans le préfixe équipé) :
    `AnomalyLauncher.exe` dans le panneau de droite selon la version de
    l'instance).
 
-Automatisation visée (T05) : écrire ces valeurs directement dans les `.ini`
-de l'instance MO2 (`ModOrganizer.ini` : `gamePath`, exécutables, profil)
-pour supprimer toute interaction.
+Automatisation **implémentée (T05)** : `mo2/instance.py` écrit ces valeurs
+directement dans `ModOrganizer.ini` (`gamePath` en chemin Windows `Z:\...`,
+`selected_profile=G.A.M.M.A`) par édition chirurgicale, supprimant toute
+interaction. `⚠ À VALIDER` sur machine réelle : casse exacte de `gameName`
+(plugin de jeu Anomaly) et exécutables résolus par le plugin vs custom. La
+commande `stalker-gamma-linux mo2` configure puis ouvre MO2.
 
 **Vérification** : la colonne de gauche de MO2 liste les ~400 mods GAMMA,
 cochés, sans triangle d'avertissement bloquant.
@@ -302,7 +310,7 @@ l'écran ne présente pas d'artefacts massifs (sinon → §5 ReShade/shaders).
 
 | Symptôme | Cause probable | Remède |
 |---|---|---|
-| Le jeu se lance **vanilla** (pas de contenu GAMMA) | USVFS ne monte pas (version Proton incompatible) | Changer de version Proton (9/10 vanilla) ; matrice → T05 ; dernier recours : mode flat (annexe A) |
+| Le jeu se lance **vanilla** (pas de contenu GAMMA) | USVFS ne monte pas (version Proton incompatible) | Détecté par `play` (diagnostic USVFS) ; matrice `docs/MO2-PROTON-COMPAT.md` : Proton 9/10 vanilla → GE-Proton9-20 ; dernier recours : `play --flat` (annexe A) |
 | Crash/écran noir au lancement | ReShade encore présent | §5 (`remove-reshade` + `purge-shader-cache`) |
 | Artefacts visuels, shaders cassés | Cache shaders obsolète après update | `purge-shader-cache` + supprimer `anomaly/appdata/shaders_cache` |
 | Perfs médiocres sur gros mods shaders (surtout Deck) | Screen Space Shaders / Shaders Cumulative Pack trop lourds | Désactiver ces mods dans MO2 (source : guide maxastyler) |

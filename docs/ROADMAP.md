@@ -10,7 +10,10 @@ Découpage en tâches exécutables : voir [../tasks/](../tasks/).
 - **T02** Squelette Python + détection environnement/prérequis.
 - **T03** Wrapper du moteur gamma-launcher (install/update/check-md5).
 - **T04** Gestion du préfixe Proton (Proton-GE, umu, verbs winetricks).
-- **T05** MO2 sous Proton : lancement fiable + configuration auto de l'instance.
+- **T05** ✅ MO2 sous Proton : configuration auto de l'instance (`gamePath`/profil),
+  lancement du jeu via `moshortcut://` (USVFS), diagnostic USVFS mort, fallback
+  flat explicite, matrice de compatibilité (`docs/MO2-PROTON-COMPAT.md`).
+  Commandes `mo2` et `play`.
 - **T07** CLI orchestrateur : `install`, `update`, `play`, `doctor`.
 
 Livrable : `stalker-gamma-linux install` → GAMMA jouable via MO2 sous Proton.
@@ -31,6 +34,7 @@ Livrable : `stalker-gamma-linux install` → GAMMA jouable via MO2 sous Proton.
 - Rehosting de mods ou du jeu.
 
 ## Risques suivis
-- Fragilité MO2/USVFS selon versions Proton → matrice de compatibilité (T05).
+- Fragilité MO2/USVFS selon versions Proton → matrice de compatibilité livrée
+  (`docs/MO2-PROTON-COMPAT.md`) + diagnostic auto + fallback flat (T05).
 - Rate-limit / changements de miroirs ModDB → géré en amont (gamma-launcher).
 - Cadence de mise à jour de GAMMA → CI de non-régression (T10).

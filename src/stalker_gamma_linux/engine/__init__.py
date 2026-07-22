@@ -8,7 +8,13 @@ from stalker_gamma_linux.engine.errors import (
 )
 from stalker_gamma_linux.engine.paths import InstallPaths
 from stalker_gamma_linux.engine.process import ProgressCallback
-from stalker_gamma_linux.engine.runner import install_anomaly, install_gamma, update_gamma, verify
+from stalker_gamma_linux.engine.runner import (
+    build_flat_install,
+    install_anomaly,
+    install_gamma,
+    update_gamma,
+    verify,
+)
 
 __all__ = [
     "EngineError",
@@ -17,6 +23,7 @@ __all__ = [
     "InstallPaths",
     "ProgressCallback",
     "VerificationError",
+    "build_flat_install",
     "install_anomaly",
     "install_gamma",
     "update_gamma",

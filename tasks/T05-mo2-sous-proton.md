@@ -1,6 +1,6 @@
 # T05 — MO2 sous Proton (mode principal)
 
-**Modèle recommandé : Fable 5** — c'est la tâche la plus difficile du projet
+**Modèle recommandé : Opus 4.8** — c'est la tâche la plus difficile du projet
 (USVFS sous Wine, comportements non documentés).
 **Dépendances : T03, T04.**
 
