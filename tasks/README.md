@@ -11,7 +11,7 @@ adapté :
 | T03 | Wrapper du moteur gamma-launcher | **Sonnet 5** | T02 |
 | T04 | Gestion du préfixe Proton | **Fable 5** ou Opus 4.8 | T02 |
 | T05 | MO2 sous Proton (le morceau dur) | **Fable 5** | T03, T04 |
-| T06 | Intégration Steam (shortcuts.vdf) | **Sonnet 5** | T04 |
+| T06 | Raccourci bureau (`.desktop`) | **Sonnet 5** | T04, T05 |
 | T07 | CLI orchestrateur | **Sonnet 5** | T03, T04, T05 |
 | T08 | GUI GTK4/libadwaita | **Sonnet 5** | T07 |
 | T09 | Packaging Flatpak / AppImage / AUR | **Sonnet 5** | T07 |

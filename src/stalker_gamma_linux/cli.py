@@ -6,6 +6,7 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
+from stalker_gamma_linux.desktop import run_shortcut
 from stalker_gamma_linux.environment import run_doctor
 from stalker_gamma_linux.mo2 import run_mo2, run_play
 from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
@@ -95,6 +96,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="N'exécute pas le diagnostic USVFS après le lancement",
     )
 
+    shortcut_parser = subparsers.add_parser(
+        "shortcut",
+        help="Crée/actualise le raccourci bureau (.desktop + icône, menu applications)",
+    )
+    shortcut_parser.add_argument(
+        "--target",
+        type=Path,
+        default=None,
+        help="Répertoire d'installation visé (défaut : ~/Games/stalker-gamma)",
+    )
+
     return parser
 
 
@@ -117,6 +129,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             executable=args.executable,
             diagnose=not args.no_diagnose,
         )
+    if args.command == "shortcut":
+        return run_shortcut(args.target)
 
     parser.error(f"commande inconnue : {args.command}")
     return 2

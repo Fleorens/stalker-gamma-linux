@@ -14,7 +14,7 @@ Trois couches. On ne réécrit que ce qui est spécifique à Linux.
 │  - Gestion préfixe Proton (umu, Proton-GE,  │
 │    verbs winetricks)                        │
 │  - MO2 sous Proton (mode principal)         │
-│  - Intégration Steam (shortcuts.vdf)        │
+│  - Raccourci bureau (.desktop + icône)      │
 │  - Packaging (Flatpak/AppImage/AUR)         │
 ├─────────────────────────────────────────────┤
 │  Moteur : Mord3rca/gamma-launcher (GPL-3.0) │
@@ -141,7 +141,8 @@ Le module `prefix/` crée et entretient le préfixe **unique et partagé**
 1. **umu = voie principale, protontricks = fallback documenté.** umu est
    scriptable hors Steam et laisse choisir l'emplacement du préfixe. Le
    fallback protontricks (docs/INSTALL-MANUAL.md §6.1-6.2) exige une entrée
-   Steam existante — donc un APPID créé seulement en T06 — et des clics dans
+   Steam existante — donc un APPID, que l'utilisateur crée lui-même via
+   *Ajouter un jeu non-Steam* (T06 ne l'automatise pas) — et des clics dans
    Steam : il reste manuel, il n'est pas automatisé ici. `UmuNotFoundError`
    pointe vers ce fallback.
 2. **Layout du préfixe** : on passe `WINEPREFIX=<install>/prefix` à umu.

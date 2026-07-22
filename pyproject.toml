@@ -25,6 +25,9 @@ dev = ["ruff>=0.6", "mypy>=1.11", "pytest>=8.0"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+stalker_gamma_linux = ["assets/icon.png"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"

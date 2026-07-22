@@ -263,8 +263,10 @@ vérité : échec de commande + préfixe initialisé = succès.
 Constats du test réel : umu crée le préfixe *à plat* dans `WINEPREFIX` avec
 un symlink `pfx -> .` ; la sortie Wine contient des octets non-UTF-8 (lire
 en décodage tolérant) ; le premier run télécharge le runtime Steam
-(`steamrt4`, ~500 Mo) dans `~/.local/share/umu/`. L'ajout Steam se fait
-ensuite par `shortcuts.vdf` (T06).
+(`steamrt4`, ~500 Mo) dans `~/.local/share/umu/`. Un raccourci bureau
+`.desktop` est ensuite installé (T06) ; l'ajout à Steam en jeu non-Steam
+(pour Steam Input / mode Gaming) reste, lui, manuel via le bouton natif de
+Steam — cf. §6.1.
 
 ---
 

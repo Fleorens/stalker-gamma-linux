@@ -154,3 +154,29 @@ def test_main_play_returns_run_play_code(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setattr(cli, "run_play", lambda *a, **k: 1)
 
     assert cli.main(["play"]) == 1
+
+
+def test_build_parser_shortcut_default_target() -> None:
+    args = cli.build_parser().parse_args(["shortcut"])
+
+    assert args.command == "shortcut"
+    assert args.target is None
+
+
+def test_main_dispatches_to_shortcut(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[Path | None] = []
+
+    def fake_run_shortcut(target: Path | None) -> int:
+        calls.append(target)
+        return 0
+
+    monkeypatch.setattr(cli, "run_shortcut", fake_run_shortcut)
+
+    assert cli.main(["shortcut", "--target", "/tmp/game"]) == 0
+    assert calls == [Path("/tmp/game")]
+
+
+def test_main_shortcut_returns_run_shortcut_code(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli, "run_shortcut", lambda target: 1)
+
+    assert cli.main(["shortcut"]) == 1

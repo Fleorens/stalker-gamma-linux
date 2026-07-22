@@ -10,7 +10,7 @@ community guides require a dozen manual steps.
 This project is the **Linux integration layer** that makes GAMMA a one-command
 (and eventually one-click) install:
 
-- One-shot installer: prerequisites check → Anomaly → GAMMA modpack → Proton prefix → Steam entry
+- One-shot installer: prerequisites check → Anomaly → GAMMA modpack → Proton prefix → desktop shortcut
 - **Mod Organizer 2 running under Proton as the primary mode** — you keep full
   mod flexibility (enable/disable/add mods), exactly like on Windows
 - Incremental updates that follow upstream GAMMA releases

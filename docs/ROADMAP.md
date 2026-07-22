@@ -21,7 +21,8 @@ Découpage en tâches exécutables : voir [../tasks/](../tasks/).
 Livrable : `stalker-gamma-linux install` → GAMMA jouable via MO2 sous Proton.
 
 ## Phase 2 — Intégration bureau
-- **T06** Intégration Steam : entrée non-Steam, launch options, artwork.
+- **T06** Raccourci bureau : entrée `.desktop` + icône (ajout à Steam en
+  jeu non-Steam laissé à l'utilisateur, via le bouton natif de Steam).
 - **T08** GUI GTK4/libadwaita : Installer / Mettre à jour / Jouer / logs.
 
 ## Phase 3 — Distribution
