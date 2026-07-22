@@ -10,9 +10,10 @@ Découpage en tâches exécutables : voir [../tasks/](../tasks/).
 - **T02** Squelette Python + détection environnement/prérequis.
 - **T03** Wrapper du moteur gamma-launcher (install/update/check-md5).
 - **T04** Gestion du préfixe Proton (Proton-GE, umu, verbs winetricks).
-- **T05** ✅ MO2 sous Proton : configuration auto de l'instance (`gamePath`/profil),
-  lancement du jeu via `moshortcut://` (USVFS), diagnostic USVFS mort, fallback
-  flat explicite, matrice de compatibilité (`docs/MO2-PROTON-COMPAT.md`).
+- **T05** ✅ **validé en réel (2026-07-22, GE-Proton11-1)** MO2 sous Proton :
+  configuration auto de l'instance (`gamePath`/profil), lancement du jeu via
+  `moshortcut://` (USVFS, 577 mods servis), diagnostic USVFS, fallback flat
+  explicite, matrice de compatibilité (`docs/MO2-PROTON-COMPAT.md`).
   Commandes `mo2` et `play`.
 - **T07** CLI orchestrateur : `install` ✅ (anomaly + GAMMA + retrait ReShade,
   sous `--target`), `play`/`mo2` ✅ (T05) ; reste `update`.

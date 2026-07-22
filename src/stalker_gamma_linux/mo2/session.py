@@ -87,11 +87,12 @@ def run_play(
         print(f"Erreur : {error}")
         return 1
 
-    if not diagnose:
-        return 0
-    result = diagnostics.diagnose_usvfs(mo2)
-    print(f"\n{result.message}")
-    return 0 if result.active else 1
+    # Le jeu s'est lancé : c'est un succès. Le diagnostic USVFS est **indicatif**
+    # (heuristique sur des logs qui varient selon les versions) — on l'affiche
+    # sans faire échouer `play` sur un faux négatif.
+    if diagnose:
+        print(f"\n{diagnostics.diagnose_usvfs(mo2).message}")
+    return 0
 
 
 def _configure_best_effort(mo2: Mo2Paths, anomaly: Path) -> None:

@@ -14,7 +14,9 @@
 
 1. **Défaut du projet : la dernière release GE-Proton** (décision utilisateur
    2026-07-19, gérée par `prefix/`). Sur Wine 9/10, USVFS fonctionne dans la
-   très grande majorité des cas.
+   très grande majorité des cas — **validé en réel le 2026-07-22** avec
+   **GE-Proton11-1** sur une install GAMMA complète (MO2 ouvert, 577 mods
+   servis via USVFS, Anomaly DX11 lancé et joué).
 2. **Si le jeu démarre en « vanilla » (0 mod, USVFS mort)** — symptôme n°1 de
    ce document — bascule sur **Proton 9.0 ou 10.0 *vanilla* de Steam** : c'est
    la combinaison la plus fiable et la plus rapportée pour USVFS + MO2. Le
@@ -48,6 +50,11 @@ implémentés que tardivement :
   MO2 **2.4.4** en attendant. Ce correctif est aujourd'hui présent dans toute la
   lignée **Wine 9.x / 10.x**, donc dans **Proton 9.0, 10.0** et les GE-Proton
   correspondants.
+- **Observé en réel (GE-Proton11-1, Wine 10, usvfs 0.5.6.1)** : usvfs échoue à
+  hooker `NtQueryDirectoryFileEx` (`failed to hook NtQueryDirectoryFileEx: No
+  Error`) mais **hooke l'ancien `NtQueryDirectoryFile`** et le VFS fonctionne
+  parfaitement. Le correctif « Ex » de Wine 8.21 n'est donc pas strictement
+  requis sur cette pile ; le hook de repli suffit à GAMMA.
 - **Régressions propres à GE** : historiquement, USVFS a fonctionné sous le
   Proton *vanilla* de Valve tout en **échouant sur certains builds GE** (patchs
   additionnels de GE qui régressaient le hooking), *alors même* que le correctif
@@ -71,7 +78,8 @@ gamma-launcher.
 | 2.5.x (GAMMA) | **Proton 10.0** (vanilla Steam) | 10.x | ✅ | Recommandé 2025 par les guides GAMMA (v1ld). Le plus fiable avec 9.0. |
 | 2.5.x (GAMMA) | **Proton 9.0** (vanilla Steam) | 9.x | ✅ | « Proton 9.0 recommandé » (modorganizer2-linux-installer). Valeur sûre. |
 | 2.5.x (GAMMA) | **Proton - Experimental** | 10.x+ | ⚠️ | Contient les derniers correctifs, mais bouge chaque semaine : peut casser puis se réparer. Accepté par `prefix/` en l'absence de GE. |
-| 2.5.x (GAMMA) | **GE-Proton10-x (dernier)** | 10.x | ⚠️→✅ | **Défaut du projet.** OK sur les builds récents ; en cas de « vanilla », repli vanilla 9/10. |
+| 2.5.x (GAMMA) | **GE-Proton11-1** | 10.x | ✅ | **Validé en réel (2026-07-22)** : USVFS 0.5.6.1 monté, 577 mods servis, partie jouée. C'est le défaut du projet. |
+| 2.5.x (GAMMA) | **GE-Proton10-x (dernier)** | 10.x | ⚠️→✅ | OK sur les builds récents ; en cas de « vanilla », repli vanilla 9/10. |
 | 2.5.x (GAMMA) | **GE-Proton9-20** | 9.x | ✅ | Version GE explicitement citée comme fonctionnelle (wiki FaithBeam). Bon repli GE épinglé. |
 | 2.5.x (GAMMA) | **GE-Proton8-x** | 8.0 | ❌ | Antérieur à Wine 8.21 → correctif MO2 2.5 absent. À éviter. |
 | 2.5.x (GAMMA) | **Proton ≤ 8.0** (vanilla) | ≤ 8.0 | ❌ | Idem : MO2 2.5.x ne monte pas l'USVFS. Piège classique. |
@@ -93,10 +101,17 @@ gamma-launcher.
 | Perfs médiocres (gros mods shaders) | Surcoût USVFS + shaders lourds | Désactiver Screen Space Shaders / Shaders Cumulative Pack ; évaluer RadTux (`⚠ À VALIDER`). |
 
 Détection automatisée (`mo2/diagnostics.py`) : après un lancement via `play`,
-on lit le dernier `logs/usvfs-*.log` de l'instance et on cherche le marqueur
-`proxy run successful` (VFS monté et processus cible « hooké »). Absent ⇒ USVFS
-probablement mort ⇒ on affiche le tableau ci-dessus. On vérifie aussi que le
-profil `G.A.M.M.A` a bien des mods activés (`modlist.txt`, lignes `+`).
+on lit le dernier `logs/usvfs-*.log` de l'instance et on cherche les marqueurs
+d'un **VFS vivant** relevés sur un vrai run qui fonctionne (usvfs 0.5.6.1,
+GE-Proton11-1) : `inithooks in process <pid> successful` (hooks posés dans le
+process du jeu) et `mapping file in vfs:` (le VFS sert effectivement des
+fichiers). Absents ⇒ avertissement (pas un échec : `play` réussit si le jeu
+s'est lancé). On vérifie aussi que le profil `G.A.M.M.A` a des mods activés
+(`modlist.txt`, lignes `+`).
+
+> Le marqueur `proxy run successful` cité par des guides de forum **n'existe
+> pas** dans usvfs 0.5.6.1 : l'avoir utilisé donnait un faux négatif (constaté
+> en réel le 2026-07-22).
 
 ## Sources
 
@@ -121,8 +136,10 @@ profil `G.A.M.M.A` a bien des mods activés (`modlist.txt`, lignes `+`).
   https://github.com/FaithBeam/stalker-gamma-cli/wiki/Linux-Install
 - Guide Steam Deck (maxastyler) :
   https://github.com/maxastyler/S.T.A.L.K.E.R.-Gamma-Steam-Deck-Install-Guide/
-- Marqueur `proxy run successful` du log USVFS (dépannage MO2, Nexus/STEP) :
-  https://www.nexusmods.com/skyrimspecialedition/mods/6194
+- Marqueurs réels d'un VFS vivant (`inithooks in process N successful`,
+  `mapping file in vfs:`) : relevés dans un `logs/usvfs-*.log` d'une install
+  GAMMA fonctionnelle (usvfs 0.5.6.1, GE-Proton11-1), 2026-07-22. Le
+  `proxy run successful` des guides Nexus/STEP ne s'y trouve pas.
 - RadTux — VFS natif Linux expérimental pour MO2 :
   https://www.nexusmods.com/fallout4/mods/105285
 </content>

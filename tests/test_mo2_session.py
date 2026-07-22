@@ -79,14 +79,18 @@ def test_run_play_nominal_configures_launches_and_diagnoses(
     assert events == ["configure", "launch"]
 
 
-def test_run_play_returns_nonzero_when_usvfs_dead(
+def test_run_play_succeeds_even_when_usvfs_diagnosis_negative(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Le diagnostic est indicatif : un faux négatif ne doit pas faire échouer play.
+    printed: list[str] = []
     monkeypatch.setattr(instance, "configure_instance", lambda *a, **k: None)
     monkeypatch.setattr(launch, "launch_game", lambda *a, **k: Path("/l"))
     monkeypatch.setattr(diagnostics, "diagnose_usvfs", lambda *a, **k: _diagnosis(False))
+    monkeypatch.setattr("builtins.print", lambda *a, **k: printed.append(" ".join(map(str, a))))
 
-    assert session.run_play(tmp_path) == 1
+    assert session.run_play(tmp_path) == 0
+    assert any("msg" in line for line in printed)  # le message du diagnostic est affiché
 
 
 def test_run_play_forwards_executable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

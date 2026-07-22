@@ -13,7 +13,6 @@ C'est la raison d'être du projet côté jeu : préserver la flexibilité des mo
 """
 
 from stalker_gamma_linux.mo2.diagnostics import (
-    USVFS_SUCCESS_MARKER,
     UsvfsDiagnosis,
     diagnose_usvfs,
     latest_usvfs_log,
@@ -52,7 +51,6 @@ __all__ = [
     "FLAT_LAUNCHER",
     "GAMMA_PROFILE",
     "MOSHORTCUT_SCHEME",
-    "USVFS_SUCCESS_MARKER",
     "AnomalyNotFoundError",
     "InstanceConfig",
     "ModEntry",

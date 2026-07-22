@@ -234,9 +234,10 @@ ls ~/.steam/steam/steamapps/compatdata/<APPID>/pfx/drive_c/windows/system32/d3dc
 **Validée en réel le 2026-07-19** (umu 1.4.1, GE-Proton11-1, Fedora 44) pour
 la création du préfixe et l'injection des verbs — c'est le chemin principal
 de `stalker-gamma-linux` (T04, `prefix-doctor --repair`). Le lancement de MO2
-et du jeu via umu est **implémenté en T05** (`mo2/launch.py`, commandes `mo2`
-et `play`) ; `⚠ À VALIDER` : le lancement effectif + montage USVFS sur machine
-réelle.
+et du jeu via umu est **implémenté et validé en T05** (`mo2/launch.py`,
+commandes `mo2` et `play`). **Validé en réel le 2026-07-22** (umu 1.4.1,
+GE-Proton11-1, install GAMMA de 93 Go) : MO2 s'ouvre, `play` lance Anomaly DX11
+via `moshortcut://`, l'USVFS est monté (577 mods servis) et une partie tourne.
 
 ```bash
 # création du préfixe seul (sentinelle officielle umu, sans rien lancer) :
