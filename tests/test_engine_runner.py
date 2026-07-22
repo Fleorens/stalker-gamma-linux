@@ -95,6 +95,34 @@ def test_verify_wraps_execution_error_as_verification_error(
     assert excinfo.value.subcommand == "check-anomaly"
 
 
+def test_remove_reshade_invokes_subcommand(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls: list[tuple[str, list[str]]] = []
+    monkeypatch.setattr(
+        runner, "run", lambda subcommand, args, **kw: calls.append((subcommand, args))
+    )
+
+    paths = _paths(tmp_path)
+    runner.remove_reshade(paths)
+
+    assert calls == [("remove-reshade", ["--anomaly", str(paths.anomaly)])]
+
+
+def test_purge_shader_cache_invokes_subcommand(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls: list[tuple[str, list[str]]] = []
+    monkeypatch.setattr(
+        runner, "run", lambda subcommand, args, **kw: calls.append((subcommand, args))
+    )
+
+    paths = _paths(tmp_path)
+    runner.purge_shader_cache(paths)
+
+    assert calls == [("purge-shader-cache", ["--anomaly", str(paths.anomaly)])]
+
+
 def test_build_flat_install_invokes_usvfs_workaround(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

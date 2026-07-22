@@ -14,7 +14,8 @@ Découpage en tâches exécutables : voir [../tasks/](../tasks/).
   lancement du jeu via `moshortcut://` (USVFS), diagnostic USVFS mort, fallback
   flat explicite, matrice de compatibilité (`docs/MO2-PROTON-COMPAT.md`).
   Commandes `mo2` et `play`.
-- **T07** CLI orchestrateur : `install`, `update`, `play`, `doctor`.
+- **T07** CLI orchestrateur : `install` ✅ (anomaly + GAMMA + retrait ReShade,
+  sous `--target`), `play`/`mo2` ✅ (T05) ; reste `update`.
 
 Livrable : `stalker-gamma-linux install` → GAMMA jouable via MO2 sous Proton.
 

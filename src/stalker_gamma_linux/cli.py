@@ -9,6 +9,7 @@ from pathlib import Path
 from stalker_gamma_linux.environment import run_doctor
 from stalker_gamma_linux.mo2 import run_mo2, run_play
 from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
+from stalker_gamma_linux.orchestrator import run_install
 from stalker_gamma_linux.prefix import run_prefix_doctor
 
 
@@ -18,6 +19,17 @@ def build_parser() -> argparse.ArgumentParser:
         description="Installateur et intégration Linux pour S.T.A.L.K.E.R. G.A.M.M.A.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    install_parser = subparsers.add_parser(
+        "install",
+        help="Installe Anomaly + le modpack G.A.M.M.A sous --target (télécharge ~146 Go)",
+    )
+    install_parser.add_argument(
+        "--target",
+        type=Path,
+        default=None,
+        help="Répertoire (et donc disque) d'installation (défaut : ~/Games/stalker-gamma)",
+    )
 
     doctor_parser = subparsers.add_parser(
         "doctor", help="Vérifie les prérequis système (distribution, Steam, disque, GPU...)"
@@ -90,6 +102,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    if args.command == "install":
+        return run_install(args.target)
     if args.command == "doctor":
         return run_doctor(args.target)
     if args.command == "prefix-doctor":

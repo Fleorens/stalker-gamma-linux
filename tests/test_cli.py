@@ -5,6 +5,26 @@ import pytest
 from stalker_gamma_linux import cli
 
 
+def test_build_parser_install_default_target() -> None:
+    args = cli.build_parser().parse_args(["install"])
+
+    assert args.command == "install"
+    assert args.target is None
+
+
+def test_main_dispatches_to_install(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[Path | None] = []
+
+    def fake_run_install(target: Path | None) -> int:
+        calls.append(target)
+        return 0
+
+    monkeypatch.setattr(cli, "run_install", fake_run_install)
+
+    assert cli.main(["install", "--target", "/mnt/disk/GAMMA"]) == 0
+    assert calls == [Path("/mnt/disk/GAMMA")]
+
+
 def test_build_parser_doctor_default_target() -> None:
     args = cli.build_parser().parse_args(["doctor"])
 

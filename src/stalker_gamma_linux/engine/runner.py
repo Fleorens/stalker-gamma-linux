@@ -55,6 +55,24 @@ def update_gamma(paths: InstallPaths, *, on_progress: ProgressCallback | None = 
     install_gamma(paths, on_progress=on_progress)
 
 
+def remove_reshade(paths: InstallPaths, *, on_progress: ProgressCallback | None = None) -> None:
+    """Retire ReShade, incompatible DXVK/Proton (`gamma-launcher remove-reshade`).
+
+    Étape **obligatoire** avant de jouer (docs/INSTALL-MANUAL.md §5) : ReShade,
+    injecté par le modpack pour Windows, casse le rendu ou le lancement sous DXVK.
+    """
+    run("remove-reshade", ["--anomaly", str(paths.anomaly)], on_progress=on_progress)
+
+
+def purge_shader_cache(paths: InstallPaths, *, on_progress: ProgressCallback | None = None) -> None:
+    """Vide le cache de shaders d'Anomaly (`gamma-launcher purge-shader-cache`).
+
+    Complète `remove_reshade` : un cache obsolète après retrait de ReShade ou
+    après une mise à jour provoque des artefacts (docs/INSTALL-MANUAL.md §5, §9).
+    """
+    run("purge-shader-cache", ["--anomaly", str(paths.anomaly)], on_progress=on_progress)
+
+
 def build_flat_install(
     paths: InstallPaths, final_dir: Path, *, on_progress: ProgressCallback | None = None
 ) -> None:
