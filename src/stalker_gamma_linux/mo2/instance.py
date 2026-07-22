@@ -95,7 +95,14 @@ def configure_instance(
     original = system.read_text(mo2.organizer_ini)
     base = original if original is not None else ""
 
-    updated = ini.set_bytearray_key(base, _GENERAL, _GAME_PATH_KEY, game_path)
+    # Les exécutables GAMMA (« Anomaly (DX11) »…) sont des `[customExecutables]`
+    # aux chemins **absolus** baked-in vers l'ancien dossier Anomaly (constaté sur
+    # une vraie instance). On les rebase vers le dossier réel pour que le
+    # lancement par `moshortcut://` vise le bon binaire — pas seulement `gamePath`.
+    old_root = ini.read_bytearray_key(base, _GENERAL, _GAME_PATH_KEY)
+    updated = base if old_root is None else ini.rebase_windows_path(base, old_root, game_path)
+
+    updated = ini.set_bytearray_key(updated, _GENERAL, _GAME_PATH_KEY, game_path)
     updated = ini.set_bytearray_key(updated, _GENERAL, _PROFILE_KEY, profile)
     if original is None:
         updated = ini.set_key(updated, _GENERAL, "gameName", ANOMALY_GAME_NAME)

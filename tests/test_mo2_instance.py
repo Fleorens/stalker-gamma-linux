@@ -103,3 +103,46 @@ def test_read_game_path_none_when_ini_absent(tmp_path: Path) -> None:
     mo2, _ = _make_instance(tmp_path, ini_content=None)
 
     assert instance.read_game_path(mo2) is None
+
+
+# ModOrganizer.ini réel d'une instance GAMMA (extrait), avec un ancien dossier
+# Anomaly baked-in à la fois dans gamePath et dans les customExecutables.
+_REAL_GAMMA_INI = (
+    "[General]\n"
+    "gameName=STALKER Anomaly\n"
+    "selected_profile=@ByteArray(G.A.M.M.A)\n"
+    "gamePath=@ByteArray(Z:\\\\old\\\\GAMMA\\\\gamma\\\\anomaly)\n"
+    "version=2.5.2\n"
+    "first_start=false\n"
+    "\n"
+    "[customExecutables]\n"
+    "size=3\n"
+    "1\\binary=Z:/old/GAMMA/gamma/anomaly/AnomalyLauncher.exe\n"
+    "1\\title=Anomaly Launcher\n"
+    "1\\workingDirectory=Z:/old/GAMMA/gamma/anomaly\n"
+    "3\\binary=Z:/old/GAMMA/gamma/anomaly/bin/AnomalyDX11.exe\n"
+    "3\\title=Anomaly (DX11)\n"
+    "3\\workingDirectory=Z:/old/GAMMA/gamma/anomaly/bin\n"
+    "10\\binary=Z:/old/GAMMA/gamma/gamma/explorer++/Explorer++.exe\n"
+    '10\\arguments=\\"Z:\\\\old\\\\GAMMA\\\\gamma\\\\anomaly\\"\n'
+    "10\\title=Explore Virtual Folder\n"
+)
+
+
+def test_configure_rebases_custom_executables_to_new_anomaly(tmp_path: Path) -> None:
+    mo2, anomaly = _make_instance(tmp_path, ini_content=_REAL_GAMMA_INI)
+
+    config = instance.configure_instance(mo2, anomaly)
+    text = mo2.organizer_ini.read_text()
+    new_fwd = config.game_path.replace("\\", "/")
+
+    # gamePath ré-écrit et les 2 exécutables Anomaly rebasés vers le vrai dossier.
+    assert instance.is_configured(mo2, anomaly)
+    assert f"3\\binary={new_fwd}/bin/AnomalyDX11.exe" in text
+    assert f"1\\binary={new_fwd}/AnomalyLauncher.exe" in text
+    assert f"1\\workingDirectory={new_fwd}\n" in text
+    # Explorer++ (hors dossier Anomaly) intact.
+    assert "10\\binary=Z:/old/GAMMA/gamma/gamma/explorer++/Explorer++.exe" in text
+    # gameName/profil préservés.
+    assert "gameName=STALKER Anomaly" in text
+    assert instance.read_game_path(mo2) == config.game_path

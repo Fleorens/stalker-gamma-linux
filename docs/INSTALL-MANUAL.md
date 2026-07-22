@@ -278,11 +278,17 @@ Relancer l'entrée Steam (MO2 s'ouvre dans le préfixe équipé) :
    l'instance).
 
 Automatisation **implémentée (T05)** : `mo2/instance.py` écrit ces valeurs
-directement dans `ModOrganizer.ini` (`gamePath` en chemin Windows `Z:\...`,
-`selected_profile=G.A.M.M.A`) par édition chirurgicale, supprimant toute
-interaction. `⚠ À VALIDER` sur machine réelle : casse exacte de `gameName`
-(plugin de jeu Anomaly) et exécutables résolus par le plugin vs custom. La
-commande `stalker-gamma-linux mo2` configure puis ouvre MO2.
+directement dans `ModOrganizer.ini` par édition chirurgicale, supprimant toute
+interaction. Confirmé sur une vraie instance GAMMA : `gameName=STALKER Anomaly`,
+`selected_profile=@ByteArray(G.A.M.M.A)`, `gamePath` en `@ByteArray(Z:\...)`
+(backslashes doublés). Les exécutables (« Anomaly (DX11) »…) sont des
+`[customExecutables]` aux **chemins absolus baked-in** vers l'ancien dossier
+Anomaly (`binary`/`workingDirectory` en slashs avant, `arguments` en
+backslashes doublés) : `configure_instance` les **rebase** vers le dossier réel
+pour que `moshortcut://` vise le bon binaire. La commande
+`stalker-gamma-linux mo2` configure puis ouvre MO2. `mo2/session.resolve_anomaly`
+tolère les deux layouts : `<install>/anomaly` (projet) et `<gamma>/anomaly`
+(GAMMA, Anomaly imbriqué dans l'instance).
 
 **Vérification** : la colonne de gauche de MO2 liste les ~400 mods GAMMA,
 cochés, sans triangle d'avertissement bloquant.

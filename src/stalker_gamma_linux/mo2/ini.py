@@ -118,3 +118,27 @@ def read_bytearray_key(text: str, section: str, key: str) -> str | None:
 def set_bytearray_key(text: str, section: str, key: str, value: str) -> str:
     """Écrit `key=@ByteArray(<value échappée>)` dans `section` (format MO2 des chemins)."""
     return set_key(text, section, key, wrap_bytearray(value))
+
+
+def rebase_windows_path(text: str, old_root: str, new_root: str) -> str:
+    r"""Réécrit un préfixe de chemin Windows partout dans le texte, aux **deux**
+    conventions présentes dans `ModOrganizer.ini` :
+
+    - slashs avant (`Z:/a/b`) — clés `binary`/`workingDirectory` de
+      `[customExecutables]` ;
+    - backslashes doublés (`Z:\\a\\b`) — valeurs `@ByteArray(...)` et
+      `arguments`.
+
+    Le remplacement n'a lieu qu'aux **frontières de segment** (fin de valeur, `/`,
+    `\`, `"`) pour ne pas toucher un dossier voisin (`anomaly` dans `anomaly_old`).
+    `old_root`/`new_root` sont donnés en forme canonique à backslashes simples
+    (comme `to_windows_path`). No-op si `old_root` est vide ou égal à `new_root`.
+    """
+    if not old_root or old_root == new_root:
+        return text
+    old_fwd, new_fwd = old_root.replace("\\", "/"), new_root.replace("\\", "/")
+    old_esc, new_esc = old_root.replace("\\", "\\\\"), new_root.replace("\\", "\\\\")
+    # Lambdas en remplacement : évite l'interprétation des backslashes par re.sub.
+    text = re.sub(re.escape(old_fwd) + r'(?=/|"|$)', lambda _: new_fwd, text, flags=re.MULTILINE)
+    text = re.sub(re.escape(old_esc) + r'(?=\\|"|$)', lambda _: new_esc, text, flags=re.MULTILINE)
+    return text

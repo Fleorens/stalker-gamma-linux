@@ -84,3 +84,63 @@ def test_set_key_preserves_trailing_newline_state() -> None:
 
     assert ini.set_key(with_newline, "General", "a", "2").endswith("\n")
     assert not ini.set_key(without_newline, "General", "a", "2").endswith("\n")
+
+
+# Extrait réel d'une instance GAMMA : les exécutables sont des customExecutables
+# aux chemins absolus, en slashs avant (binary/workingDirectory) et backslashes
+# doublés (arguments).
+_REAL_EXECS = (
+    "[customExecutables]\n"
+    "size=2\n"
+    "3\\binary=Z:/old/GAMMA/gamma/anomaly/bin/AnomalyDX11.exe\n"
+    "3\\title=Anomaly (DX11)\n"
+    "3\\workingDirectory=Z:/old/GAMMA/gamma/anomaly/bin\n"
+    "1\\binary=Z:/old/GAMMA/gamma/anomaly/AnomalyLauncher.exe\n"
+    "1\\workingDirectory=Z:/old/GAMMA/gamma/anomaly\n"
+    "10\\binary=Z:/old/GAMMA/gamma/gamma/explorer++/Explorer++.exe\n"
+    '10\\arguments=\\"Z:\\\\old\\\\GAMMA\\\\gamma\\\\anomaly\\"\n'
+)
+
+
+def test_rebase_rewrites_forward_slash_executable_paths() -> None:
+    result = ini.rebase_windows_path(
+        _REAL_EXECS, r"Z:\old\GAMMA\gamma\anomaly", r"Z:\new\anomaly"
+    )
+
+    assert "3\\binary=Z:/new/anomaly/bin/AnomalyDX11.exe" in result
+    assert "3\\workingDirectory=Z:/new/anomaly/bin" in result
+    assert "1\\binary=Z:/new/anomaly/AnomalyLauncher.exe" in result
+    # Frontière de fin de valeur : le workingDirectory du launcher == la racine.
+    assert "1\\workingDirectory=Z:/new/anomaly\n" in result
+
+
+def test_rebase_rewrites_escaped_backslash_arguments() -> None:
+    result = ini.rebase_windows_path(
+        _REAL_EXECS, r"Z:\old\GAMMA\gamma\anomaly", r"Z:\new\anomaly"
+    )
+
+    assert '10\\arguments=\\"Z:\\\\new\\\\anomaly\\"' in result
+
+
+def test_rebase_leaves_sibling_paths_untouched() -> None:
+    # explorer++ vit sous .../gamma/gamma, PAS sous .../gamma/anomaly : intact.
+    result = ini.rebase_windows_path(
+        _REAL_EXECS, r"Z:\old\GAMMA\gamma\anomaly", r"Z:\new\anomaly"
+    )
+
+    assert "10\\binary=Z:/old/GAMMA/gamma/gamma/explorer++/Explorer++.exe" in result
+
+
+def test_rebase_is_noop_when_roots_equal_or_empty() -> None:
+    assert ini.rebase_windows_path(_REAL_EXECS, r"Z:\a", r"Z:\a") == _REAL_EXECS
+    assert ini.rebase_windows_path(_REAL_EXECS, "", r"Z:\a") == _REAL_EXECS
+
+
+def test_rebase_respects_segment_boundary() -> None:
+    text = "a=Z:/games/anomaly_backup/x\nb=Z:/games/anomaly/x\n"
+
+    result = ini.rebase_windows_path(text, r"Z:\games\anomaly", r"Z:\new")
+
+    # `anomaly` ne doit pas matcher dans `anomaly_backup`.
+    assert "a=Z:/games/anomaly_backup/x" in result
+    assert "b=Z:/new/x" in result

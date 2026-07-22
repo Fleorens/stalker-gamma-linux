@@ -4,12 +4,43 @@ from typing import Any
 import pytest
 
 from stalker_gamma_linux import engine
+from stalker_gamma_linux.engine.paths import InstallPaths
 from stalker_gamma_linux.mo2 import diagnostics, flat, instance, launch, session
 from stalker_gamma_linux.mo2.diagnostics import UsvfsDiagnosis
 from stalker_gamma_linux.mo2.errors import AnomalyNotFoundError
+from stalker_gamma_linux.mo2.paths import Mo2Paths
 from stalker_gamma_linux.prefix import provision
 from stalker_gamma_linux.prefix.errors import PrefixError
 from stalker_gamma_linux.prefix.proton import ProtonBuild
+
+
+def _with_anomaly(directory: Path) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "AnomalyLauncher.exe").write_text("", encoding="utf-8")
+    return directory
+
+
+def test_resolve_anomaly_prefers_sibling_layout(tmp_path: Path) -> None:
+    mo2 = Mo2Paths.under(tmp_path)
+    install = InstallPaths.under(tmp_path)
+    _with_anomaly(install.anomaly)
+
+    assert session.resolve_anomaly(mo2, install) == install.anomaly
+
+
+def test_resolve_anomaly_falls_back_to_nested_gamma_layout(tmp_path: Path) -> None:
+    mo2 = Mo2Paths.under(tmp_path)
+    install = InstallPaths.under(tmp_path)
+    nested = _with_anomaly(mo2.instance / "anomaly")  # <gamma>/anomaly
+
+    assert session.resolve_anomaly(mo2, install) == nested
+
+
+def test_resolve_anomaly_defaults_to_sibling_when_neither_exists(tmp_path: Path) -> None:
+    mo2 = Mo2Paths.under(tmp_path)
+    install = InstallPaths.under(tmp_path)
+
+    assert session.resolve_anomaly(mo2, install) == install.anomaly
 
 
 @pytest.fixture
