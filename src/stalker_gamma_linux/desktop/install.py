@@ -8,7 +8,7 @@ qu'aurait exigée un `shortcuts.vdf`.
 
 from __future__ import annotations
 
-import sys
+import sys as sys
 from importlib import resources
 from pathlib import Path
 

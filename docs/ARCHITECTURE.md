@@ -220,6 +220,66 @@ mods). Découpage :
 `session.py` orchestre les commandes `mo2` et `play` : préfixe prêt (T04) →
 instance configurée → lancement → diagnostic.
 
+## CLI orchestrateur (T07)
+
+### Framework : `argparse`, pas `click`/`typer`
+
+Les tâches T04-T06 avaient déjà posé, commande après commande, une CLI
+`argparse` complète (sous-commandes, `--help` par commande, dispatch testé —
+182 tests avant même T07). La retravailler en `click`/`typer` maintenant
+aurait été une réécriture pure (parser + ~180 tests de dispatch) sans gain
+fonctionnel : `argparse` couvre déjà tous les critères d'acceptation
+(sous-commandes, aide claire, codes de retour). On la garde donc, et
+`rich`/`logging` (ajoutés en T07) fournissent la progression lisible et les
+logs indépendamment du parser choisi.
+
+### `install` : pipeline résumable
+
+`orchestrator.run_install` enchaîne désormais **six** étapes (`anomaly`,
+`gamma`, `reshade`, `prefix`, `mo2`, `shortcut` — cette dernière seulement si
+`--shortcut`) sur l'installation `--target` : la vérification des prérequis
+(`environment.report`) n'est qu'un avertissement non bloquant en tête, les
+autres délèguent au moteur (T03), au préfixe (T04) et à l'instance MO2 (T05).
+
+Chaque étape est déjà idempotente **côté module** (voir plus haut) ; `state.py`
+ajoute par-dessus un raccourci de reprise : un TOML sous
+`~/.config/stalker-gamma-linux/install-state.toml`, keyé par chemin cible
+absolu, marque chaque étape validée. Une relance après Ctrl-C saute les étapes
+déjà faites au lieu de les rejouer (en particulier `full-install`, dont la
+re-vérification MD5 sur ~90 Go n'est pas gratuite). Ce n'est **pas** la source
+de vérité de santé de l'installation — si une étape est cassée manuellement
+après coup, c'est `update`/`prefix-doctor --repair` qui corrige, pas une
+invalidation automatique de cet état.
+
+`run_update` (aussi dans `orchestrator.py`) est plus simple et non résumable
+par design (le prompt ne le demande pas) : `update_gamma` → retrait de
+ReShade/purge shaders → `verify` (check-anomaly + check-md5), à chaque appel.
+
+### `doctor` : composition, pas fusion
+
+La commande `doctor` (`doctor.py`, racine du paquet — distinct de
+`environment.report` et de `prefix.doctor`) affiche les trois rapports
+existants côte à côte (environnement, préfixe, état d'installation) sans les
+fusionner. Le code de retour ne reflète que les prérequis système : le
+préfixe/l'installation peuvent être légitimement incomplets sur une machine
+neuve avant `install`, ce n'est pas un échec de `doctor` — `prefix-doctor`
+reste l'outil de vérité pour la santé du préfixe.
+
+### Sortie et logs
+
+`output.py` centralise la sortie des commandes orchestrées (`install`,
+`update`, `doctor`) via `rich.console.Console` (couleurs, formatage), et double
+chaque message vers le logger applicatif (`logging_setup.py`). Ce dernier
+configure un `RotatingFileHandler` toujours actif (DEBUG) sous
+`~/.local/state/stalker-gamma-linux/`, et un handler console dont le niveau
+suit le flag global `--verbose` (avant la sous-commande :
+`stalker-gamma-linux --verbose install`). Les modules bas niveau (`engine/`,
+`prefix/`, `mo2/`) gardent leurs `print()`/`on_progress` existants — non
+retouchés, déjà lisibles et déjà testés ; seule la couche orchestrateur ajoute
+`rich`. `cli.main()` attrape toute exception inattendue à la racine, la loggue
+avec sa trace complète, et affiche un message actionnable (chemin du journal,
+suggestion `--verbose`) plutôt qu'un traceback brut.
+
 ## Références
 
 - Moteur : https://github.com/Mord3rca/gamma-launcher

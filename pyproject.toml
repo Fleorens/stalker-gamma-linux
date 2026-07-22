@@ -11,6 +11,8 @@ license = { file = "LICENSE" }
 requires-python = ">=3.11"
 dependencies = [
     "gamma-launcher @ git+https://github.com/Mord3rca/gamma-launcher.git@v3.1",
+    "rich>=13.0",
+    "tomli-w>=1.0",
 ]
 
 [project.urls]

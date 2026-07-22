@@ -10,19 +10,55 @@ def test_build_parser_install_default_target() -> None:
 
     assert args.command == "install"
     assert args.target is None
+    assert args.shortcut is False
+
+
+def test_build_parser_install_shortcut_flag() -> None:
+    args = cli.build_parser().parse_args(["install", "--shortcut"])
+
+    assert args.shortcut is True
 
 
 def test_main_dispatches_to_install(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[Path | None] = []
+    calls: list[tuple[Path | None, bool]] = []
 
-    def fake_run_install(target: Path | None) -> int:
-        calls.append(target)
+    def fake_run_install(target: Path | None, *, shortcut: bool) -> int:
+        calls.append((target, shortcut))
         return 0
 
     monkeypatch.setattr(cli, "run_install", fake_run_install)
 
-    assert cli.main(["install", "--target", "/mnt/disk/GAMMA"]) == 0
+    assert cli.main(["install", "--target", "/mnt/disk/GAMMA", "--shortcut"]) == 0
+    assert calls == [(Path("/mnt/disk/GAMMA"), True)]
+
+
+def test_build_parser_update_default_target() -> None:
+    args = cli.build_parser().parse_args(["update"])
+
+    assert args.command == "update"
+    assert args.target is None
+
+
+def test_main_dispatches_to_update(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[Path | None] = []
+
+    def fake_run_update(target: Path | None) -> int:
+        calls.append(target)
+        return 0
+
+    monkeypatch.setattr(cli, "run_update", fake_run_update)
+
+    assert cli.main(["update", "--target", "/mnt/disk/GAMMA"]) == 0
     assert calls == [Path("/mnt/disk/GAMMA")]
+
+
+def test_build_parser_accepts_global_verbose_before_subcommand() -> None:
+    args = cli.build_parser().parse_args(["--verbose", "doctor"])
+
+    assert args.verbose is True
+
+    default_args = cli.build_parser().parse_args(["doctor"])
+    assert default_args.verbose is False
 
 
 def test_build_parser_doctor_default_target() -> None:
@@ -180,3 +216,19 @@ def test_main_shortcut_returns_run_shortcut_code(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(cli, "run_shortcut", lambda target: 1)
 
     assert cli.main(["shortcut"]) == 1
+
+
+def test_main_reports_unexpected_exception_instead_of_crashing(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def boom(target: Path | None) -> int:
+        raise RuntimeError("kaboom")
+
+    monkeypatch.setattr(cli, "run_doctor", boom)
+
+    exit_code = cli.main(["doctor"])
+
+    assert exit_code == 1
+    out = capsys.readouterr().out
+    assert "Erreur" in out
+    assert "journal" in out.lower()

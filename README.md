@@ -27,8 +27,43 @@ everything Linux-specific. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Status
 
-🚧 Early stage — see [docs/ROADMAP.md](docs/ROADMAP.md) and [tasks/](tasks/) for
-the work breakdown.
+🚧 Phase 1 (MVP) implemented and validated on a real machine — see
+[docs/ROADMAP.md](docs/ROADMAP.md) and [tasks/](tasks/) for the work
+breakdown.
+
+## Usage
+
+### Install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Fleorens/stalker-gamma-linux/main/install.sh | bash
+```
+
+This bootstraps a venv under `~/.local/share/stalker-gamma-linux/` (no
+`sudo`), installs the package, links `~/.local/bin/stalker-gamma-linux`, and
+runs `install`. Already have a checkout? `./install.sh` does the same without
+cloning. Either form forwards extra arguments to `install`, e.g.
+`./install.sh --target /mnt/games --shortcut`.
+
+Once installed (or with the venv activated), the CLI is `stalker-gamma-linux`:
+
+```sh
+stalker-gamma-linux doctor                       # system prerequisites + prefix + install state
+stalker-gamma-linux install                      # anomaly → GAMMA → prefix → MO2 → (default target: ~/Games/stalker-gamma)
+stalker-gamma-linux install --target /mnt/disk --shortcut   # custom disk, + desktop entry
+stalker-gamma-linux play                         # launch Anomaly through MO2 (USVFS, mods active)
+stalker-gamma-linux mo2                          # open Mod Organizer 2 itself (enable/disable mods)
+stalker-gamma-linux update                       # update the modpack, re-verify, remove ReShade again if needed
+stalker-gamma-linux shortcut                     # (re)create the .desktop menu entry
+stalker-gamma-linux prefix-doctor --repair        # repair the shared Proton prefix in place
+```
+
+Every command has `--help`. `install` is resumable: interrupt it (Ctrl-C) and
+rerun the same command — steps already completed (tracked in
+`~/.config/stalker-gamma-linux/install-state.toml`) are skipped. Pass
+`--verbose` (before the subcommand, e.g. `stalker-gamma-linux --verbose play`)
+for debug output on the console; a full rotating log is always kept under
+`~/.local/state/stalker-gamma-linux/`.
 
 ## Legal
 

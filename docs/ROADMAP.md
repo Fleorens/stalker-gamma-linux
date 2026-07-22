@@ -15,10 +15,14 @@ Découpage en tâches exécutables : voir [../tasks/](../tasks/).
   `moshortcut://` (USVFS, 577 mods servis), diagnostic USVFS, fallback flat
   explicite, matrice de compatibilité (`docs/MO2-PROTON-COMPAT.md`).
   Commandes `mo2` et `play`.
-- **T07** CLI orchestrateur : `install` ✅ (anomaly + GAMMA + retrait ReShade,
-  sous `--target`), `play`/`mo2` ✅ (T05) ; reste `update`.
+- **T07** ✅ CLI orchestrateur complète : `install` (pipeline résumable —
+  anomaly → GAMMA → retrait ReShade → préfixe → instance MO2 → raccourci
+  optionnel), `update` (modpack + re-vérification MD5), `doctor` (environnement
+  + préfixe + état d'installation), `play`/`mo2` (T05), `shortcut` (T06),
+  `--verbose` + logs tournants + sortie `rich`, `install.sh` curl-able.
 
-Livrable : `stalker-gamma-linux install` → GAMMA jouable via MO2 sous Proton.
+Livrable MVP atteint : `stalker-gamma-linux install` → GAMMA jouable via MO2
+sous Proton, reprise après interruption, mise à jour incrémentale.
 
 ## Phase 2 — Intégration bureau
 - **T06** Raccourci bureau : entrée `.desktop` + icône (ajout à Steam en

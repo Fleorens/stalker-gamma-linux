@@ -6,7 +6,7 @@ from pathlib import Path
 
 from stalker_gamma_linux.desktop.errors import DesktopError
 from stalker_gamma_linux.desktop.install import install_shortcut, launch_command
-from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
+from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET as DEFAULT_INSTALL_TARGET
 
 
 def run_shortcut(target: Path | None = None) -> int:
