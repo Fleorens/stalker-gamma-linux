@@ -13,7 +13,11 @@ from stalker_gamma_linux.prefix.doctor import (
     format_prefix_report,
     run_prefix_doctor,
 )
-from stalker_gamma_linux.prefix.download import RECOMMENDED_GE_RELEASE, download_proton_ge
+from stalker_gamma_linux.prefix.download import (
+    FALLBACK_GE_RELEASE,
+    download_proton_ge,
+    resolve_latest_ge_release,
+)
 from stalker_gamma_linux.prefix.errors import (
     ChecksumMismatchError,
     PrefixCommandError,
@@ -25,6 +29,7 @@ from stalker_gamma_linux.prefix.errors import (
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 from stalker_gamma_linux.prefix.process import UMU_GAME_ID, run_in_prefix
 from stalker_gamma_linux.prefix.proton import (
+    PROTON_EXPERIMENTAL,
     ProtonBuild,
     ensure_proton,
     find_proton_builds,
@@ -39,7 +44,8 @@ from stalker_gamma_linux.prefix.verbs import (
 )
 
 __all__ = [
-    "RECOMMENDED_GE_RELEASE",
+    "FALLBACK_GE_RELEASE",
+    "PROTON_EXPERIMENTAL",
     "REQUIRED_VERBS",
     "UMU_GAME_ID",
     "ChecksumMismatchError",
@@ -62,6 +68,7 @@ __all__ = [
     "installed_verbs",
     "is_initialized",
     "missing_verbs",
+    "resolve_latest_ge_release",
     "run_in_prefix",
     "run_prefix_doctor",
     "select_proton_build",

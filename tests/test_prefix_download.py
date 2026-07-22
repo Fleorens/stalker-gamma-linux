@@ -10,13 +10,13 @@ from stalker_gamma_linux.prefix.errors import ChecksumMismatchError, ProtonDownl
 RELEASE = "GE-Proton10-34"
 
 
-def _make_release_archive(tmp_path: Path) -> tuple[bytes, str]:
-    source = tmp_path / "upstream" / RELEASE
+def _make_release_archive(tmp_path: Path, release: str = RELEASE) -> tuple[bytes, str]:
+    source = tmp_path / "upstream" / release
     source.mkdir(parents=True)
     (source / "proton").write_text("#!/bin/sh\n")
-    archive = tmp_path / "upstream" / f"{RELEASE}.tar.gz"
+    archive = tmp_path / "upstream" / f"{release}.tar.gz"
     with tarfile.open(archive, "w:gz") as tar:
-        tar.add(source, arcname=RELEASE)
+        tar.add(source, arcname=release)
     data = archive.read_bytes()
     return data, hashlib.sha512(data).hexdigest()
 
@@ -120,6 +120,52 @@ def test_download_wraps_network_errors(tmp_path: Path, monkeypatch: pytest.Monke
         download.download_proton_ge(RELEASE, tmp_path / "compatibilitytools.d")
 
     assert "réseau injoignable" in str(excinfo.value)
+
+
+def test_resolve_latest_ge_release_parses_github_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        download, "_read_remote_text", lambda url: '{"tag_name": "GE-Proton12-3"}'
+    )
+
+    assert download.resolve_latest_ge_release() == "GE-Proton12-3"
+
+
+def test_resolve_latest_ge_release_falls_back_on_api_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_fetch(url: str) -> str:
+        raise OSError("rate limit")
+
+    monkeypatch.setattr(download, "_read_remote_text", fail_fetch)
+    seen: list[str] = []
+
+    release = download.resolve_latest_ge_release(on_progress=seen.append)
+
+    assert release == download.FALLBACK_GE_RELEASE
+    assert any("repli" in line for line in seen)
+
+
+def test_resolve_latest_ge_release_falls_back_on_unexpected_tag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(download, "_read_remote_text", lambda url: '{"tag_name": "v1.0"}')
+
+    assert download.resolve_latest_ge_release() == download.FALLBACK_GE_RELEASE
+
+
+def test_download_defaults_to_latest_release(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    latest = "GE-Proton12-3"
+    monkeypatch.setattr(download, "resolve_latest_ge_release", lambda **kwargs: latest)
+    data, digest = _make_release_archive(tmp_path, latest)
+    _patch_remote(monkeypatch, data, f"{digest}  {latest}.tar.gz\n")
+    install_dir = tmp_path / "compatibilitytools.d"
+
+    result = download.download_proton_ge(install_dir=install_dir)
+
+    assert result == install_dir / latest
+    assert (result / "proton").is_file()
 
 
 def test_download_rejects_archive_without_proton_executable(

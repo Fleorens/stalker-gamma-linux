@@ -159,13 +159,18 @@ Le module `prefix/` crée et entretient le préfixe **unique et partagé**
    protontricks, qui délègue à winetricks). On n'applique que les verbs
    absents, **un à la fois** : échec attribuable, et chaque verb réussi est
    acté — une relance ne rejoue que le reste.
-5. **Proton-GE** : détection dans les `compatibilitytools.d` connus (Steam
-   natif, `~/.steam`, Flatpak — umu y installe aussi les siens) ; sinon
-   téléchargement de la release épinglée `GE-Proton10-34` (dernière lignée 10
-   au 2026-07-19, alignée « Proton 9/10 » du manuel ; lignée 11 et matrice
-   MO2/GE ⚠ À VALIDER → T05) avec vérification SHA-512 contre le
-   `.sha512sum` publié, extraction en répertoire temporaire puis rename —
-   aucun résidu en cas d'échec.
+5. **Version de Proton** (décision utilisateur, 2026-07-19) : la **dernière
+   release GE-Proton** par défaut. Ordre de préférence : GE le plus récent
+   déjà installé (détection dans les `compatibilitytools.d` connus — Steam
+   natif, `~/.steam`, Flatpak ; umu y installe aussi les siens) → **Proton
+   Experimental** de Steam (`steamapps/common/Proton - Experimental`) →
+   autre build présent → téléchargement de la dernière release GE publiée
+   (résolue via l'API GitHub, repli épinglé `GE-Proton11-1` si l'API est
+   rate-limitée) avec vérification SHA-512 contre le `.sha512sum` publié,
+   extraction en répertoire temporaire puis rename — aucun résidu en cas
+   d'échec. La recommandation « Proton 9/10 vanilla » des guides est
+   remplacée par cette décision ; si la matrice MO2/GE (T05) révèle un
+   souci, elle l'arbitrera.
 6. **Toute commande externe** passe par `run_in_prefix()` : sortie capturée
    dans `<install>/logs/*.log`, code non nul ⇒ `PrefixCommandError` avec le
    chemin du journal et les dernières lignes. Décodage en

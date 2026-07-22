@@ -10,7 +10,6 @@ from stalker_gamma_linux.environment import system
 from stalker_gamma_linux.environment.models import Requirement, Status
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
 from stalker_gamma_linux.prefix import proton, provision, verbs
-from stalker_gamma_linux.prefix.download import RECOMMENDED_GE_RELEASE
 from stalker_gamma_linux.prefix.errors import PrefixError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 
@@ -58,8 +57,13 @@ def _check_proton(build: proton.ProtonBuild | None) -> Requirement:
     return Requirement(
         name="Proton",
         status=Status.MISSING,
-        detail="aucun build Proton dans les compatibilitytools.d connus",
-        install_hint=f"`{_REPAIR_HINT}` télécharge {RECOMMENDED_GE_RELEASE} (checksum vérifié)",
+        detail=(
+            "aucun build Proton (ni GE dans compatibilitytools.d, "
+            "ni Proton Experimental de Steam)"
+        ),
+        install_hint=(
+            f"`{_REPAIR_HINT}` télécharge la dernière release GE-Proton (checksum vérifié)"
+        ),
     )
 
 

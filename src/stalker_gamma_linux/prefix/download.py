@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import re
 import shutil
 import tarfile
 import tempfile
@@ -14,12 +16,17 @@ from stalker_gamma_linux.prefix.errors import ChecksumMismatchError, ProtonDownl
 
 ProgressCallback = Callable[[str], None]
 
-# Dernière release de la lignée GE-Proton10 au 2026-07-19. On reste sur la
-# lignée 10, alignée avec la recommandation « Proton 9/10 » du manuel — la
-# lignée 11 et la matrice de compatibilité MO2/GE sont ⚠ À VALIDER en T05.
-RECOMMENDED_GE_RELEASE = "GE-Proton10-34"
+# Décision utilisateur (2026-07-19) : on installe la *dernière* release GE,
+# résolue via l'API GitHub. Ce repli épinglé (dernière release connue au
+# 2026-07-19) ne sert que si l'API est injoignable — typiquement rate limit,
+# qui ne touche pas les téléchargements directs.
+FALLBACK_GE_RELEASE = "GE-Proton11-1"
 
 _RELEASE_BASE_URL = "https://github.com/GloriousEggroll/proton-ge-custom/releases/download"
+_LATEST_RELEASE_API_URL = (
+    "https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest"
+)
+_GE_TAG_RE = re.compile(r"^GE-Proton\d+-\d+$")
 _FETCH_TIMEOUT_SECONDS = 30
 _HASH_CHUNK_BYTES = 1024 * 1024
 _SHA512_HEX_LENGTH = 128
@@ -59,20 +66,42 @@ def _remote_checksum(release: str) -> str:
     return tokens[0]
 
 
+def resolve_latest_ge_release(*, on_progress: ProgressCallback | None = None) -> str:
+    """Tag de la dernière release GE-Proton publiée, via l'API GitHub.
+
+    Repli sur `FALLBACK_GE_RELEASE` si l'API est injoignable ou renvoie un tag
+    inattendu : l'API est rate-limitée (60 req/h sans authentification), pas
+    les téléchargements de release.
+    """
+    progress = on_progress or (lambda _line: None)
+    try:
+        payload = json.loads(_read_remote_text(_LATEST_RELEASE_API_URL))
+        tag = str(payload.get("tag_name", "")) if isinstance(payload, dict) else ""
+    except (OSError, ValueError):
+        tag = ""
+    if not _GE_TAG_RE.match(tag):
+        progress(f"API GitHub injoignable — repli sur {FALLBACK_GE_RELEASE}")
+        return FALLBACK_GE_RELEASE
+    return tag
+
+
 def download_proton_ge(
-    release: str = RECOMMENDED_GE_RELEASE,
+    release: str | None = None,
     install_dir: Path | None = None,
     *,
     on_progress: ProgressCallback | None = None,
 ) -> Path:
-    """Télécharge et installe `release` dans `install_dir`, checksum SHA-512 vérifié.
+    """Télécharge et installe une release GE dans `install_dir`, SHA-512 vérifié.
 
-    Idempotent : si la release est déjà présente et complète, ne télécharge rien.
-    Retourne le répertoire du build installé. Lève `ChecksumMismatchError` si
-    l'archive ne correspond pas au checksum publié, `ProtonDownloadError` pour
-    toute autre erreur réseau/archive.
+    `release` à None (défaut) = dernière release publiée (décision utilisateur),
+    résolue via `resolve_latest_ge_release`. Idempotent : si la release est déjà
+    présente et complète, ne télécharge rien. Retourne le répertoire du build
+    installé. Lève `ChecksumMismatchError` si l'archive ne correspond pas au
+    checksum publié, `ProtonDownloadError` pour toute autre erreur réseau/archive.
     """
     progress = on_progress or (lambda _line: None)
+    if release is None:
+        release = resolve_latest_ge_release(on_progress=on_progress)
     resolved_dir = install_dir if install_dir is not None else _default_install_dir()
     target = resolved_dir / release
     if (target / "proton").exists():

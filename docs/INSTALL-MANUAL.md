@@ -39,9 +39,10 @@ Points clés validés par les sources :
 Décisions pour l'automatisation : partir du **surensemble des verbs**
 (`d3dcompiler_43 d3dcompiler_47 d3dx9 d3dx10 d3dx11_43 dx8vb quartz
 vcrun2022`) puis élaguer par tests (`⚠ À VALIDER` : dx8vb/quartz
-réellement nécessaires ?). Proton vanilla 9/10 par défaut — plusieurs
-retours signalent des soucis MO2 avec certaines versions GE
-(`⚠ À VALIDER` : matrice précise → tâche T05).
+réellement nécessaires ?). Proton : décision utilisateur (2026-07-19) —
+**dernière release GE-Proton par défaut** (ou Proton Experimental de Steam
+s'il est présent et qu'aucun GE ne l'est) ; les retours signalant des
+soucis MO2 avec certaines versions GE seront arbitrés par la matrice T05.
 
 ---
 
