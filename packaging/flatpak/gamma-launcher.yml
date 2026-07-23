@@ -1,0 +1,16 @@
+# The install/update engine (Mord3rca/gamma-launcher, GPL-3.0). Wrapped as a
+# subprocess by src/stalker_gamma_linux/engine/ (see docs/ARCHITECTURE.md,
+# "Intégration du moteur gamma-launcher") — never imported as a library, so
+# it only needs to land in site-packages with its own console script.
+# Its dependencies (beautifulsoup4, cloudscraper, GitPython, platformdirs,
+# py7zr, requests, tenacity, tqdm, unrar) come from python3-requirements.json,
+# built before this module.
+name: gamma-launcher
+buildsystem: simple
+sources:
+  - type: git
+    url: https://github.com/Mord3rca/gamma-launcher.git
+    tag: v3.1
+    commit: ade656e029a8547d8853ce1ba54f9b7f0acb9100
+build-commands:
+  - pip3 install --no-build-isolation --no-index --no-deps --prefix=/app .

@@ -38,8 +38,9 @@ sous Proton, reprise après interruption, mise à jour incrémentale.
   déjà en place. Entrée `stalker-gamma-linux-gui` + `.desktop` + icône.
 
 ## Phase 3 — Distribution
-- **T09** Packaging : Flatpak, AppImage, AUR — toutes distributions, Steam
-  Deck inclus.
+- **T09** ✅ Packaging : Flatpak (canal principal, GUI + CLI, sandboxé,
+  Steam Deck inclus) et AppImage (CLI portable). AUR retiré du périmètre
+  (décision Florian, 2026-07-23) — voir `docs/PACKAGING.md`.
 - **T10** CI : test d'installation conteneurisé à chaque release amont de GAMMA,
   lint, release automatisée.
 

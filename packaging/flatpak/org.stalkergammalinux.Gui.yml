@@ -1,0 +1,60 @@
+app-id: org.stalkergammalinux.Gui
+runtime: org.gnome.Platform
+runtime-version: "49"
+sdk: org.gnome.Sdk
+command: stalker-gamma-linux-gui
+
+# --- Permissions (each one earns its place — see docs/PACKAGING.md for the
+#     full rationale table). Nothing here is "just in case". ---
+finish-args:
+  # Anomaly + GAMMA modpack + Proton-GE downloads (multi-GB, from ModDB/GitHub).
+  - --share=network
+  # Wine/X11 shared memory (MO2 + the game itself need this regardless of
+  # which windowing protocol is active).
+  - --share=ipc
+  # GTK4 UI natively on Wayland; the game and MO2 (Win32 GUI apps under
+  # Proton) still need real X11/Xwayland — fallback-x11 covers both without
+  # forcing X11 when Wayland is available.
+  - --socket=wayland
+  - --socket=fallback-x11
+  # Audio for the game (Wine → PulseAudio/PipeWire-pulse compat socket).
+  - --socket=pulseaudio
+  # GPU acceleration: DXVK/VKD3D for the game, GPU-accelerated GTK4 rendering
+  # for the UI. Requires the org.freedesktop.Platform.GL extension.
+  - --device=dri
+  # Raw controller/gamepad input (Steam Deck built-ins, third-party pads).
+  # No portal exists for joystick access, so this is the only way in — same
+  # choice made by comparable Wine-launcher Flatpaks (e.g. Bottles, Lutris).
+  - --device=all
+  # THE broad one: the install target is user-chosen and can be any mount
+  # (Florian's own real install lives on a second drive, /mnt/games_samsung/
+  # …, sibling to no XDG location). Everything downstream — gamma-launcher,
+  # umu-run/Proton, MO2.exe under Wine — is a real subprocess chain that
+  # needs genuine POSIX read/write on that path, not a document-portal file
+  # descriptor (portals hand out one opened fd per user-picked *file*, not
+  # ambient access to a directory tree that a dozen unrelated subprocesses
+  # will read and write to for hours). There is no narrower Flatpak
+  # permission that covers "an arbitrary, possibly-external-drive directory,
+  # read-write, for the whole session" — --filesystem=host is the honest
+  # answer, not a shortcut.
+  - --filesystem=host
+  # SteamOS-like scenario (task acceptance criterion): let `doctor`/prefix
+  # provisioning see an existing Steam install (native or Flatpak) — already
+  # covered by --filesystem=host above, listed here only as documentation of
+  # intent, not an extra grant.
+  #
+  # PyGObject resolves the GNOME runtime's GTK4/libadwaita bindings fine (they
+  # live in /usr, shared with every app on this runtime); our own code and its
+  # pip-installed dependencies land in /app/lib/python3.13/site-packages,
+  # which is *not* on sys.path by default (sys.prefix is /usr, since
+  # /usr/bin/python3 is what actually runs) — this is the standard fix for
+  # Python-on-Flatpak, same one Bottles uses for the same reason. Must be a
+  # runtime --env (not build-options.env, which only affects build-commands).
+  - --env=PYTHONPATH=/app/lib/python3.13/site-packages
+
+modules:
+  - p7zip.yml
+  - python3-requirements.json
+  - umu-launcher.yml
+  - gamma-launcher.yml
+  - stalker-gamma-linux.yml

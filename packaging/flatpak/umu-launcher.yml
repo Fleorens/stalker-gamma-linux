@@ -1,0 +1,21 @@
+# umu-launcher, bundled as the official self-contained "zipapp" release.
+#
+# Why bundle rather than require the host's umu-run: same sandboxing problem
+# as p7zip (PATH lookups don't cross into the host), but also a real gap on
+# the host side — umu-launcher has no PyPI package (`pipx install
+# umu-launcher` in environment/commands.py is aspirational; it 404s), and its
+# distro packages are Arch/Fedora/Debian-specific. Bundling the zipapp is
+# exactly how Florian runs it today on his own machine (GE-Proton11-1,
+# validated T04/T05): a single self-contained `umu-run` script with its
+# dependencies (urllib3, truststore, python-xlib) frozen inside, needing only
+# a Python interpreter — which the runtime already provides. This also means
+# the Flatpak never depends on host umu availability at all.
+name: umu-launcher
+buildsystem: simple
+sources:
+  - type: archive
+    url: https://github.com/Open-Wine-Components/umu-launcher/releases/download/1.4.1/umu-launcher-1.4.1-zipapp.tar
+    sha256: 97b6ff2981912a6b9cd223ec4fb5c4e0a819e5c166811e0f82ae60fad0801c21
+build-commands:
+  - install -Dm755 umu-run /app/bin/umu-run
+  - ln -sf umu-run /app/bin/umu_run.py

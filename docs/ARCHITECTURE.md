@@ -15,7 +15,7 @@ Trois couches. On ne réécrit que ce qui est spécifique à Linux.
 │    verbs winetricks)                        │
 │  - MO2 sous Proton (mode principal)         │
 │  - Raccourci bureau (.desktop + icône)      │
-│  - Packaging (Flatpak/AppImage/AUR)         │
+│  - Packaging (Flatpak, AppImage)            │
 ├─────────────────────────────────────────────┤
 │  Moteur : Mord3rca/gamma-launcher (GPL-3.0) │
 │  - Résolution miroirs ModDB, téléchargement │
@@ -397,7 +397,7 @@ reverse-DNS (décision explicite de `desktop/paths.py`, pour rester
 indépendant d'un compte GitHub précis). Même logique reconduite ici :
 `org.stalkergammalinux.Gui` plutôt que `io.github.<compte>...`. Fichier
 statique `data/stalker-gamma-linux-gui.desktop` (+ `data/icons/`) pour le
-menu applications — packagé par T09 (Flatpak/AppImage/AUR installent chacun
+menu applications — packagé par T09 (Flatpak/AppImage installent chacun
 ce genre de fichier différemment) ; il n'est **pas** auto-installé par
 `pip install`, à la différence du raccourci dynamique de T06
 (`stalker-gamma-linux shortcut`, qui pointe vers `play`, pas vers la GUI).
@@ -415,6 +415,81 @@ de ce groupe (`gui` en extra séparé) — `stalker-gamma-linux-gui`
 (`gui/launch.py`) vérifie GTK4/libadwaita avant tout `import gi` et affiche
 un message actionnable (par distribution) si absent, au lieu d'un
 `ModuleNotFoundError` brut.
+
+## Packaging (T09)
+
+### Deux canaux, pas trois : AUR retiré du périmètre
+
+Le prompt T09 demandait Flatpak/AppImage/AUR. Décision Florian (2026-07-23,
+« AUR je m'en tape ») : retiré. Les deux canaux restants se répartissent le
+travail par ce que chacun fait bien : le **Flatpak** (canal principal) porte
+la GUI (bac à sable, GTK4/libadwaita fournis par le runtime GNOME) ; l'
+**AppImage** porte un **CLI portable** (voir plus bas pourquoi pas la GUI).
+Détails complets, permissions ligne par ligne, et ce qui est délibérément
+non embarqué (libunrar) : `docs/PACKAGING.md`.
+
+### Flatpak : bac à sable et dépendances externes non visibles
+
+Le sandbox ne voit ni le `umu-run` ni le `7z` de l'hôte (recherche PATH
+strictement interne à `/app:/usr`, `--filesystem=host` ne donne qu'une
+visibilité fichier, pas d'exécution). Sans rien de plus, `gamma-launcher`
+échouerait à extraire les archives et `prefix/process.py` ne trouverait
+jamais umu, même sur un hôte qui les a tous les deux. D'où deux modules
+supplémentaires embarqués :
+
+- **p7zip** (module `p7zip.yml`), compilé depuis les sources
+  (`p7zip-project/p7zip` v17.05, LGPL/domaine public) — fournit `7z` dans
+  `/app/bin`.
+- **umu-launcher** (module `umu-launcher.yml`), la release « zipapp »
+  officielle (script Python autonome, dépendances gelées dedans) — même
+  mécanisme que celui que Florian utilise déjà manuellement sur sa propre
+  machine (voir historique T04), mais embarqué une fois pour toutes au lieu
+  d'être une étape manuelle par utilisateur.
+
+Les dépendances Python (les nôtres + celles de `gamma-launcher`) viennent
+d'un module généré par `flatpak-pip-generator` (`python3-requirements.json`)
+plutôt qu'écrites à la main : c'est la seule façon réaliste de figer une
+douzaine de paquets (dont plusieurs extensions C : `py7zr` en tire sept)
+avec les bons sha256 et sans jamais toucher le réseau pendant le build
+flatpak-builder proprement dit.
+
+Deuxième piège Python-sur-Flatpak, indépendant du premier : `sys.prefix` de
+l'interpréteur du runtime est `/usr` (c'est là que vit `/usr/bin/python3`),
+donc `/app/lib/python3.13/site-packages` n'est pas sur `sys.path` par
+défaut alors que c'est là que `pip install --prefix=/app` installe tout —
+fixé par `--env=PYTHONPATH=/app/lib/python3.13/site-packages` dans
+`finish-args` (même fix que Bottles, pour la même raison).
+
+### AppImage : CLI seul, pas la GUI
+
+Embarquer GTK4/libadwaita proprement dans une AppImage est un projet à part
+(`linuxdeploy` + son plugin GTK, typelibs, thèmes d'icônes...), d'une échelle
+différente de « empaqueter un CLI Python ». Plutôt que de le faire à moitié,
+le périmètre est scindé : le Flatpak porte la GUI (GTK fourni par le
+runtime), l'AppImage porte un CLI totalement portable (aucune dépendance
+GTK). Mêmes modules `p7zip`/`umu-run` embarqués que le Flatpak, mêmes
+raisons — sauf que l'AppImage n'est *pas* dans un bac à sable (elle hérite du
+`$PATH` normal de l'hôte), donc c'est ici une question de disponibilité
+réelle sur la machine cible plutôt que d'isolation.
+
+Trois pièges rencontrés côté outillage amont (`python-appimage`), documentés
+en commentaire à l'endroit exact où ils mordent (`requirements.txt.in`,
+`stalker-gamma-linux.desktop`, `entrypoint.sh`) :
+
+1. Son étape d'installation des dépendances passe par un `shell=True` non
+   quoté (`utils/system.py` : `' '.join(args)`) — un requirement PEP 508
+   `nom @ url` (espaces autour du `@`) est coupé en plusieurs tokens et
+   casse pip. Contournement : la forme `git+url` seule, sans espace.
+2. Même défaut de quoting pour l'étape finale d'empaquetage : le nom de
+   fichier `.AppImage` de sortie vient du `Name=` du `.desktop`, donc un nom
+   « d'affichage » avec espaces/parenthèses casse l'appel à `appimagetool`.
+   Contournement : `Name=` reste un identifiant simple.
+3. `stalker_gamma_linux.cli` n'a pas de garde
+   `if __name__ == "__main__"` (volontaire : le point d'entrée prévu est le
+   script `console_scripts` généré par pip, pas `-m`) — `entrypoint.sh`
+   appelle donc directement ce script généré plutôt que
+   `-m stalker_gamma_linux.cli`, qui importerait le module sans jamais
+   appeler `main()` et sortirait en silence avec le code 0.
 
 ## Références
 

@@ -15,7 +15,8 @@ This project is the **Linux integration layer** that makes GAMMA a one-command
   mod flexibility (enable/disable/add mods), exactly like on Windows
 - Incremental updates that follow upstream GAMMA releases
 - Works on any Linux distribution — desktop (Fedora, Arch, Debian/Ubuntu, …) as well as Steam Deck
-- GUI on top (GTK4/libadwaita), Flatpak/AppImage/AUR packaging
+- GUI on top (GTK4/libadwaita); packaged as a Flatpak (primary, GUI + CLI)
+  and an AppImage (portable CLI) — see [docs/PACKAGING.md](docs/PACKAGING.md)
 
 ## How it works
 
@@ -28,13 +29,28 @@ everything Linux-specific. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Status
 
 🚧 Phase 1 (MVP) implemented and validated on a real machine; the GTK4/
-libadwaita GUI (Phase 2) is implemented and tested on a real machine too —
-see [docs/ROADMAP.md](docs/ROADMAP.md) and [tasks/](tasks/) for the work
+libadwaita GUI (Phase 2) is implemented and tested on a real machine too;
+Flatpak + AppImage packaging (Phase 3) builds and runs locally — see
+[docs/ROADMAP.md](docs/ROADMAP.md) and [tasks/](tasks/) for the work
 breakdown.
 
 ## Usage
 
 ### Install
+
+Three ways to get the CLI/GUI running — pick whichever fits your setup, they
+all end up at the same `install`/`play`/`doctor` commands.
+
+**Flatpak** (recommended — sandboxed, includes the GUI, works on Steam Deck):
+see [docs/PACKAGING.md](docs/PACKAGING.md) to build it locally with
+`make package-flatpak` (not yet on Flathub — a submission is staged but not
+sent, see `packaging/flatpak/flathub/`).
+
+**AppImage** (portable, CLI only): `make package-appimage`, then run the
+produced `packaging/appimage/dist/stalker-gamma-linux-*.AppImage` directly —
+see [docs/PACKAGING.md](docs/PACKAGING.md).
+
+**From source / curl script**:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Fleorens/stalker-gamma-linux/main/install.sh | bash

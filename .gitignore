@@ -22,3 +22,13 @@ build/
 # Editors
 .idea/
 .vscode/
+
+# Packaging build artifacts (T09) — see docs/PACKAGING.md
+packaging/flatpak/.flatpak-builder/
+packaging/flatpak/build-dir/
+packaging/flatpak/.flatpak-repo/
+packaging/flatpak/flathub/org.stalkergammalinux.Gui/
+packaging/appimage/.cache/
+packaging/appimage/.build/
+packaging/appimage/.tool-venv/
+packaging/appimage/stalker-gamma-linux/requirements.txt

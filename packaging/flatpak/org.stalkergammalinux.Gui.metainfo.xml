@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.stalkergammalinux.Gui</id>
+  <name>S.T.A.L.K.E.R. G.A.M.M.A.</name>
+  <summary>Install and play S.T.A.L.K.E.R. G.A.M.M.A. on Linux</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer id="io.github.fleorens">
+    <name>Florian</name>
+  </developer>
+  <content_rating type="oars-1.1">
+    <content_attribute id="violence-realistic">moderate</content_attribute>
+  </content_rating>
+  <description>
+    <p>
+      Stalker-gamma-linux is the Linux integration layer for the S.T.A.L.K.E.R.
+      G.A.M.M.A. modpack: it installs Anomaly, the GAMMA modlist, a shared
+      Proton prefix and Mod Organizer 2 under Proton, then launches the game
+      through MO2's USVFS so mods stay fully manageable — exactly like on
+      Windows.
+    </p>
+    <p>
+      This application does not host or distribute the game, Anomaly, or any
+      mod: everything is downloaded client-side from ModDB and GitHub, the
+      same way the official GAMMA launcher does.
+    </p>
+  </description>
+  <launchable type="desktop-id">org.stalkergammalinux.Gui.desktop</launchable>
+  <url type="homepage">https://github.com/Fleorens/stalker-gamma-linux</url>
+  <url type="bugtracker">https://github.com/Fleorens/stalker-gamma-linux/issues</url>
+  <url type="vcs-browser">https://github.com/Fleorens/stalker-gamma-linux</url>
+  <recommends>
+    <control>keyboard</control>
+    <control>touch</control>
+    <control>gamepad</control>
+  </recommends>
+  <releases>
+    <release version="0.1.0" date="2026-07-23">
+      <description>
+        <p>First packaged release: MVP install/update/play pipeline and the
+        GTK4/libadwaita GUI.</p>
+      </description>
+    </release>
+  </releases>
+</component>

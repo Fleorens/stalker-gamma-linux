@@ -14,7 +14,7 @@ adapté :
 | T06 | Raccourci bureau (`.desktop`) | **Sonnet 5** | T04, T05 |
 | T07 | CLI orchestrateur | **Sonnet 5** | T03, T04, T05 |
 | T08 | GUI GTK4/libadwaita | **Sonnet 5** | T07 |
-| T09 | Packaging Flatpak / AppImage / AUR | **Sonnet 5** | T07 |
+| T09 | Packaging Flatpak / AppImage | **Sonnet 5** | T07 |
 | T10 | CI GitHub Actions | **Sonnet 5** (itérations YAML : Haiku 4.5) | T07 |
 
 ## Règle de choix des modèles

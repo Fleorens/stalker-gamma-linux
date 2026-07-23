@@ -1,0 +1,33 @@
+# The project itself: CLI (`stalker-gamma-linux`) + GTK4/libadwaita GUI
+# (`stalker-gamma-linux-gui`). `path: ../..` is the repo root — built from
+# the local checkout, not a tagged release, so `make package-flatpak` always
+# packages what's actually on disk. PyGObject is *not* installed here: the
+# GNOME runtime already ships GTK4 + libadwaita + PyGObject (verified via
+# `flatpak run --command=python3 org.gnome.Platform//49 -c "import gi..."`),
+# so the `gui` extra in pyproject.toml is redundant inside the sandbox.
+name: stalker-gamma-linux
+buildsystem: simple
+sources:
+  - type: dir
+    path: ../..
+    skip:
+      - .venv
+      - .git
+      - build
+      - "*.egg-info"
+      - __pycache__
+      - .mypy_cache
+      - .ruff_cache
+      - .pytest_cache
+  - type: file
+    path: org.stalkergammalinux.Gui.metainfo.xml
+build-commands:
+  - pip3 install --no-build-isolation --no-index --no-deps --prefix=/app .
+  - install -Dm644 data/stalker-gamma-linux-gui.desktop
+    /app/share/applications/org.stalkergammalinux.Gui.desktop
+  - sed -i 's/^Icon=.*/Icon=org.stalkergammalinux.Gui/'
+    /app/share/applications/org.stalkergammalinux.Gui.desktop
+  - install -Dm644 data/icons/stalker-gamma-linux-gui.png
+    /app/share/icons/hicolor/512x512/apps/org.stalkergammalinux.Gui.png
+  - install -Dm644 org.stalkergammalinux.Gui.metainfo.xml
+    /app/share/metainfo/org.stalkergammalinux.Gui.metainfo.xml

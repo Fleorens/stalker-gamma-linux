@@ -1,0 +1,16 @@
+# Template for python-appimage's requirements.txt (see build.sh, which
+# copies this file and appends an absolute path to the repo checkout — the
+# actual requirements.txt is generated per-build and gitignored, since that
+# last line is machine-specific).
+#
+# Only the CLI's own dependencies + the engine it wraps. PyGObject (the GUI's
+# only extra) is deliberately NOT here — see docs/PACKAGING.md, "Why the
+# AppImage is CLI-only".
+# No spaces in any line below: python-appimage's own requirement-install
+# step runs each line through `shell=True` unquoted (utils/system.py), so
+# PEP 508 "name @ url" specifiers get word-split and break pip. The bare
+# VCS-URL form (no "gamma-launcher @ " prefix) is space-free and pip infers
+# the package name from it just fine.
+rich>=13.0
+tomli-w>=1.0
+git+https://github.com/Mord3rca/gamma-launcher.git@v3.1

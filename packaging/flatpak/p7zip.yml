@@ -1,0 +1,18 @@
+# p7zip (7z/7za/7zr), built from source and bundled in /app.
+#
+# Why bundle instead of relying on the host: the Flatpak sandbox does not see
+# the host's /usr/bin/7z (no --filesystem=host escape hatch covers PATH
+# lookups), so `gamma-launcher`'s archive extraction would fail silently
+# inside the sandbox without this. p7zip is LGPL/public-domain (7-Zip core),
+# so bundling it is licence-clean — unlike RARLAB's libunrar (see
+# docs/PACKAGING.md, "RAR archives" section): that one stays a host-only,
+# non-blocking `doctor` gap, same as on native installs without RPM Fusion.
+name: p7zip
+buildsystem: simple
+sources:
+  - type: archive
+    url: https://github.com/p7zip-project/p7zip/archive/refs/tags/v17.05.tar.gz
+    sha256: d2788f892571058c08d27095c22154579dfefb807ebe357d145ab2ddddefb1a6
+build-commands:
+  - make -j$(nproc) all3
+  - ./install.sh /app/bin /app/lib/p7zip /app/share/man /app/share/doc/p7zip
