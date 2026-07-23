@@ -74,7 +74,12 @@ jobs:
       - name: Install flatpak + flatpak-builder
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder
+          # elfutils (`eu-strip`) : flatpak-builder l'invoque pour extraire les
+          # symboles de debug de chaque module compilé (ex. l'extension C de
+          # `py7zr`) — absent des runners hébergés par défaut, contrairement à
+          # une machine de dev Fedora classique où c'est déjà installé (piège
+          # trouvé en testant release.yml pour de vrai, T10).
+          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder elfutils
           flatpak remote-add --if-not-exists --user flathub \
             https://flathub.org/repo/flathub.flatpakrepo
 
