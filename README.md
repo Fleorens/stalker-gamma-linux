@@ -55,6 +55,18 @@ see [docs/PACKAGING.md](docs/PACKAGING.md).
 
 **From source / curl script**:
 
+The Flatpak/AppImage channels above bundle everything they need. This path
+doesn't: the one hard prerequisite is **umu-launcher** (`umu-run` in your
+`PATH`) — once it's there, Proton-GE, the Wine prefix, winetricks verbs and
+DXVK are all downloaded/configured automatically, no `sudo` involved. No
+native package on Fedora/Debian/Ubuntu yet: `pipx install umu-launcher`, or
+the official
+["zipapp" release](https://github.com/Open-Wine-Components/umu-launcher/releases)
+symlinked into `~/.local/bin`. On Arch: `sudo pacman -S umu-launcher`. Steam,
+protontricks, `7z`, `libunrar` and Vulkan drivers help but are secondary —
+`install.sh` below runs `doctor` first and warns if any of this is missing,
+*before* it commits to the ~90 GB download.
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Fleorens/stalker-gamma-linux/main/install.sh | bash
 ```
