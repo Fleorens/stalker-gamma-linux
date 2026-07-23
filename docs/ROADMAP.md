@@ -41,8 +41,10 @@ sous Proton, reprise après interruption, mise à jour incrémentale.
 - **T09** ✅ Packaging : Flatpak (canal principal, GUI + CLI, sandboxé,
   Steam Deck inclus) et AppImage (CLI portable). AUR retiré du périmètre
   (décision Florian, 2026-07-23) — voir `docs/PACKAGING.md`.
-- **T10** CI : test d'installation conteneurisé à chaque release amont de GAMMA,
-  lint, release automatisée.
+- **T10** ✅ CI : `ci.yml` (lint/types/tests matrice 3.11-3.13 + build),
+  `upstream-watch.yml` (cron quotidien, sous-ensemble non-graphique du
+  pipeline en conteneur, issue automatique), `release.yml` (tag `v*` →
+  artefacts T09 + GitHub Release). Voir `docs/CI.md`.
 
 ## Hors scope (assumé)
 - Portage natif du moteur X-Ray Monolith (sans Proton) : projet d'une autre

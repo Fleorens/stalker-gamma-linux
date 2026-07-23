@@ -1,0 +1,135 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Vérifications (avant de construire quoi que ce soit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install GTK4/libadwaita build headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev libgirepository-2.0-dev gir1.2-gtk-4.0 gir1.2-adw-1 pkg-config
+
+      - name: Install project (dev extra)
+        run: pip install -e ".[dev]"
+
+      - run: ruff check .
+      - run: mypy src
+      - run: pytest -q
+
+  build-appimage:
+    name: Build AppImage (T09)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential
+
+      - name: Cache p7zip source build + umu-launcher zipapp
+        uses: actions/cache@v4
+        with:
+          path: packaging/appimage/.cache
+          key: appimage-cache-${{ hashFiles('packaging/appimage/build.sh') }}
+
+      - name: make package-appimage
+        run: make package-appimage
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: appimage
+          path: packaging/appimage/dist/*.AppImage
+          retention-days: 14
+
+  build-flatpak:
+    name: Build Flatpak bundle (T09)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install flatpak + flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder
+          flatpak remote-add --if-not-exists --user flathub \
+            https://flathub.org/repo/flathub.flatpakrepo
+
+      # Immuable une fois peuplé (org.gnome.Sdk//49 ne bouge pas) : la clé
+      # statique fait que seule la première release le télécharge vraiment.
+      - name: Cache GNOME Sdk/Platform 49
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/flatpak
+          key: flatpak-runtimes-gnome49
+
+      - name: Cache modules flatpak-builder (p7zip, umu-launcher, deps Python)
+        uses: actions/cache@v4
+        with:
+          path: packaging/flatpak/.flatpak-builder
+          key: >-
+            flatpak-builder-${{ hashFiles('packaging/flatpak/*.yml',
+            'packaging/flatpak/python3-requirements.json') }}
+          restore-keys: |
+            flatpak-builder-
+
+      - name: Installer le SDK/runtime GNOME 49
+        run: flatpak install --user -y flathub org.gnome.Sdk//49 org.gnome.Platform//49
+
+      - name: make package-flatpak-bundle
+        run: make package-flatpak-bundle
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak
+          path: packaging/flatpak/dist/*.flatpak
+          retention-days: 14
+
+  publish:
+    name: Publier la GitHub Release
+    needs: [build-appimage, build-flatpak]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # historique complet requis par --generate-notes
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "*"
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Créer la GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            release-artifacts/*.AppImage release-artifacts/*.flatpak \
+            --title "${{ github.ref_name }}" \
+            --generate-notes

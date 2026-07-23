@@ -491,6 +491,27 @@ en commentaire à l'endroit exact où ils mordent (`requirements.txt.in`,
    `-m stalker_gamma_linux.cli`, qui importerait le module sans jamais
    appeler `main()` et sortirait en silence avec le code 0.
 
+## CI (T10)
+
+Trois workflows (`ci.yml`, `upstream-watch.yml`, `release.yml`), détails et
+pièges rencontrés dans `docs/CI.md`. Un point structurant : `ci.yml` et
+`release.yml` doivent installer des en-têtes système GTK4/libadwaita
+(`libcairo2-dev`, `libgirepository-2.0-dev`, `gir1.2-gtk-4.0`,
+`gir1.2-adw-1`) avant `pip install ".[dev]"`, alors même que la CLI n'a
+jamais besoin de GTK — l'extra `dev` embarque `PyGObject-stubs`, qui tire
+`PyGObject` en dépendance dure (pas de roue manylinux, même contrainte que
+`docs/PACKAGING.md`), donc n'importe quelle installation de l'extra `dev`
+sur une machine nue échoue à la compilation sans ces en-têtes.
+
+`upstream-watch.yml` s'appuie sur une asymétrie réelle entre les deux dépôts
+amont : `Grokitach/Stalker_GAMMA` ne publie ni tags ni releases (vérifié via
+l'API), suivi par sha de commit ; `Mord3rca/gamma-launcher` publie de vraies
+Releases, suivi normalement. Le job d'intégration tourne dans un conteneur
+`ubuntu:24.04` (pas le runner nu) parce que `read_mod_maker`/l'extraction
+d'archives de gamma-launcher importent `unrar` (ctypes) au chargement, qui
+exige `libunrar.so` — absent des images `python:*-slim` (Debian), présent
+d'origine sur Ubuntu (`multiverse`).
+
 ## Références
 
 - Moteur : https://github.com/Mord3rca/gamma-launcher

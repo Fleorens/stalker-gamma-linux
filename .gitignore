@@ -27,6 +27,7 @@ build/
 packaging/flatpak/.flatpak-builder/
 packaging/flatpak/build-dir/
 packaging/flatpak/.flatpak-repo/
+packaging/flatpak/dist/
 packaging/flatpak/flathub/org.stalkergammalinux.Gui/
 packaging/appimage/.cache/
 packaging/appimage/.build/

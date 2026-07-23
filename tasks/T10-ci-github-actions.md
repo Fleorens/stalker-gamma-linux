@@ -27,3 +27,37 @@ compris celles causées par les mises à jour amont de GAMMA.
 Critères d'acceptation : CI verte sur le repo ; un tag déclenche une release
 avec artefacts ; le cron tourne et sait ouvrir une issue (testable par
 workflow_dispatch).
+
+## Statut
+
+✅ Implémenté le 2026-07-23, testé pour de vrai en conteneur avant de
+committer (pas encore vérifié sur un vrai run GitHub Actions — voir
+`docs/CI.md`, dernière section).
+
+- `ci.yml` : matrice 3.11/3.12/3.13 validée pour de vrai dans des conteneurs
+  `ubuntu:24.04` (3.12 natif, 3.11/3.13 via deadsnakes) — `ruff`, `mypy
+  --strict`, `pytest` (260 tests) et `python -m build` tous verts sur les
+  trois. Piège trouvé et corrigé : l'extra `dev` (`PyGObject-stubs`) tire
+  `PyGObject` en dépendance dure, qui ne se compile pas sans en-têtes
+  système (`libcairo2-dev`, `libgirepository-2.0-dev`, etc.) — ajoutées
+  avant l'install Python.
+- `upstream-watch.yml` : `Grokitach/Stalker_GAMMA` n'a ni tags ni releases
+  (vérifié via l'API) → suivi par sha du dernier commit `main` ;
+  `Mord3rca/gamma-launcher` a de vraies Releases → suivi normal. État dans
+  `.github/upstream-state.json`, avancé seulement si le job d'intégration
+  réussit. `scripts/check_upstream_state.py` (détection) et
+  `scripts/upstream_smoke_test.py` (doctor + modlist + sous-ensemble de 2
+  mods ModDB, dry-run) testés pour de vrai contre les vraies API/mirrors —
+  téléchargement réel réussi (Cloudflare inclus), parsing de 486 entrées.
+  Deux placeholders ModDB connus (déjà sautés par gamma-launcher lui-même)
+  exclus de la sélection après avoir fait échouer un premier essai.
+- `release.yml` : nouvelle cible Makefile `package-flatpak-bundle`
+  (`flatpak build-bundle --runtime-repo=…` par-dessus le `package-flatpak`
+  de T09) testée pour de vrai à partir du `.flatpak-repo` déjà construit en
+  T09. Notes de release auto-générées (`gh release create --generate-notes`).
+- Badge CI + concurrency (annule les runs `ci.yml` obsolètes du même ref) +
+  aucun secret : seulement `GITHUB_TOKEN` par défaut, permissions scoppées
+  par job.
+
+Détails complets (pièges rencontrés, ce qui a été testé pour de vrai et
+comment) dans `docs/CI.md`.

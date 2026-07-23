@@ -1,0 +1,10 @@
+{
+  "stalker_gamma": {
+    "ref": "main",
+    "sha": "ab0f743af42a3b3b0b0ee853b3676f5189f7f0d0"
+  },
+  "gamma_launcher": {
+    "tag": "v3.1",
+    "sha": "ade656e029a8547d8853ce1ba54f9b7f0acb9100"
+  }
+}

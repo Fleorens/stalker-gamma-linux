@@ -1,0 +1,155 @@
+name: Upstream Watch
+
+on:
+  schedule:
+    # 06:17 UTC tous les jours — heure creuse arbitraire, décalée de :00 pour
+    # éviter le pic de cron jobs GitHub à l'heure pile.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: >-
+          Lancer le job d'intégration même sans nouvelle révision amont
+          détectée (test manuel du pipeline, y compris l'ouverture d'issue)
+        type: boolean
+        default: false
+
+concurrency:
+  group: upstream-watch
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check-upstream:
+    name: Détection nouvelle révision amont
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+      gamma_sha: ${{ steps.check.outputs.gamma_sha }}
+      launcher_tag: ${{ steps.check.outputs.launcher_tag }}
+      launcher_sha: ${{ steps.check.outputs.launcher_sha }}
+      summary: ${{ steps.check.outputs.summary }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Comparer aux dernières révisions connues
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          FORCE_FLAG=""
+          if [ "${{ inputs.force }}" = "true" ]; then
+            FORCE_FLAG="--force"
+          fi
+          python scripts/check_upstream_state.py \
+            --state-file .github/upstream-state.json \
+            --new-state-file /tmp/new-upstream-state.json \
+            $FORCE_FLAG
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: new-upstream-state
+          path: /tmp/new-upstream-state.json
+          retention-days: 7
+
+  integration-check:
+    name: Intégration (sous-ensemble non-graphique du pipeline)
+    needs: check-upstream
+    if: needs.check-upstream.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    # Conteneur, pas juste le runner : `read_mod_maker`/l'extraction d'archives
+    # de gamma-launcher importent `unrar` (ctypes) au chargement du module, qui
+    # exige `libunrar.so` présent — absent de l'image de base des runners.
+    container:
+      image: ubuntu:24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer les dépendances système (libunrar, 7z, Python)
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq python3 python3-venv python3-pip libunrar5 p7zip-full \
+            git curl ca-certificates
+
+      - name: Cache des mods du sous-ensemble (ModDB — voir le rate-limit)
+        uses: actions/cache@v4
+        with:
+          path: .smoke-cache/downloads
+          key: upstream-smoke-${{ needs.check-upstream.outputs.gamma_sha }}
+
+      - name: Installer le projet
+        run: |
+          python3 -m venv /opt/venv
+          /opt/venv/bin/pip install --quiet --upgrade pip
+          /opt/venv/bin/pip install --quiet -e .
+
+      - name: doctor + modlist + téléchargement/installation à blanc du sous-ensemble
+        run: |
+          /opt/venv/bin/python scripts/upstream_smoke_test.py \
+            --ref "${{ needs.check-upstream.outputs.gamma_sha }}" \
+            --mod-count 2 \
+            --cache-dir "$GITHUB_WORKSPACE/.smoke-cache/downloads" \
+            --workdir /tmp/smoke-work
+
+  report:
+    name: Rapport (issue en cas d'échec / avance de l'état sinon)
+    needs: [check-upstream, integration-check]
+    if: always() && needs.check-upstream.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: new-upstream-state
+          path: /tmp
+
+      - name: Ouvrir/mettre à jour une issue de régression
+        if: needs.integration-check.result == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          BODY="La vérification d'intégration amont (upstream-watch) a échoué.
+
+          ${{ needs.check-upstream.outputs.summary }}
+
+          Détails : $RUN_URL"
+
+          gh label create upstream-regression --color B60205 \
+            --description "Régression détectée par upstream-watch.yml" --force
+
+          EXISTING=$(gh issue list --label upstream-regression --state open \
+            --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh issue create --title "Régression amont détectée par upstream-watch" \
+              --label upstream-regression --body "$BODY"
+          fi
+
+      - name: Avancer l'état connu (intégration réussie)
+        if: needs.integration-check.result == 'success'
+        run: |
+          cp /tmp/new-upstream-state.json .github/upstream-state.json
+          if git diff --quiet -- .github/upstream-state.json; then
+            echo "Rien à committer."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/upstream-state.json
+          git commit -m "chore: update upstream-state.json
+
+          ${{ needs.check-upstream.outputs.summary }}"
+          git pull --rebase origin "${{ github.ref_name }}"
+          git push origin "HEAD:${{ github.ref_name }}"

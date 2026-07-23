@@ -1,5 +1,7 @@
 # stalker-gamma-linux
 
+[![CI](https://github.com/Fleorens/stalker-gamma-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/Fleorens/stalker-gamma-linux/actions/workflows/ci.yml)
+
 **A real Linux port of the [S.T.A.L.K.E.R. G.A.M.M.A.](https://github.com/Grokitach/Stalker_GAMMA) installation experience.**
 
 The game itself (Anomaly, X-Ray Monolith engine) already runs great under Proton.
@@ -30,9 +32,10 @@ everything Linux-specific. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 🚧 Phase 1 (MVP) implemented and validated on a real machine; the GTK4/
 libadwaita GUI (Phase 2) is implemented and tested on a real machine too;
-Flatpak + AppImage packaging (Phase 3) builds and runs locally — see
-[docs/ROADMAP.md](docs/ROADMAP.md) and [tasks/](tasks/) for the work
-breakdown.
+Flatpak + AppImage packaging (Phase 3) builds and runs locally; CI (lint,
+types, tests, packaging release, daily upstream-regression watch) is wired
+up — see [docs/ROADMAP.md](docs/ROADMAP.md), [docs/CI.md](docs/CI.md) and
+[tasks/](tasks/) for the work breakdown.
 
 ## Usage
 
