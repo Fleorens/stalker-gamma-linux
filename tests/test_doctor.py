@@ -48,6 +48,24 @@ def test_run_doctor_combines_all_three_sections(
     assert "[ A FAIRE ]" in out
 
 
+def test_build_full_report_exposes_structured_requirements(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # C'est ce que consomme la vue Diagnostic de la GUI (T08) : des `Requirement`
+    # typés (avec `install_hint` copiable), pas du texte pré-formaté.
+    _make_fully_equipped_system(monkeypatch)
+    state.mark_done(tmp_path, "anomaly")
+
+    report = doctor.build_full_report(tmp_path)
+
+    assert report.target == tmp_path
+    assert report.is_ready is report.environment.is_ready
+    assert any(requirement.name == "Steam" for requirement in report.environment.requirements)
+    assert any(requirement.name == "Préfixe" for requirement in report.prefix.requirements)
+    assert report.install.is_done("anomaly")
+    assert not report.install.is_done("gamma")
+
+
 def test_run_doctor_fails_only_on_missing_prerequisites(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -10,20 +10,45 @@ from __future__ import annotations
 
 import os
 import subprocess
+import threading
 from collections import deque
 from collections.abc import Callable, Sequence
 
-from stalker_gamma_linux.engine.errors import EngineExecutionError, EngineNotFoundError
+from stalker_gamma_linux.engine.errors import (
+    EngineCancelledError,
+    EngineExecutionError,
+    EngineNotFoundError,
+)
 from stalker_gamma_linux.environment import system
 
 ProgressCallback = Callable[[str], None]
 
 _ENGINE_BINARY = "gamma-launcher"
 _OUTPUT_TAIL_LINES = 20
+_TERMINATE_GRACE_SECONDS = 5
 
 
 def _noop(_: str) -> None:
     return None
+
+
+def _watch_cancellation(process: subprocess.Popen[str], cancel_event: threading.Event) -> None:
+    """Tue `process` dès que `cancel_event` est levé ; s'arrête seul si le process finit avant.
+
+    Tourne dans un thread dédié : la boucle `for line in process.stdout` du
+    thread appelant reste inchangée (elle se termine naturellement quand la
+    sortie du process tué se ferme), donc aucun appelant existant (CLI, qui ne
+    passe jamais `cancel_event`) n'est affecté.
+    """
+    while not cancel_event.wait(timeout=0.2):
+        if process.poll() is not None:
+            return
+    if process.poll() is None:
+        process.terminate()
+        try:
+            process.wait(timeout=_TERMINATE_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            process.kill()
 
 
 def _engine_environment() -> dict[str, str]:
@@ -35,13 +60,20 @@ def _engine_environment() -> dict[str, str]:
 
 
 def run(
-    subcommand: str, args: Sequence[str], *, on_progress: ProgressCallback | None = None
+    subcommand: str,
+    args: Sequence[str],
+    *,
+    on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> None:
     """Lance `gamma-launcher <subcommand> <args>` et suit sa progression ligne à ligne.
 
     Chaque ligne de stdout est transmise à `on_progress`. Lève `EngineNotFoundError`
     si le binaire est absent du PATH, `EngineExecutionError` si le code de retour
     est non nul (les dernières lignes de sortie sont jointes au message).
+    `cancel_event` (optionnel, GUI) : s'il est levé pendant l'exécution, le
+    process est terminé proprement (`terminate`, puis `kill` après
+    `_TERMINATE_GRACE_SECONDS`) et `EngineCancelledError` est levée.
     """
     binary = system.which(_ENGINE_BINARY)
     if binary is None:
@@ -63,6 +95,13 @@ def run(
         env=_engine_environment(),
     )
 
+    watcher: threading.Thread | None = None
+    if cancel_event is not None:
+        watcher = threading.Thread(
+            target=_watch_cancellation, args=(process, cancel_event), daemon=True
+        )
+        watcher.start()
+
     if process.stdout is not None:
         for raw_line in process.stdout:
             line = raw_line.rstrip("\n")
@@ -70,5 +109,9 @@ def run(
             progress(line)
 
     returncode = process.wait()
+    if watcher is not None:
+        watcher.join(timeout=_TERMINATE_GRACE_SECONDS)
+    if cancel_event is not None and cancel_event.is_set():
+        raise EngineCancelledError(subcommand)
     if returncode != 0:
         raise EngineExecutionError(subcommand, returncode, "\n".join(tail))

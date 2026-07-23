@@ -154,7 +154,7 @@ def test_build_flat_install_invokes_usvfs_workaround(
 def test_progress_callback_is_forwarded(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     received: list[str] = []
 
-    def fake_run(subcommand: str, args: list[str], *, on_progress: Any = None) -> None:
+    def fake_run(subcommand: str, args: list[str], *, on_progress: Any = None, **kw: Any) -> None:
         if on_progress:
             on_progress(f"{subcommand} started")
 

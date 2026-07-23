@@ -1,6 +1,7 @@
 """Wrapper autour du moteur gamma-launcher (téléchargement/installation GAMMA)."""
 
 from stalker_gamma_linux.engine.errors import (
+    EngineCancelledError,
     EngineError,
     EngineExecutionError,
     EngineNotFoundError,
@@ -19,6 +20,7 @@ from stalker_gamma_linux.engine.runner import (
 )
 
 __all__ = [
+    "EngineCancelledError",
     "EngineError",
     "EngineExecutionError",
     "EngineNotFoundError",

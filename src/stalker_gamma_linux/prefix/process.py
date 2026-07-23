@@ -11,13 +11,18 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import threading
 import time
 from collections import deque
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from stalker_gamma_linux.environment import system
-from stalker_gamma_linux.prefix.errors import PrefixCommandError, UmuNotFoundError
+from stalker_gamma_linux.prefix.errors import (
+    PrefixCancelledError,
+    PrefixCommandError,
+    UmuNotFoundError,
+)
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 
 ProgressCallback = Callable[[str], None]
@@ -27,10 +32,24 @@ UMU_GAME_ID = "umu-stalkergamma"
 
 _UMU_BINARY = "umu-run"
 _OUTPUT_TAIL_LINES = 20
+_TERMINATE_GRACE_SECONDS = 5
 
 
 def _noop(_: str) -> None:
     return None
+
+
+def _watch_cancellation(process: subprocess.Popen[str], cancel_event: threading.Event) -> None:
+    """Tue `process` dès que `cancel_event` est levé (voir `engine.process`, même approche)."""
+    while not cancel_event.wait(timeout=0.2):
+        if process.poll() is not None:
+            return
+    if process.poll() is None:
+        process.terminate()
+        try:
+            process.wait(timeout=_TERMINATE_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            process.kill()
 
 
 def _slug(exe: Path | str) -> str:
@@ -66,6 +85,7 @@ def run_in_prefix(
     env: Mapping[str, str] | None = None,
     log_label: str | None = None,
     on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> Path:
     """Lance `umu-run <exe> <args>` dans le préfixe partagé et journalise sa sortie.
 
@@ -75,7 +95,9 @@ def run_in_prefix(
     Toute la sortie (stdout + stderr) est capturée dans un fichier de
     `paths.logs`, dont le chemin est retourné. Lève `UmuNotFoundError` si
     umu-run est absent du PATH, `PrefixCommandError` (journal joint) si le code
-    de retour est non nul.
+    de retour est non nul. `cancel_event` (optionnel, GUI) : voir
+    `engine.process.run`, même comportement d'annulation propre —
+    lève `PrefixCancelledError` au lieu de `PrefixCommandError`.
     """
     binary = system.which(_UMU_BINARY)
     if binary is None:
@@ -102,6 +124,12 @@ def run_in_prefix(
             bufsize=1,
             env=_prefix_environment(paths, proton_path, env),
         )
+        watcher: threading.Thread | None = None
+        if cancel_event is not None:
+            watcher = threading.Thread(
+                target=_watch_cancellation, args=(process, cancel_event), daemon=True
+            )
+            watcher.start()
         if process.stdout is not None:
             for raw_line in process.stdout:
                 line = raw_line.rstrip("\n")
@@ -109,7 +137,11 @@ def run_in_prefix(
                 tail.append(line)
                 progress(line)
         returncode = process.wait()
+        if watcher is not None:
+            watcher.join(timeout=_TERMINATE_GRACE_SECONDS)
 
+    if cancel_event is not None and cancel_event.is_set():
+        raise PrefixCancelledError(" ".join(command))
     if returncode != 0:
         raise PrefixCommandError(" ".join(command), returncode, log_path, "\n".join(tail))
     return log_path

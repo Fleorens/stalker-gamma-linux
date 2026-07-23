@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -50,12 +51,15 @@ def apply_missing_verbs(
     *,
     required: Sequence[str] = REQUIRED_VERBS,
     on_progress: process.ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> tuple[str, ...]:
     """Applique les verbs manquants, un à la fois. Retourne ceux appliqués.
 
     Un verb à la fois : l'échec est attribuable sans ambiguïté, et chaque verb
     réussi est acté dans `winetricks.log` — une relance après échec ne rejoue
-    que le reste. Lève `WinetricksVerbError` (journal joint) au premier échec.
+    que le reste. Lève `WinetricksVerbError` (journal joint) au premier échec,
+    ou laisse remonter `PrefixCancelledError` si `cancel_event` (GUI) est levé
+    pendant l'application d'un verb.
     """
     to_apply = missing_verbs(paths, required)
     for verb in to_apply:
@@ -67,6 +71,7 @@ def apply_missing_verbs(
                 proton_path=proton_path,
                 log_label=f"winetricks-{verb}",
                 on_progress=on_progress,
+                cancel_event=cancel_event,
             )
         except PrefixCommandError as error:
             raise WinetricksVerbError(

@@ -27,7 +27,15 @@ sous Proton, reprise après interruption, mise à jour incrémentale.
 ## Phase 2 — Intégration bureau
 - **T06** Raccourci bureau : entrée `.desktop` + icône (ajout à Steam en
   jeu non-Steam laissé à l'utilisateur, via le bouton natif de Steam).
-- **T08** GUI GTK4/libadwaita : Installer / Mettre à jour / Jouer / logs.
+- **T08** ✅ GUI GTK4/libadwaita, testée en réel (2026-07-23) : fenêtre
+  principale (statut, bouton contextuel Installer/Jouer, Ouvrir MO2), vue
+  progression (étape, barre, journal repliable, annulation propre), vue
+  Diagnostic (rendu graphique de `doctor`, commandes de remède copiables),
+  Préférences (chemin, version Proton-GE, raccourci Steam). Opérations
+  longues hors fil GTK (`gui.worker.BackgroundTask`) ; aucune logique
+  métier dans la GUI — même `orchestrator`/`mo2.session` que la CLI, via
+  `output.Reporter` (nouveau) et les callbacks `on_progress`/`cancel_event`
+  déjà en place. Entrée `stalker-gamma-linux-gui` + `.desktop` + icône.
 
 ## Phase 3 — Distribution
 - **T09** Packaging : Flatpak, AppImage, AUR — toutes distributions, Steam

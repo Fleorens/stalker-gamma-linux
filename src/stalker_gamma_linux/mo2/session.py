@@ -7,7 +7,7 @@ explicite (`play --flat`).
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from stalker_gamma_linux import engine
@@ -23,6 +23,8 @@ from stalker_gamma_linux.prefix import provision
 from stalker_gamma_linux.prefix.errors import PrefixError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 from stalker_gamma_linux.prefix.proton import ProtonBuild
+
+ProgressCallback = Callable[[str], None]
 
 _ANOMALY_MARKER = "AnomalyLauncher.exe"
 
@@ -46,19 +48,30 @@ def resolve_anomaly(mo2: Mo2Paths, install: InstallPaths) -> Path:
     return install.anomaly
 
 
-def run_mo2(target: Path | None = None, *, search_dirs: Sequence[Path] | None = None) -> int:
-    """Ouvre l'interface Mod Organizer 2 (préfixe prêt, instance configurée)."""
+def run_mo2(
+    target: Path | None = None,
+    *,
+    search_dirs: Sequence[Path] | None = None,
+    on_progress: ProgressCallback | None = None,
+) -> int:
+    """Ouvre l'interface Mod Organizer 2 (préfixe prêt, instance configurée).
+
+    `on_progress` (défaut : `print`, comportement CLI historique) reçoit
+    chaque ligne de progression — la GUI (T08) y branche sa propre vue au lieu
+    de dupliquer cette orchestration.
+    """
+    progress = on_progress or print
     root = _resolve_root(target)
     mo2 = Mo2Paths.under(root)
     prefix = PrefixPaths.under(root)
     anomaly = resolve_anomaly(mo2, InstallPaths.under(root))
     try:
-        build = provision.ensure_prefix(prefix, search_dirs=search_dirs, on_progress=print)
-        _configure_best_effort(mo2, anomaly)
-        print("Lancement de Mod Organizer 2…")
-        launch.launch_mo2(mo2, prefix, build.path, on_progress=print)
+        build = provision.ensure_prefix(prefix, search_dirs=search_dirs, on_progress=progress)
+        _configure_best_effort(mo2, anomaly, progress)
+        progress("Lancement de Mod Organizer 2…")
+        launch.launch_mo2(mo2, prefix, build.path, on_progress=progress)
     except (PrefixError, Mo2Error) as error:
-        print(f"Erreur : {error}")
+        progress(f"Erreur : {error}")
         return 1
     return 0
 
@@ -70,49 +83,58 @@ def run_play(
     executable: str = DEFAULT_EXECUTABLE,
     diagnose: bool = True,
     search_dirs: Sequence[Path] | None = None,
+    on_progress: ProgressCallback | None = None,
 ) -> int:
-    """Lance le jeu. Mode nominal : via MO2 (USVFS) + diagnostic. `flat_mode` : fallback."""
+    """Lance le jeu. Mode nominal : via MO2 (USVFS) + diagnostic. `flat_mode` : fallback.
+
+    `on_progress` : voir `run_mo2`.
+    """
+    progress = on_progress or print
     root = _resolve_root(target)
     mo2 = Mo2Paths.under(root)
     prefix = PrefixPaths.under(root)
     install = InstallPaths.under(root)
     try:
-        build = provision.ensure_prefix(prefix, search_dirs=search_dirs, on_progress=print)
+        build = provision.ensure_prefix(prefix, search_dirs=search_dirs, on_progress=progress)
         if flat_mode:
-            return _run_flat(root, install, prefix, build)
+            return _run_flat(root, install, prefix, build, progress)
         instance.configure_instance(mo2, resolve_anomaly(mo2, install))
-        print(f"Lancement d'Anomaly via MO2 (« {executable} », USVFS)…")
-        launch.launch_game(mo2, prefix, build.path, executable=executable, on_progress=print)
+        progress(f"Lancement d'Anomaly via MO2 (« {executable} », USVFS)…")
+        launch.launch_game(mo2, prefix, build.path, executable=executable, on_progress=progress)
     except (PrefixError, EngineError, Mo2Error) as error:
-        print(f"Erreur : {error}")
+        progress(f"Erreur : {error}")
         return 1
 
     # Le jeu s'est lancé : c'est un succès. Le diagnostic USVFS est **indicatif**
     # (heuristique sur des logs qui varient selon les versions) — on l'affiche
     # sans faire échouer `play` sur un faux négatif.
     if diagnose:
-        print(f"\n{diagnostics.diagnose_usvfs(mo2).message}")
+        progress(f"\n{diagnostics.diagnose_usvfs(mo2).message}")
     return 0
 
 
-def _configure_best_effort(mo2: Mo2Paths, anomaly: Path) -> None:
+def _configure_best_effort(mo2: Mo2Paths, anomaly: Path, on_progress: ProgressCallback) -> None:
     """Configure l'instance pour `mo2` ; tolère un jeu encore absent (on ouvre MO2 quand même)."""
     try:
         instance.configure_instance(mo2, anomaly)
     except AnomalyNotFoundError as error:
-        print(f"Avertissement : {error}\nOuverture de MO2 sans configurer le chemin du jeu.")
+        on_progress(f"Avertissement : {error}\nOuverture de MO2 sans configurer le chemin du jeu.")
 
 
 def _run_flat(
-    root: Path, install: InstallPaths, prefix: PrefixPaths, build: ProtonBuild
+    root: Path,
+    install: InstallPaths,
+    prefix: PrefixPaths,
+    build: ProtonBuild,
+    on_progress: ProgressCallback,
 ) -> int:
     final = flat.flat_dir(root)
-    print(
+    on_progress(
         "⚠ Mode flat (fallback) : USVFS contourné, Anomaly et les mods sont fusionnés. "
         "Tu PERDS la flexibilité des mods (plus d'activation/désactivation via MO2). "
         "Voir docs/INSTALL-MANUAL.md annexe A.\n"
     )
-    engine.build_flat_install(install, final, on_progress=print)
-    print("Lancement de l'installation flat…")
-    flat.launch_flat(final, prefix, build.path, on_progress=print)
+    engine.build_flat_install(install, final, on_progress=on_progress)
+    on_progress("Lancement de l'installation flat…")
+    flat.launch_flat(final, prefix, build.path, on_progress=on_progress)
     return 0

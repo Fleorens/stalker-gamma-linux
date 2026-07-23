@@ -280,6 +280,142 @@ retouchés, déjà lisibles et déjà testés ; seule la couche orchestrateur aj
 avec sa trace complète, et affiche un message actionnable (chemin du journal,
 suggestion `--verbose`) plutôt qu'un traceback brut.
 
+## GUI GTK4/libadwaita (T08)
+
+### Aucune logique métier dans la GUI : `output.Reporter` + callbacks existants
+
+La GUI (`src/stalker_gamma_linux/gui/`) consomme exactement les mêmes
+fonctions que la CLI (`orchestrator.run_install`/`run_update`,
+`mo2.session.run_mo2`/`run_play`, `doctor.build_full_report`) — rien n'est
+réimplémenté. Deux petits ajouts, partagés avec la CLI et testés
+indépendamment de GTK, ont rendu ça possible :
+
+1. **`output.Reporter`** (protocole structurel) : `orchestrator.run_install`/
+   `run_update` appelaient jusqu'ici `output.header`/`step`/`warn`/… en dur
+   (`rich` + logger). Ils acceptent maintenant `reporter: Reporter =
+   output.console_reporter` — la CLI ne change pas de comportement (le
+   défaut est l'ancien `output.py`), la GUI fournit `gui.worker.QueueReporter`,
+   qui pousse chaque événement sur une `queue.Queue` au lieu de l'imprimer.
+2. **`cancel_event: threading.Event | None`** : ajouté à `engine.process.run`,
+   `prefix.process.run_in_prefix`, et propagé à travers `engine/runner.py`,
+   `prefix/provision.py`/`proton.py`/`verbs.py`/`download.py` et
+   `orchestrator.run_install`/`run_update`. Un thread « watchdog » dédié
+   (`_watch_cancellation`) tue le sous-process (`terminate` puis `kill`) dès
+   que l'event est levé ; le sous-process lève alors `EngineCancelledError`/
+   `PrefixCancelledError` au lieu du code d'erreur habituel.
+   `orchestrator.CANCELLED_EXIT_CODE` (130, convention POSIX 128+SIGINT) est
+   retourné dans ce cas — l'étape interrompue n'est pas marquée faite dans
+   `state.py`, une relance la rejoue. Jamais passé par la CLI (`None` par
+   défaut) : comportement inchangé.
+
+`mo2.session.run_mo2`/`run_play` étaient câblés en dur sur `print()` ; ils
+acceptent maintenant `on_progress: Callable[[str], None] | None` (retombant
+sur `print` si absent, résolu dynamiquement pour rester monkeypatchable —
+voir le piège de liaison tardive ci-dessous). `doctor.py` a été scindé :
+`build_full_report()` fait la collecte (retourne un `DoctorReport` structuré,
+`Requirement` par `Requirement`, avec `install_hint`) ; `run_doctor()` (CLI)
+est la seule fonction du module qui imprime.
+
+Piège rencontré : `on_progress: ProgressCallback = print` comme *valeur par
+défaut* lie `print` à l'import du module — un test qui monkeypatche
+`builtins.print` plus tard ne voit plus rien. Le correctif (déjà en usage
+ailleurs dans le code, `engine/process.py` etc.) : `on_progress: ... | None
+= None` + `progress = on_progress or print` **dans le corps** de la fonction,
+résolu à chaque appel.
+
+### `gui.viewmodel`/`gui.worker`/`gui.prefs` : testables sans `gi`
+
+`gui/__init__.py` est vide de tout import : ces trois modules ne dépendent
+jamais de PyGObject et sont testés par `pytest` comme n'importe quel autre
+module du projet (`tests/test_gui_*.py`), y compris sur une machine sans
+GTK4/libadwaita. Seuls `gui/app.py` et `gui/windows/*.py` importent `gi`.
+
+- **`viewmodel.py`** : `InstallStatus` (NOT_INSTALLED/INSTALLED) ne lit que
+  `state.py` (TOML local, quasi instantané) — **pas**
+  `doctor.build_full_report`, qui lance plusieurs sous-process
+  (`which`/`ldconfig`/`vulkaninfo`…) et rafraîchirait le statut de la
+  fenêtre principale en gelant l'UI le temps de ces appels. La vue
+  Diagnostic, elle, appelle `build_full_report` dans un thread dédié.
+- **`worker.BackgroundTask`** : lance `func(events, cancel_event) -> int`
+  dans un thread démon ; publie `ReporterEvent`/`DoneEvent`/`FailedEvent` sur
+  une `queue.Queue`. Le côté GTK (`ProgressPage`) la draine via
+  `GLib.timeout_add` (poll, 80 ms) — c'est le seul point de contact avec la
+  boucle GTK, tout le reste de `worker.py` est du `threading`/`queue` pur.
+- **`prefs.py`** : préférences GUI (chemin d'installation, version
+  Proton-GE, création du raccourci) en TOML sous
+  `~/.config/stalker-gamma-linux/gui-prefs.toml` (réutilise
+  `state.config_dir()` — même racine XDG que `install-state.toml`, fichier
+  séparé). « Version Proton-GE » a nécessité un petit ajout partagé (pas GUI
+  uniquement) : `proton.ensure_proton(..., release=...)` /
+  `provision.ensure_prefix(..., proton_release=...)` /
+  `orchestrator.run_install(..., proton_release=...)`, vide = comportement
+  par défaut inchangé (dernière release GE, décision T04).
+
+### « Mise à jour disponible » : pas de détection, action explicite
+
+Le prompt T08 demandait un statut « pas installé / installé / mise à jour
+disponible ». Vérifié dans `gamma-launcher` (v3.1, `commands/install.py`) :
+il n'existe **aucun moyen bon marché** de savoir si une mise à jour est
+disponible sans lancer le téléchargement lui-même — la comparaison de
+révision (`crev == g.downloader.revision`) se fait *après* avoir téléchargé
+l'archive GitHub. Fabriquer une détection (ex. appeler une API externe) sans
+mécanisme réel derrière aurait été de la logique métier inventée dans la
+GUI, contraire au principe du prompt. Le statut est donc binaire
+(`InstallStatus`), et « Mettre à jour » est exposée comme une action
+explicite du menu (toujours visible, activée seulement si installé) plutôt
+que comme un troisième état auto-détecté — exactement ce que fait déjà la
+CLI avec ses commandes séparées `install`/`update`.
+
+### Annulation
+
+`ProgressPage` passe un `threading.Event` neuf par tâche à `BackgroundTask` ;
+le bouton « Annuler » le lève. Propagé à `orchestrator.run_install`/
+`run_update` (voir plus haut), il interrompt proprement le sous-process en
+cours — jamais un `kill -9` du process GUI lui-même. `mo2.session.run_mo2`/
+`run_play` n'acceptent pas `cancel_event` (portée volontairement limitée :
+ce sont des lancements courts, pas des téléchargements de plusieurs Go) ; le
+bouton Annuler de `ProgressPage` est donc masqué pour ces deux tâches
+(`cancellable=False`).
+
+### Adaptatif Steam Deck (1280×800)
+
+Fenêtre par défaut 820×620 (confortable dans 1280×800, y compris en fenêtre
+bordless de Gaming Mode) ; boutons principaux dimensionnés pour le tactile
+(`_BUTTON_HEIGHT = 56`, recommandation HIG ≥ 44 px) ; navigation clavier/
+manette gratuite via le focus GTK4 standard (`set_default_widget` + focus
+initial sur le bouton contextuel, Steam Input mappe le D-Pad/A sur les
+flèches/Entrée sans code spécifique) ; retour geste tactile natif via
+`Adw.NavigationView`. Pas d'`Adw.Breakpoint` : 1280×800 est un paysage large,
+pas un cas de collapse étroit — en ajouter un aurait été de la complexité
+sans besoin réel identifié.
+
+### Identifiant d'application
+
+`Gio.Application` exige un id syntaxiquement à la D-Bus (au moins un point),
+contrairement au `.desktop` de T06 qui reste `stalker-gamma-linux` sans
+reverse-DNS (décision explicite de `desktop/paths.py`, pour rester
+indépendant d'un compte GitHub précis). Même logique reconduite ici :
+`org.stalkergammalinux.Gui` plutôt que `io.github.<compte>...`. Fichier
+statique `data/stalker-gamma-linux-gui.desktop` (+ `data/icons/`) pour le
+menu applications — packagé par T09 (Flatpak/AppImage/AUR installent chacun
+ce genre de fichier différemment) ; il n'est **pas** auto-installé par
+`pip install`, à la différence du raccourci dynamique de T06
+(`stalker-gamma-linux shortcut`, qui pointe vers `play`, pas vers la GUI).
+
+### Environnement de développement : `--system-site-packages`
+
+PyGObject n'a pas de roue manylinux (extension liée à GLib/GObject-
+introspection du système) ; `pip install pygobject` échoue sans
+`cairo-devel`/`gobject-introspection-devel` (constaté en réel). Le venv de
+dev est donc créé avec `python3 -m venv --system-site-packages .venv` pour
+voir le PyGObject du système (déjà installé, GTK4 4.22 + libadwaita 1.9
+validés en réel) ; `PyGObject-stubs` est ajouté à l'extra `dev` pour que
+`mypy --strict` type les appels `gi.repository.*`. La CLI n'a jamais besoin
+de ce groupe (`gui` en extra séparé) — `stalker-gamma-linux-gui`
+(`gui/launch.py`) vérifie GTK4/libadwaita avant tout `import gi` et affiche
+un message actionnable (par distribution) si absent, au lieu d'un
+`ModuleNotFoundError` brut.
+
 ## Références
 
 - Moteur : https://github.com/Mord3rca/gamma-launcher

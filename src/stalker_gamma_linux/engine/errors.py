@@ -47,6 +47,14 @@ class EngineNotFoundError(EngineError):
         )
 
 
+class EngineCancelledError(EngineError):
+    """`gamma-launcher <sous-commande>` a été interrompu via `cancel_event` (GUI)."""
+
+    def __init__(self, subcommand: str) -> None:
+        self.subcommand = subcommand
+        super().__init__(f"gamma-launcher {subcommand} annulé.")
+
+
 class EngineExecutionError(EngineError):
     """`gamma-launcher <sous-commande>` a rendu un code de retour non nul."""
 

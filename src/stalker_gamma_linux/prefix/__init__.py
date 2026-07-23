@@ -20,6 +20,7 @@ from stalker_gamma_linux.prefix.download import (
 )
 from stalker_gamma_linux.prefix.errors import (
     ChecksumMismatchError,
+    PrefixCancelledError,
     PrefixCommandError,
     PrefixError,
     ProtonDownloadError,
@@ -49,6 +50,7 @@ __all__ = [
     "REQUIRED_VERBS",
     "UMU_GAME_ID",
     "ChecksumMismatchError",
+    "PrefixCancelledError",
     "PrefixCommandError",
     "PrefixError",
     "PrefixPaths",

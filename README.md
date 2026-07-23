@@ -27,8 +27,9 @@ everything Linux-specific. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Status
 
-🚧 Phase 1 (MVP) implemented and validated on a real machine — see
-[docs/ROADMAP.md](docs/ROADMAP.md) and [tasks/](tasks/) for the work
+🚧 Phase 1 (MVP) implemented and validated on a real machine; the GTK4/
+libadwaita GUI (Phase 2) is implemented and tested on a real machine too —
+see [docs/ROADMAP.md](docs/ROADMAP.md) and [tasks/](tasks/) for the work
 breakdown.
 
 ## Usage
@@ -64,6 +65,18 @@ rerun the same command — steps already completed (tracked in
 `--verbose` (before the subcommand, e.g. `stalker-gamma-linux --verbose play`)
 for debug output on the console; a full rotating log is always kept under
 `~/.local/state/stalker-gamma-linux/`.
+
+### GUI
+
+A GTK4/libadwaita GUI is available as `stalker-gamma-linux-gui` — install →
+play without touching a terminal, plus a graphical Diagnostic view and a
+Preferences window (install path, Proton-GE version, desktop-shortcut
+opt-in). It needs GTK4 + libadwaita + PyGObject from your distribution (not
+pip-installable — no manylinux wheel exists for PyGObject); running the
+command without them prints the install command for your distro instead of
+a raw traceback. It calls the exact same `orchestrator`/`mo2` code as the
+CLI — no duplicated install logic — and never blocks the UI thread during a
+download. The CLI remains fully independent and usable on its own.
 
 ## Legal
 

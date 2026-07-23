@@ -63,6 +63,14 @@ class ChecksumMismatchError(ProtonDownloadError):
         )
 
 
+class PrefixCancelledError(PrefixError):
+    """Une opération de préfixe a été annulée via `cancel_event` (GUI)."""
+
+    def __init__(self, what: str) -> None:
+        self.what = what
+        super().__init__(f"{what} annulé.")
+
+
 class PrefixCommandError(PrefixError):
     """Une commande lancée dans le préfixe (via umu-run) a rendu un code non nul."""
 

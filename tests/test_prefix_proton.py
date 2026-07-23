@@ -129,6 +129,7 @@ def test_ensure_proton_downloads_into_first_search_dir(
         install_dir: Path | None = None,
         *,
         on_progress: object = None,
+        cancel_event: object = None,
     ) -> Path:
         captured["install_dir"] = install_dir
         assert install_dir is not None

@@ -8,11 +8,16 @@ import re
 import shutil
 import tarfile
 import tempfile
+import threading
 import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 
-from stalker_gamma_linux.prefix.errors import ChecksumMismatchError, ProtonDownloadError
+from stalker_gamma_linux.prefix.errors import (
+    ChecksumMismatchError,
+    PrefixCancelledError,
+    ProtonDownloadError,
+)
 
 ProgressCallback = Callable[[str], None]
 
@@ -29,6 +34,7 @@ _LATEST_RELEASE_API_URL = (
 _GE_TAG_RE = re.compile(r"^GE-Proton\d+-\d+$")
 _FETCH_TIMEOUT_SECONDS = 30
 _HASH_CHUNK_BYTES = 1024 * 1024
+_DOWNLOAD_CHUNK_BYTES = 1024 * 1024
 _SHA512_HEX_LENGTH = 128
 
 
@@ -42,12 +48,20 @@ def _read_remote_text(url: str) -> str:
         return str(response.read().decode("utf-8"))
 
 
-def _download_to(url: str, dest: Path) -> None:
+def _download_to(url: str, dest: Path, *, cancel_event: threading.Event | None = None) -> None:
+    """Copie `url` vers `dest` par blocs, en vérifiant `cancel_event` entre chacun.
+
+    Équivalent de `shutil.copyfileobj`, mais interruptible : un blocage réseau
+    lent ne doit jamais empêcher l'annulation propre depuis la GUI.
+    """
     with (
         urllib.request.urlopen(url, timeout=_FETCH_TIMEOUT_SECONDS) as response,
         dest.open("wb") as output,
     ):
-        shutil.copyfileobj(response, output)
+        while chunk := response.read(_DOWNLOAD_CHUNK_BYTES):
+            if cancel_event is not None and cancel_event.is_set():
+                raise PrefixCancelledError(f"téléchargement de {url}")
+            output.write(chunk)
 
 
 def _sha512(path: Path) -> str:
@@ -90,6 +104,7 @@ def download_proton_ge(
     install_dir: Path | None = None,
     *,
     on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> Path:
     """Télécharge et installe une release GE dans `install_dir`, SHA-512 vérifié.
 
@@ -98,6 +113,8 @@ def download_proton_ge(
     présente et complète, ne télécharge rien. Retourne le répertoire du build
     installé. Lève `ChecksumMismatchError` si l'archive ne correspond pas au
     checksum publié, `ProtonDownloadError` pour toute autre erreur réseau/archive.
+    `cancel_event` (optionnel, GUI) : lève `PrefixCancelledError` s'il est levé
+    avant ou pendant le téléchargement de l'archive.
     """
     progress = on_progress or (lambda _line: None)
     if release is None:
@@ -106,6 +123,8 @@ def download_proton_ge(
     target = resolved_dir / release
     if (target / "proton").exists():
         return target
+    if cancel_event is not None and cancel_event.is_set():
+        raise PrefixCancelledError(f"téléchargement de {release}")
 
     resolved_dir.mkdir(parents=True, exist_ok=True)
     archive_url = f"{_RELEASE_BASE_URL}/{release}/{release}.tar.gz"
@@ -116,7 +135,7 @@ def download_proton_ge(
         with tempfile.TemporaryDirectory(dir=resolved_dir) as tmp:
             archive = Path(tmp) / f"{release}.tar.gz"
             progress(f"Téléchargement de {release}…")
-            _download_to(archive_url, archive)
+            _download_to(archive_url, archive, cancel_event=cancel_event)
             progress("Vérification du checksum SHA-512…")
             actual = _sha512(archive)
             if actual != expected:

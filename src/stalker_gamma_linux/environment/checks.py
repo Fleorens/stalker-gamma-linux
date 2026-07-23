@@ -139,6 +139,33 @@ def check_vulkan(family: DistroFamily) -> Requirement:
     return Requirement(name="GPU Vulkan", status=Status.OK, detail="device Vulkan détecté")
 
 
+def check_gtk_gui(family: DistroFamily) -> Requirement:
+    """GTK4 + libadwaita + PyGObject, requis par `stalker-gamma-linux-gui` uniquement.
+
+    N'est jamais ajouté à `build_report` (utilisé par `install`/`update`, qui
+    n'en ont pas besoin) : c'est le pré-vol de l'entrée GUI (`gui/launch.py`)
+    et une ligne informative de `doctor`, pas un prérequis bloquant de la CLI.
+    Import différé de `gi` : `environment.checks` ne doit jamais imposer cette
+    dépendance à la CLI.
+    """
+    try:
+        import gi
+
+        gi.require_version("Gtk", "4.0")
+        gi.require_version("Adw", "1")
+        from gi.repository import Adw, Gtk  # noqa: F401
+    except (ImportError, ValueError) as error:
+        return Requirement(
+            name="GTK GUI",
+            status=Status.MISSING,
+            detail=f"GTK4/libadwaita (PyGObject) indisponibles : {error}",
+            install_hint=INSTALL_COMMANDS["gtk-gui"].for_family(family),
+        )
+    return Requirement(
+        name="GTK GUI", status=Status.OK, detail="GTK4 + libadwaita détectés (PyGObject)"
+    )
+
+
 def _nearest_existing_ancestor(path: Path) -> Path:
     current = path
     while not system.path_exists(current):

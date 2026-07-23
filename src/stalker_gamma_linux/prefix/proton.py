@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -113,14 +114,25 @@ def ensure_proton(
     search_dirs: Sequence[Path] | None = None,
     *,
     on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
+    release: str | None = None,
 ) -> ProtonBuild:
-    """Retourne un build Proton utilisable, en téléchargeant la dernière release
-    GE publiée si aucun n'est installé (ni GE, ni Proton Experimental). Idempotent."""
+    """Retourne un build Proton utilisable, en téléchargeant la release GE
+    demandée si aucun build utilisable n'est installé (ni GE, ni Proton
+    Experimental). Idempotent.
+
+    `release` (optionnel, préférence GUI) épingle une release GE précise
+    (ex. `GE-Proton10-8`) au lieu de la dernière publiée (défaut, décision
+    utilisateur du 2026-07-19). Sans effet si un build utilisable est déjà
+    installé : `select_proton_build` ne redemande jamais un téléchargement.
+    """
     selected = select_proton_build(find_proton_builds(search_dirs))
     if selected is not None:
         return selected
     # Télécharger dans le premier répertoire de recherche : la relance suivante
     # doit retrouver ce qu'on vient d'installer.
     install_dir = search_dirs[0] if search_dirs else None
-    path = download.download_proton_ge(install_dir=install_dir, on_progress=on_progress)
+    path = download.download_proton_ge(
+        release, install_dir=install_dir, on_progress=on_progress, cancel_event=cancel_event
+    )
     return ProtonBuild(name=path.name, path=path, version=parse_ge_version(path.name))

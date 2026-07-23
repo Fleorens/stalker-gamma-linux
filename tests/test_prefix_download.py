@@ -30,7 +30,7 @@ def _patch_remote(
         fetched_urls.append(url)
         return checksum_line
 
-    def fake_download_to(url: str, dest: Path) -> None:
+    def fake_download_to(url: str, dest: Path, **kwargs: object) -> None:
         fetched_urls.append(url)
         dest.write_bytes(archive_bytes)
 

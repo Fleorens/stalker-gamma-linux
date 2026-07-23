@@ -20,9 +20,15 @@ Homepage = "https://github.com/Grokitach/Stalker_GAMMA"
 
 [project.scripts]
 stalker-gamma-linux = "stalker_gamma_linux.cli:main"
+stalker-gamma-linux-gui = "stalker_gamma_linux.gui.launch:main"
 
 [project.optional-dependencies]
-dev = ["ruff>=0.6", "mypy>=1.11", "pytest>=8.0"]
+# PyGObject n'a pas de roue manylinux (extension liée à GLib/GObject-introspection
+# du système) : elle doit venir du paquet système de la distribution (voir
+# `environment.checks.check_gtk_gui` pour les commandes par distribution), ou d'un
+# venv créé avec `--system-site-packages`. La CLI ne dépend jamais de ce groupe.
+gui = ["PyGObject>=3.50"]
+dev = ["ruff>=0.6", "mypy>=1.11", "pytest>=8.0", "PyGObject-stubs>=2.10"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

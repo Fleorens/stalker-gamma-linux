@@ -65,4 +65,11 @@ INSTALL_COMMANDS: Mapping[str, InstallCommand] = {
             DistroFamily.DEBIAN: "sudo apt install vulkan-tools mesa-vulkan-drivers",
         },
     ),
+    "gtk-gui": InstallCommand(
+        by_family={
+            DistroFamily.FEDORA: "sudo dnf install gtk4 libadwaita python3-gobject",
+            DistroFamily.ARCH: "sudo pacman -S gtk4 libadwaita python-gobject",
+            DistroFamily.DEBIAN: "sudo apt install gir1.2-gtk-4.0 gir1.2-adw-1 python3-gi",
+        },
+    ),
 }

@@ -52,6 +52,7 @@ def _fake_run_recording(calls: list[str]) -> Any:
         env: Mapping[str, str] | None = None,
         log_label: str | None = None,
         on_progress: Any = None,
+        cancel_event: Any = None,
     ) -> Path:
         assert str(exe) == "winetricks"
         assert args[0] == "-q"

@@ -1,4 +1,5 @@
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -165,6 +166,28 @@ def test_check_vulkan_device_found(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(system, "run", lambda cmd: _completed(stdout="deviceName = RTX Fake 9000"))
 
     requirement = checks.check_vulkan(FAMILY)
+
+    assert requirement.status is Status.OK
+
+
+def test_check_gtk_gui_missing_when_gi_not_importable(monkeypatch: pytest.MonkeyPatch) -> None:
+    # `sys.modules[name] = None` fait échouer `import gi` avec ImportError — le
+    # même signal qu'un PyGObject réellement absent, sans dépendre de la machine.
+    monkeypatch.setitem(sys.modules, "gi", None)
+
+    requirement = checks.check_gtk_gui(FAMILY)
+
+    assert requirement.status is Status.MISSING
+    assert requirement.install_hint == "sudo dnf install gtk4 libadwaita python3-gobject"
+
+
+def test_check_gtk_gui_ok_when_available() -> None:
+    # `environment.checks` ne doit jamais imposer `gi` à la CLI (import différé,
+    # voir check_gtk_gui) : ce test consomme le vrai PyGObject du venv de dev
+    # (--system-site-packages) plutôt que de le mocker, pour vérifier l'intégration.
+    pytest.importorskip("gi", reason="GTK4/libadwaita pas installés sur cette machine")
+
+    requirement = checks.check_gtk_gui(FAMILY)
 
     assert requirement.status is Status.OK
 

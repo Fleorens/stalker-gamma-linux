@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=S.T.A.L.K.E.R. G.A.M.M.A.
+Comment=Installer et jouer à S.T.A.L.K.E.R. G.A.M.M.A. sous Linux
+Exec=stalker-gamma-linux-gui
+Icon=stalker-gamma-linux-gui
+Categories=Game;
+Terminal=false
+StartupNotify=true
+StartupWMClass=org.stalkergammalinux.Gui

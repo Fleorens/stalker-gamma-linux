@@ -1,10 +1,11 @@
+import threading
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from stalker_gamma_linux import engine, orchestrator, state
-from stalker_gamma_linux.engine.errors import EngineExecutionError
+from stalker_gamma_linux.engine.errors import EngineCancelledError, EngineExecutionError
 from stalker_gamma_linux.engine.paths import InstallPaths
 from stalker_gamma_linux.mo2 import instance
 from stalker_gamma_linux.prefix import provision
@@ -174,3 +175,105 @@ def test_run_update_returns_one_on_engine_error(
     monkeypatch.setattr(engine, "verify", boom)
 
     assert orchestrator.run_update(tmp_path) == 1
+
+
+class _RecordingReporter:
+    """`output.Reporter` de test : enregistre les événements au lieu de les imprimer."""
+
+    def __init__(self) -> None:
+        self.events: list[tuple[str, str]] = []
+
+    def header(self, message: str) -> None:
+        self.events.append(("header", message))
+
+    def step(self, index: str, message: str) -> None:
+        self.events.append(("step", message))
+
+    def skip(self, index: str, message: str) -> None:
+        self.events.append(("skip", message))
+
+    def progress(self, message: str) -> None:
+        self.events.append(("progress", message))
+
+    def success(self, message: str) -> None:
+        self.events.append(("success", message))
+
+    def warn(self, message: str) -> None:
+        self.events.append(("warn", message))
+
+    def error(self, message: str, *, hint: str | None = None) -> None:
+        self.events.append(("error", message))
+
+
+def test_run_install_uses_custom_reporter_instead_of_console(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    events: list[str] = []
+    _patch_all(monkeypatch, events)
+    reporter = _RecordingReporter()
+
+    code = orchestrator.run_install(tmp_path, reporter=reporter)
+
+    assert code == 0
+    assert ("header", f"Installation de S.T.A.L.K.E.R. G.A.M.M.A. dans {tmp_path}") in (
+        reporter.events
+    )
+    assert any(kind == "success" for kind, _ in reporter.events)
+    assert any(kind == "step" for kind, _ in reporter.events)
+
+
+def test_run_install_stops_cleanly_when_cancel_event_is_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    events: list[str] = []
+    _patch_all(monkeypatch, events)
+    cancel_event = threading.Event()
+    cancel_event.set()
+    reporter = _RecordingReporter()
+
+    code = orchestrator.run_install(tmp_path, reporter=reporter, cancel_event=cancel_event)
+
+    assert code == orchestrator.CANCELLED_EXIT_CODE
+    assert events == []
+    assert not state.load_state(tmp_path).is_done("anomaly")
+    assert any(kind == "warn" and "annulée" in message for kind, message in reporter.events)
+
+
+def test_run_install_cancels_mid_step_without_marking_it_done(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Un vrai appel `engine.*` annulé ne revient jamais normalement : le watchdog
+    # (engine.process._watch_cancellation) tue le sous-process et `run()` lève
+    # `EngineCancelledError` — le fake doit reproduire ce contrat, pas juste
+    # positionner l'event et retourner (sinon `run_step` marquerait l'étape faite).
+    events: list[str] = []
+    cancel_event = threading.Event()
+
+    def cancelling_install_anomaly(*a: Any, **k: Any) -> None:
+        events.append("install_anomaly")
+        cancel_event.set()
+        raise EngineCancelledError("anomaly-install")
+
+    _patch_all(monkeypatch, events)
+    monkeypatch.setattr(engine, "install_anomaly", cancelling_install_anomaly)
+
+    code = orchestrator.run_install(tmp_path, cancel_event=cancel_event)
+
+    assert code == orchestrator.CANCELLED_EXIT_CODE
+    assert events == ["install_anomaly"]
+    assert not state.load_state(tmp_path).is_done("anomaly")
+
+
+def test_run_update_stops_cleanly_on_engine_cancelled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def cancelled(*a: Any, **k: Any) -> None:
+        raise EngineCancelledError("full-install")
+
+    monkeypatch.setattr(engine, "update_gamma", cancelled)
+    reporter = _RecordingReporter()
+
+    code = orchestrator.run_update(tmp_path, reporter=reporter)
+
+    assert code == orchestrator.CANCELLED_EXIT_CODE
+    assert any(kind == "warn" and "annulée" in message for kind, message in reporter.events)

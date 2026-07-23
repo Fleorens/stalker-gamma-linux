@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -22,7 +23,11 @@ def is_initialized(paths: PrefixPaths) -> bool:
 
 
 def create_prefix(
-    paths: PrefixPaths, proton_path: Path, *, on_progress: ProgressCallback | None = None
+    paths: PrefixPaths,
+    proton_path: Path,
+    *,
+    on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> None:
     """Crée le préfixe s'il n'existe pas encore. Idempotent : ne touche jamais
     à un préfixe déjà initialisé.
@@ -43,6 +48,7 @@ def create_prefix(
             proton_path=proton_path,
             log_label="createprefix",
             on_progress=on_progress,
+            cancel_event=cancel_event,
         )
     except PrefixCommandError as error:
         if is_initialized(paths):
@@ -64,15 +70,24 @@ def ensure_prefix(
     *,
     search_dirs: Sequence[Path] | None = None,
     on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
+    proton_release: str | None = None,
 ) -> ProtonBuild:
     """Amène le préfixe partagé à l'état nominal : Proton présent, préfixe créé,
     verbs winetricks appliqués.
 
     Totalement idempotent : sur un préfixe sain, aucune commande externe n'est
     relancée. Retourne le build Proton utilisé (T05/T06/T07 en ont besoin pour
-    `run_in_prefix`).
+    `run_in_prefix`). `cancel_event` (optionnel, GUI) : propagé à chaque étape
+    (téléchargement Proton, création, verbs) ; laisse remonter
+    `PrefixCancelledError` si levé pendant l'une d'elles. `proton_release`
+    (optionnel, préférence GUI) : voir `proton.ensure_proton`.
     """
-    build = proton.ensure_proton(search_dirs, on_progress=on_progress)
-    create_prefix(paths, build.path, on_progress=on_progress)
-    verbs.apply_missing_verbs(paths, build.path, on_progress=on_progress)
+    build = proton.ensure_proton(
+        search_dirs, on_progress=on_progress, cancel_event=cancel_event, release=proton_release
+    )
+    create_prefix(paths, build.path, on_progress=on_progress, cancel_event=cancel_event)
+    verbs.apply_missing_verbs(
+        paths, build.path, on_progress=on_progress, cancel_event=cancel_event
+    )
     return build

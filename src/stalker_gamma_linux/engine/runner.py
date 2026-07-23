@@ -7,6 +7,7 @@ n'est réimplémentée ici : tout est délégué au binaire `gamma-launcher` via
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 from stalker_gamma_linux.engine.errors import EngineExecutionError, VerificationError
@@ -14,17 +15,28 @@ from stalker_gamma_linux.engine.paths import InstallPaths
 from stalker_gamma_linux.engine.process import ProgressCallback, run
 
 
-def install_anomaly(paths: InstallPaths, *, on_progress: ProgressCallback | None = None) -> None:
+def install_anomaly(
+    paths: InstallPaths,
+    *,
+    on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
+) -> None:
     """Installe S.T.A.L.K.E.R.: Anomaly (`gamma-launcher anomaly-install`)."""
     paths.ensure_directories()
     run(
         "anomaly-install",
         ["--anomaly", str(paths.anomaly), "--cache-directory", str(paths.cache)],
         on_progress=on_progress,
+        cancel_event=cancel_event,
     )
 
 
-def install_gamma(paths: InstallPaths, *, on_progress: ProgressCallback | None = None) -> None:
+def install_gamma(
+    paths: InstallPaths,
+    *,
+    on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
+) -> None:
     """Installe (ou met à jour) le modpack G.A.M.M.A. (`gamma-launcher full-install`).
 
     `full-install` est idempotent côté gamma-launcher : rejoué sur une
@@ -43,38 +55,68 @@ def install_gamma(paths: InstallPaths, *, on_progress: ProgressCallback | None =
             str(paths.cache),
         ],
         on_progress=on_progress,
+        cancel_event=cancel_event,
     )
 
 
-def update_gamma(paths: InstallPaths, *, on_progress: ProgressCallback | None = None) -> None:
+def update_gamma(
+    paths: InstallPaths,
+    *,
+    on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
+) -> None:
     """Alias de `install_gamma`.
 
     gamma-launcher v3.1 n'expose pas de sous-commande `update` séparée :
     `full-install` sert aux deux usages (voir docs/ARCHITECTURE.md).
     """
-    install_gamma(paths, on_progress=on_progress)
+    install_gamma(paths, on_progress=on_progress, cancel_event=cancel_event)
 
 
-def remove_reshade(paths: InstallPaths, *, on_progress: ProgressCallback | None = None) -> None:
+def remove_reshade(
+    paths: InstallPaths,
+    *,
+    on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
+) -> None:
     """Retire ReShade, incompatible DXVK/Proton (`gamma-launcher remove-reshade`).
 
     Étape **obligatoire** avant de jouer (docs/INSTALL-MANUAL.md §5) : ReShade,
     injecté par le modpack pour Windows, casse le rendu ou le lancement sous DXVK.
     """
-    run("remove-reshade", ["--anomaly", str(paths.anomaly)], on_progress=on_progress)
+    run(
+        "remove-reshade",
+        ["--anomaly", str(paths.anomaly)],
+        on_progress=on_progress,
+        cancel_event=cancel_event,
+    )
 
 
-def purge_shader_cache(paths: InstallPaths, *, on_progress: ProgressCallback | None = None) -> None:
+def purge_shader_cache(
+    paths: InstallPaths,
+    *,
+    on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
+) -> None:
     """Vide le cache de shaders d'Anomaly (`gamma-launcher purge-shader-cache`).
 
     Complète `remove_reshade` : un cache obsolète après retrait de ReShade ou
     après une mise à jour provoque des artefacts (docs/INSTALL-MANUAL.md §5, §9).
     """
-    run("purge-shader-cache", ["--anomaly", str(paths.anomaly)], on_progress=on_progress)
+    run(
+        "purge-shader-cache",
+        ["--anomaly", str(paths.anomaly)],
+        on_progress=on_progress,
+        cancel_event=cancel_event,
+    )
 
 
 def build_flat_install(
-    paths: InstallPaths, final_dir: Path, *, on_progress: ProgressCallback | None = None
+    paths: InstallPaths,
+    final_dir: Path,
+    *,
+    on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> None:
     """Construit l'install fusionnée sans MO2 (`gamma-launcher usvfs-workaround`).
 
@@ -94,10 +136,16 @@ def build_flat_install(
             str(final_dir),
         ],
         on_progress=on_progress,
+        cancel_event=cancel_event,
     )
 
 
-def verify(paths: InstallPaths, *, on_progress: ProgressCallback | None = None) -> None:
+def verify(
+    paths: InstallPaths,
+    *,
+    on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
+) -> None:
     """Vérifie l'installation (`check-anomaly` puis `check-md5`).
 
     Lève `VerificationError` si l'une des deux vérifications échoue.
@@ -107,7 +155,7 @@ def verify(paths: InstallPaths, *, on_progress: ProgressCallback | None = None) 
         ("check-md5", ["--gamma", str(paths.gamma)]),
     ):
         try:
-            run(subcommand, args, on_progress=on_progress)
+            run(subcommand, args, on_progress=on_progress, cancel_event=cancel_event)
         except EngineExecutionError as error:
             raise VerificationError(
                 error.subcommand, error.returncode, error.output_tail

@@ -1,4 +1,5 @@
 import subprocess
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -7,7 +8,11 @@ import pytest
 
 from stalker_gamma_linux.environment import system
 from stalker_gamma_linux.prefix import process
-from stalker_gamma_linux.prefix.errors import PrefixCommandError, UmuNotFoundError
+from stalker_gamma_linux.prefix.errors import (
+    PrefixCancelledError,
+    PrefixCommandError,
+    UmuNotFoundError,
+)
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 
 
@@ -16,8 +21,35 @@ class _FakeProcess:
         self.stdout: Iterator[str] = iter(f"{line}\n" for line in lines)
         self._returncode = returncode
 
-    def wait(self) -> int:
+    def poll(self) -> int | None:
         return self._returncode
+
+    def wait(self, timeout: float | None = None) -> int:
+        return self._returncode
+
+
+class _CancellableFakeProcess:
+    """Process fake dont `poll`/`terminate`/`kill` sont pilotables (tests d'annulation)."""
+
+    def __init__(self) -> None:
+        self.stdout: Iterator[str] = iter(())
+        self._terminated = threading.Event()
+        self.terminate_called = False
+
+    def poll(self) -> int | None:
+        return -15 if self._terminated.is_set() else None
+
+    def terminate(self) -> None:
+        self.terminate_called = True
+        self._terminated.set()
+
+    def kill(self) -> None:
+        self._terminated.set()
+
+    def wait(self, timeout: float | None = None) -> int:
+        if not self._terminated.wait(timeout=timeout):
+            raise subprocess.TimeoutExpired(cmd="fake", timeout=timeout or 0)
+        return -15
 
 
 def _patch_popen(
@@ -112,3 +144,23 @@ def test_run_in_prefix_raises_typed_error_with_log_attached(
     assert error.log_path.is_file()
     assert "boum" in error.output_tail
     assert str(error.log_path) in str(error)
+
+
+def test_run_in_prefix_cancels_cleanly_when_cancel_event_is_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/umu-run")
+    fake_process = _CancellableFakeProcess()
+    monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: fake_process)
+    cancel_event = threading.Event()
+    cancel_event.set()
+
+    with pytest.raises(PrefixCancelledError):
+        process.run_in_prefix(
+            "createprefix",
+            paths=PrefixPaths.under(tmp_path),
+            proton_path=tmp_path / "GE",
+            cancel_event=cancel_event,
+        )
+
+    assert fake_process.terminate_called
