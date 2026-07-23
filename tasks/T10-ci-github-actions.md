@@ -30,9 +30,12 @@ workflow_dispatch).
 
 ## Statut
 
-✅ Implémenté le 2026-07-23, testé pour de vrai en conteneur avant de
-committer (pas encore vérifié sur un vrai run GitHub Actions — voir
-`docs/CI.md`, dernière section).
+✅ Implémenté et **validé en vrai sur GitHub** le 2026-07-23 : `ci.yml`
+entièrement vert sur le push (`main`), `upstream-watch.yml` vert de bout en
+bout via `workflow_dispatch --force`, `release.yml` vert sur un vrai tag
+`v0.1.0` (après un premier essai en échec, corrigé — voir `docs/CI.md`) :
+release publiée avec les deux artefacts —
+https://github.com/Fleorens/stalker-gamma-linux/releases/tag/v0.1.0.
 
 - `ci.yml` : matrice 3.11/3.12/3.13 validée pour de vrai dans des conteneurs
   `ubuntu:24.04` (3.12 natif, 3.11/3.13 via deadsnakes) — `ruff`, `mypy

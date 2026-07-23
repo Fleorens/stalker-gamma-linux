@@ -135,13 +135,22 @@ Publication via `gh release create --generate-notes` (notes auto-générées
 par GitHub à partir des PRs/commits depuis le tag précédent) — pas de
 script de changelog maison.
 
+**Testé pour de vrai sur un tag réellement poussé** (`v0.1.0`, 2026-07-23) :
+premier essai en échec — `flatpak-builder` invoque `eu-strip` (`elfutils`)
+pour extraire les symboles de debug de chaque module compilé (ex.
+l'extension C de `py7zr`), présent par défaut sur la machine Fedora de
+Florian mais absent des runners `ubuntu-latest` hébergés. Corrigé (`apt-get
+install elfutils` ajouté avant le build), tag recréé sur le commit corrigé,
+second run entièrement vert : `test` → `build-appimage` (46s) →
+`build-flatpak` (5m22s) → `publish`, release publiée avec les deux
+artefacts (`stalker-gamma-linux-x86_64.AppImage`,
+`org.stalkergammalinux.Gui.flatpak`) et notes auto-générées —
+https://github.com/Fleorens/stalker-gamma-linux/releases/tag/v0.1.0.
+
 ## Ce qui n'est pas testé en conditions CI réelles
 
-- `release.yml` : la logique est validée pièce par pièce (AppImage et
-  Flatpak buildés/testés pour de vrai pendant T09 et T10, `gh release
-  create` est une commande standard) mais le workflow complet, de bout en
-  bout sur un vrai tag poussé, n'a pas encore tourné sur GitHub au moment
-  d'écrire ceci — se référer aux runs Actions du dépôt pour la première
-  exécution réelle.
 - Steam Deck / SteamOS réel pour la partie packaging : voir les gaps déjà
   documentés dans `docs/PACKAGING.md` (mêmes limites, T10 n'y change rien).
+  Les trois workflows (`ci.yml`, `upstream-watch.yml` via
+  `workflow_dispatch --force`, `release.yml` sur un vrai tag) ont, eux,
+  tous tourné avec succès sur GitHub pendant le développement de T10.
