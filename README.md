@@ -41,41 +41,45 @@ up — see [docs/ROADMAP.md](docs/ROADMAP.md), [docs/CI.md](docs/CI.md) and
 
 ### Install
 
-Three ways to get the CLI/GUI running — pick whichever fits your setup, they
-all end up at the same `install`/`play`/`doctor` commands.
-
-**Flatpak** (recommended — sandboxed, includes the GUI, works on Steam Deck):
-see [docs/PACKAGING.md](docs/PACKAGING.md) to build it locally with
-`make package-flatpak` (not yet on Flathub — a submission is staged but not
-sent, see `packaging/flatpak/flathub/`).
-
-**AppImage** (portable, CLI only): `make package-appimage`, then run the
-produced `packaging/appimage/dist/stalker-gamma-linux-*.AppImage` directly —
-see [docs/PACKAGING.md](docs/PACKAGING.md).
-
-**From source / curl script**:
-
-The Flatpak/AppImage channels above bundle everything they need. This path
-doesn't: the one hard prerequisite is **umu-launcher** (`umu-run` in your
-`PATH`) — once it's there, Proton-GE, the Wine prefix, winetricks verbs and
-DXVK are all downloaded/configured automatically, no `sudo` involved. There is
-no PyPI package (`pipx install umu-launcher` 404s) and no native package on
-Fedora/Debian/Ubuntu yet: grab the official
-["zipapp" release](https://github.com/Open-Wine-Components/umu-launcher/releases)
-and put `umu-run` in `~/.local/bin`. On Arch: `sudo pacman -S umu-launcher`. Steam,
-protontricks, `7z`, `libunrar` and Vulkan drivers help but are secondary —
-`install.sh` below runs `doctor` first and warns if any of this is missing,
-*before* it commits to the ~90 GB download.
+The recommended install is **one command** that sets up a native environment
+and **opens the installer GUI** — the actual installation experience:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/Fleorens/stalker-gamma-linux/main/install.sh | bash
 ```
 
-This bootstraps a venv under `~/.local/share/stalker-gamma-linux/` (no
-`sudo`), installs the package, links `~/.local/bin/stalker-gamma-linux`, and
-runs `install`. Already have a checkout? `./install.sh` does the same without
-cloning. Either form forwards extra arguments to `install`, e.g.
-`./install.sh --target /mnt/games --shortcut`.
+No `sudo`, nothing written outside your home. It bootstraps a
+`--system-site-packages` venv under `~/.local/share/stalker-gamma-linux/`,
+installs the package, adds a **GAMMA Linux Installer** entry to your app menu,
+and launches the GUI. The window drives the rest: live prerequisite diagnostic,
+install target, download/install, then Play. Already have a checkout?
+`./install.sh` does the same without cloning; `--no-launch` sets everything up
+without opening the window.
+
+Running **natively** (not sandboxed) is deliberate: this tool orchestrates your
+system's Wine/Proton, umu, libunrar, Steam and 32-bit stack — the native GUI
+uses them directly, with none of the bundling/sandbox workarounds a Flatpak
+needs for a Wine launcher.
+
+**Prerequisites** (the GUI's Diagnostic tab shows them live):
+- **GTK4 + libadwaita + PyGObject** — for the GUI itself, the one thing the
+  script can't set up without `sudo` (PyGObject has no pip wheel; it comes from
+  your distro). Fedora: `sudo dnf install gtk4 libadwaita python3-gobject` ·
+  Debian/Ubuntu: `sudo apt install gir1.2-gtk-4.0 gir1.2-adw-1 python3-gi` ·
+  Arch: `sudo pacman -S gtk4 libadwaita python-gobject`. If they're missing the
+  script prints the exact command for your distro.
+- **umu-launcher** (`umu-run` in `PATH`) — for the install itself. No PyPI
+  package (`pipx install umu-launcher` 404s), no native package on
+  Fedora/Debian/Ubuntu yet: grab the official
+  ["zipapp" release](https://github.com/Open-Wine-Components/umu-launcher/releases)
+  and put `umu-run` in `~/.local/bin`. Arch: `sudo pacman -S umu-launcher`.
+- Steam, protontricks, `7z`, `libunrar`, Vulkan drivers help but are secondary.
+
+**Other channels.** **Flatpak** (`make package-flatpak`) targets a future
+Flathub one-click, but a sandbox around a Wine launcher needs the whole stack
+bundled (GTK, libunrar, 32-bit Wine extensions) — native above is the
+recommended path today. **AppImage** (`make package-appimage`) is CLI-only.
+Both are in [docs/PACKAGING.md](docs/PACKAGING.md).
 
 Once installed (or with the venv activated), the CLI is `stalker-gamma-linux`:
 
