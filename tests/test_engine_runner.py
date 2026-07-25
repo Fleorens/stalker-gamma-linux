@@ -60,6 +60,41 @@ def test_install_gamma_invokes_full_install(
     ]
 
 
+def test_install_gamma_preserves_user_config_when_present(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls: list[tuple[str, list[str]]] = []
+    monkeypatch.setattr(
+        runner, "run", lambda subcommand, args, **kw: calls.append((subcommand, args))
+    )
+
+    paths = _paths(tmp_path)
+    user_ltx = paths.anomaly / "appdata" / "user.ltx"
+    user_ltx.parent.mkdir(parents=True, exist_ok=True)
+    user_ltx.write_text("[key]\nvalue\n")
+
+    runner.install_gamma(paths)
+
+    # Un user.ltx existe → --preserve-user-config, sinon _patch_anomaly reset
+    # les réglages joueur.
+    assert "--preserve-user-config" in calls[0][1]
+
+
+def test_install_gamma_omits_preserve_flag_on_fresh_install(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls: list[tuple[str, list[str]]] = []
+    monkeypatch.setattr(
+        runner, "run", lambda subcommand, args, **kw: calls.append((subcommand, args))
+    )
+
+    # Pas de user.ltx (install fraîche) : passer le drapeau ferait planter
+    # gamma-launcher (restauration d'un .bak inexistant).
+    runner.install_gamma(_paths(tmp_path))
+
+    assert "--preserve-user-config" not in calls[0][1]
+
+
 def test_install_gamma_redirects_tmpdir_to_install_drive(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

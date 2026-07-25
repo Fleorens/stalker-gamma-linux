@@ -68,16 +68,21 @@ def install_gamma(
     qu'il suit sans le toucher), et les téléchargements y persistent d'une
     relance à l'autre — aucun re-téléchargement. Le gros cache utile (l'archive
     de base Anomaly) reste couvert par `install_anomaly`.
+
+    On passe `--preserve-user-config` dès qu'un `appdata/user.ltx` existe déjà.
+    Sinon, `_patch_anomaly` écrase les réglages joueur (graphismes, contrôles,
+    gameplay) par la config par défaut du modpack — une mise à jour ne doit pas
+    reset les réglages. Sur une install fraîche, `user.ltx` n'existe pas encore :
+    on ne passe pas le drapeau (gamma-launcher planterait à restaurer un `.bak`
+    inexistant, et il n'y a de toute façon rien à préserver).
     """
     paths.ensure_directories()
+    args = ["--anomaly", str(paths.anomaly), "--gamma", str(paths.gamma)]
+    if (paths.anomaly / "appdata" / "user.ltx").is_file():
+        args.append("--preserve-user-config")
     run(
         "full-install",
-        [
-            "--anomaly",
-            str(paths.anomaly),
-            "--gamma",
-            str(paths.gamma),
-        ],
+        args,
         on_progress=on_progress,
         cancel_event=cancel_event,
         tmpdir=_extract_tmpdir(paths),
