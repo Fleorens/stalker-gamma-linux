@@ -66,8 +66,9 @@ class HeroBox(Gtk.Box):
         self.append(self._chip)
 
     def show_state(self, state: viewmodel.MainWindowState, *, free_label: str | None) -> None:
+        # Sobre et factuel — pas de flavor text (retour Florian).
         if state.is_installed:
-            self._title.set_label("PRÊT À PARTIR EN ZONE")
+            self._title.set_label("PRÊT À JOUER")
         else:
             self._title.set_label("INSTALLATION REQUISE")
         subtitle = str(state.target)

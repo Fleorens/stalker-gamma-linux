@@ -177,6 +177,28 @@ def test_run_update_returns_one_on_engine_error(
     assert orchestrator.run_update(tmp_path) == 1
 
 
+def test_run_update_warns_on_unverifiable_archives_but_succeeds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Entrées invérifiables en ligne (ModDB) = avertissement, pas un échec."""
+    for name in ("update_gamma", "remove_reshade", "purge_shader_cache"):
+        monkeypatch.setattr(engine, name, lambda *a, **k: None)
+    monkeypatch.setattr(
+        engine,
+        "verify",
+        lambda *a, **k: ("Could not find Filename in https://moddb/x",),
+    )
+    reporter = _RecordingReporter()
+
+    code = orchestrator.run_update(tmp_path, reporter=reporter)
+
+    assert code == 0
+    warnings = [message for kind, message in reporter.events if kind == "warn"]
+    assert len(warnings) == 1
+    assert "aucune corruption locale" in warnings[0]
+    assert "Could not find Filename in https://moddb/x" in warnings[0]
+
+
 class _RecordingReporter:
     """`output.Reporter` de test : enregistre les événements au lieu de les imprimer."""
 

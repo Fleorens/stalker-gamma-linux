@@ -26,6 +26,12 @@ def main() -> int:
     # l'utilisateur forcer autre chose via GSK_RENDERER s'il le souhaite.
     os.environ.setdefault("GSK_RENDERER", "cairo")
 
+    # Même journal rotatif que la CLI (~/.local/state/stalker-gamma-linux/) :
+    # sans ça, « voir le journal » après un échec GUI menait à un fichier vide.
+    from stalker_gamma_linux import logging_setup
+
+    logging_setup.configure_logging()
+
     requirement = check_gtk_gui(detect_distro().family)
     if requirement.status is not Status.OK:
         print(f"stalker-gamma-linux-gui : {requirement.detail}", file=sys.stderr)

@@ -185,7 +185,9 @@ def run_update(
             install, on_progress=reporter.progress, cancel_event=cancel_event
         )
         reporter.step("3/3", "Vérification (MD5 des archives de mods)…")
-        engine.verify(install, on_progress=reporter.progress, cancel_event=cancel_event)
+        unverifiable = engine.verify(
+            install, on_progress=reporter.progress, cancel_event=cancel_event
+        )
     except EngineCancelledError:
         reporter.warn("Mise à jour annulée.")
         return CANCELLED_EXIT_CODE
@@ -194,6 +196,17 @@ def run_update(
         return 1
 
     state_module.mark_done(root, "gamma")
+    if unverifiable:
+        # Pas un échec : toutes les archives locales vérifiables sont conformes,
+        # seules ces entrées n'ont pas pu être comparées à ModDB (page modifiée
+        # ou throttling Cloudflare). Voir engine.runner.verify.
+        details = "\n".join(f"  - {line}" for line in unverifiable)
+        reporter.warn(
+            f"{len(unverifiable)} archive(s) n'ont pas pu être vérifiées en ligne "
+            "(page ModDB modifiée ou limitation Cloudflare) — aucune corruption "
+            f"locale détectée :\n{details}\n"
+            "Relance une mise à jour plus tard pour une vérification complète."
+        )
     reporter.success(
         "\nMise à jour terminée.\nRappels : si un profil ou un exécutable "
         "personnalisé a changé en amont, relance `stalker-gamma-linux mo2 "

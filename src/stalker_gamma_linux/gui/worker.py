@@ -11,10 +11,15 @@ par ces modules.
 
 from __future__ import annotations
 
+import logging
 import queue
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
+
+from stalker_gamma_linux.logging_setup import LOGGER_NAME
+
+_logger = logging.getLogger(LOGGER_NAME)
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,30 +54,42 @@ class QueueReporter:
 
     Utilisé par la vue progression de la GUI pour piloter `orchestrator.run_install`/
     `run_update` sans dupliquer leur logique — seul le rendu diffère de la CLI.
+    Chaque événement est aussi doublé vers le journal applicatif (mêmes niveaux
+    que `output.py`) : le fichier sous `~/.local/state/` reste la trace complète
+    même quand tout passe par la GUI.
     """
 
     def __init__(self, events: queue.Queue[WorkerEvent]) -> None:
         self._events = events
 
     def header(self, message: str) -> None:
+        _logger.info(message)
         self._events.put(ReporterEvent("header", message))
 
     def step(self, index: str, message: str) -> None:
+        _logger.info("étape %s : %s", index, message)
         self._events.put(ReporterEvent("step", message, index=index))
 
     def skip(self, index: str, message: str) -> None:
+        _logger.debug("étape sautée %s : %s", index, message)
         self._events.put(ReporterEvent("skip", message, index=index))
 
     def progress(self, message: str) -> None:
+        _logger.debug(message)
         self._events.put(ReporterEvent("progress", message))
 
     def success(self, message: str) -> None:
+        _logger.info(message)
         self._events.put(ReporterEvent("success", message))
 
     def warn(self, message: str) -> None:
+        _logger.warning(message)
         self._events.put(ReporterEvent("warn", message))
 
     def error(self, message: str, *, hint: str | None = None) -> None:
+        _logger.error(message)
+        if hint is not None:
+            _logger.info("suggestion : %s", hint)
         self._events.put(ReporterEvent("error", message, hint=hint))
 
 

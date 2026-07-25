@@ -171,15 +171,41 @@ def build_flat_install(
     )
 
 
+# Vraie corruption locale : émis par le downloader de base de gamma-launcher
+# (`Hash verification failed for/since/after ...`) quand une archive du cache
+# est absente ou ne correspond pas au MD5 attendu.
+_CORRUPTION_MARKER = "Hash verification failed"
+
+# Vérification *en ligne* impossible, sans rien dire des fichiers locaux :
+# page ModDB illisible (throttling Cloudflare, addon déplacé/supprimé) ou
+# version amont qui a dérivé depuis le snapshot de la modlist. gamma-launcher
+# compte ces cas comme des erreurs (exit 1) alors que toutes les archives
+# locales ont pu passer le hash — pour nous c'est un avertissement, pas un
+# échec de la mise à jour.
+_UNVERIFIABLE_MARKERS: tuple[str, ...] = (
+    "Could not find Filename in",
+    "Could not find archive hash in",
+    "since ModDB info do not match download url",
+    "Download link not found when requesting",
+    "No Info URL provided",
+)
+
+
 def verify(
     paths: InstallPaths,
     *,
     on_progress: ProgressCallback | None = None,
     cancel_event: threading.Event | None = None,
-) -> None:
+) -> tuple[str, ...]:
     """Vérifie l'intégrité des archives de mods (`check-md5`).
 
-    Lève `VerificationError` en cas d'échec.
+    Retourne les lignes « invérifiables en ligne » (ModDB illisible ou version
+    amont qui a dérivé — voir `_UNVERIFIABLE_MARKERS`) : les archives locales
+    correspondantes n'ont **pas** pu être comparées à leur somme amont, mais
+    rien n'indique une corruption — à présenter comme avertissement. Lève
+    `VerificationError` si une archive locale est réellement corrompue ou
+    manquante (`Hash verification failed`), ou si `check-md5` échoue pour une
+    raison inconnue.
 
     On ne lance **pas** `check-anomaly` ici. Il compare les fichiers d'Anomaly
     aux sommes de contrôle *vanilla* (`tools/checksums.md5`), or une install
@@ -189,14 +215,33 @@ def verify(
     bin/ »). L'Anomaly de base est déjà vérifiée par `anomaly-install`, avant le
     patch — le seul moment où cette vérification est valide.
     """
+    corrupted = False
+    unverifiable: list[str] = []
+
+    def watch(line: str) -> None:
+        # Classifie sur le flux complet, pas sur le tail tronqué de l'erreur :
+        # check-md5 réimprime toutes ses erreurs en bloc final, mais un tail de
+        # 20 lignes pourrait masquer une vraie corruption noyée au milieu.
+        nonlocal corrupted
+        stripped = line.strip()
+        if _CORRUPTION_MARKER in stripped:
+            corrupted = True
+        elif any(marker in stripped for marker in _UNVERIFIABLE_MARKERS):
+            unverifiable.append(stripped)
+        if on_progress is not None:
+            on_progress(line)
+
     try:
         run(
             "check-md5",
             ["--gamma", str(paths.gamma)],
-            on_progress=on_progress,
+            on_progress=watch,
             cancel_event=cancel_event,
         )
     except EngineExecutionError as error:
-        raise VerificationError(
-            error.subcommand, error.returncode, error.output_tail
-        ) from error
+        if corrupted or not unverifiable:
+            raise VerificationError(
+                error.subcommand, error.returncode, error.output_tail
+            ) from error
+        # Échec uniquement « en ligne » : aucune archive locale en défaut.
+    return tuple(dict.fromkeys(unverifiable))
