@@ -63,7 +63,27 @@ def test_load_main_window_state_reads_persisted_state(
     assert not result.install.is_done("prefix")
 
 
-def test_load_main_window_state_defaults_target_when_none() -> None:
+def test_load_main_window_state_detects_existing_install_on_disk(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # state.toml vide (install posée à la main / hors pipeline), mais le jeu est
+    # bien là : la fenêtre doit dire « installé » (bouton Jouer), pas l'inverse.
+    monkeypatch.setattr(state, "config_dir", lambda: tmp_path / "config")
+    monkeypatch.setattr(viewmodel.presence, "is_installed_on_disk", lambda target: True)
+
+    result = viewmodel.load_main_window_state(tmp_path)
+
+    assert result.status is viewmodel.InstallStatus.INSTALLED
+    assert result.primary_action_label == "Jouer"
+    # L'état persisté reste vide : c'est la présence sur le disque qui a tranché.
+    assert not result.install.is_done("anomaly")
+
+
+def test_load_main_window_state_defaults_target_when_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(viewmodel.presence, "is_installed_on_disk", lambda target: False)
+
     result = viewmodel.load_main_window_state(None)
 
     assert result.target == DEFAULT_INSTALL_TARGET

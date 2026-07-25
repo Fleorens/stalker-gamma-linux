@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
 
+from stalker_gamma_linux import presence
 from stalker_gamma_linux import state as state_module
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
 
@@ -51,6 +52,10 @@ class MainWindowState:
 def load_main_window_state(target: Path | None) -> MainWindowState:
     root = target if target is not None else DEFAULT_INSTALL_TARGET
     install_state = state_module.load_state(root)
-    return MainWindowState(
-        target=root, status=install_status(install_state), install=install_state
-    )
+    status = install_status(install_state)
+    # Reconnaît une install existante posée hors de notre pipeline (manuelle,
+    # ou version antérieure) : `state.toml` peut être vide alors que le jeu est
+    # bien là — sinon la GUI dit « pas installé » avec GAMMA sous le nez.
+    if status is InstallStatus.NOT_INSTALLED and presence.is_installed_on_disk(root):
+        status = InstallStatus.INSTALLED
+    return MainWindowState(target=root, status=status, install=install_state)

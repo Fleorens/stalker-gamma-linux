@@ -38,6 +38,12 @@ finish-args:
   # read-write, for the whole session" — --filesystem=host is the honest
   # answer, not a shortcut.
   - --filesystem=host
+  # Lets the diagnostic query the HOST for tools the sandbox PATH can't see
+  # (steam, protontricks, vulkaninfo, systemd-detect-virt) via `flatpak-spawn
+  # --host`. Without it the GUI wrongly reports "Steam missing / no GPU" on a
+  # fully-equipped machine. Read-only introspection (which/--version/-p), no
+  # host command is *executed* for the install itself (that stays sandboxed).
+  - --talk-name=org.freedesktop.Flatpak
   # SteamOS-like scenario (task acceptance criterion): let `doctor`/prefix
   # provisioning see an existing Steam install (native or Flatpak) — already
   # covered by --filesystem=host above, listed here only as documentation of

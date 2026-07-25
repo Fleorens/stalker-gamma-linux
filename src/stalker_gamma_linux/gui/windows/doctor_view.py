@@ -90,7 +90,7 @@ class DoctorPage(Adw.NavigationPage):
             (
                 self._build_requirements_group("Environnement", report.environment.requirements),
                 self._build_requirements_group("Préfixe Proton", report.prefix.requirements),
-                self._build_install_group(report.install),
+                self._build_install_group(report.install, report.installed_on_disk),
             )
         )
         self._groups = groups
@@ -137,8 +137,16 @@ class DoctorPage(Adw.NavigationPage):
             group.add(row)
         return group
 
-    def _build_install_group(self, install_state: state.InstallState) -> Adw.PreferencesGroup:
-        group = Adw.PreferencesGroup(title="Installation")
+    def _build_install_group(
+        self, install_state: state.InstallState, installed_on_disk: bool
+    ) -> Adw.PreferencesGroup:
+        description = (
+            "Install GAMMA détectée sur le disque (Anomaly + MO2) — jouable même si "
+            "les étapes ci-dessous ne sont pas cochées."
+            if installed_on_disk
+            else None
+        )
+        group = Adw.PreferencesGroup(title="Installation", description=description)
         for step in state.STEPS:
             done = install_state.is_done(step)
             row = Adw.ActionRow(

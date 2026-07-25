@@ -22,9 +22,11 @@ _VERSION_RE = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?")
 
 
 def _flatpak_app_installed(app_id: str) -> bool:
-    if system.which("flatpak") is None:
+    # host_* : depuis un Flatpak, on interroge le `flatpak` de l'hôte (le sandbox
+    # n'a pas la CLI flatpak ni la vue sur les apps installées côté système).
+    if system.host_which("flatpak") is None:
         return False
-    result = system.run(["flatpak", "info", app_id])
+    result = system.host_run(["flatpak", "info", app_id])
     return result.returncode == 0
 
 
@@ -36,7 +38,7 @@ def _parse_version(text: str) -> tuple[int, ...] | None:
 
 
 def check_steam(family: DistroFamily) -> Requirement:
-    if system.which("steam") is not None:
+    if system.host_which("steam") is not None:
         return Requirement(name="Steam", status=Status.OK, detail="Steam natif détecté")
     if _flatpak_app_installed("com.valvesoftware.Steam"):
         return Requirement(name="Steam", status=Status.OK, detail="Steam (Flatpak) détecté")
@@ -62,7 +64,7 @@ def check_umu(family: DistroFamily) -> Requirement:
 
 
 def check_protontricks(family: DistroFamily) -> Requirement:
-    path = system.which("protontricks")
+    path = system.host_which("protontricks")
     if path is None:
         if _flatpak_app_installed("com.github.Matoking.protontricks"):
             return Requirement(
@@ -78,7 +80,7 @@ def check_protontricks(family: DistroFamily) -> Requirement:
             key="protontricks",
         )
 
-    result = system.run(["protontricks", "--version"])
+    result = system.host_run(["protontricks", "--version"])
     version = _parse_version(result.stdout or result.stderr)
     if version is None:
         return Requirement(
@@ -114,7 +116,7 @@ def check_7z(family: DistroFamily) -> Requirement:
 
 
 def check_libunrar(family: DistroFamily) -> Requirement:
-    result = system.run(["ldconfig", "-p"])
+    result = system.host_run(["ldconfig", "-p"])
     if "libunrar" in result.stdout:
         return Requirement(name="libunrar", status=Status.OK, detail="libunrar détectée")
     return Requirement(
@@ -127,10 +129,10 @@ def check_libunrar(family: DistroFamily) -> Requirement:
 
 
 def check_vulkan(family: DistroFamily) -> Requirement:
-    tool = system.which("vulkaninfo")
+    tool = system.host_which("vulkaninfo")
     has_device = False
     if tool is not None:
-        result = system.run(["vulkaninfo", "--summary"])
+        result = system.host_run(["vulkaninfo", "--summary"])
         has_device = result.returncode == 0 and "deviceName" in result.stdout
     if has_device:
         return Requirement(name="GPU Vulkan", status=Status.OK, detail="device Vulkan détecté")

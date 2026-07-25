@@ -18,6 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from stalker_gamma_linux import presence
 from stalker_gamma_linux import state as state_module
 from stalker_gamma_linux.environment.models import EnvironmentReport
 from stalker_gamma_linux.environment.report import (
@@ -43,6 +44,9 @@ class DoctorReport:
     environment: EnvironmentReport
     prefix: PrefixReport
     install: InstallState
+    # Install GAMMA réellement présente sur le disque (fichiers du jeu), même si
+    # elle n'est pas passée par notre pipeline (`install` vide dans ce cas).
+    installed_on_disk: bool = False
 
     @property
     def is_ready(self) -> bool:
@@ -57,6 +61,7 @@ def build_full_report(target: Path | None = None) -> DoctorReport:
         environment=build_report(root),
         prefix=build_prefix_report(PrefixPaths.under(root)),
         install=state_module.load_state(root),
+        installed_on_disk=presence.is_installed_on_disk(root),
     )
 
 
@@ -71,5 +76,11 @@ def run_doctor(target: Path | None = None) -> int:
 
     console.print("\n[bold]=== Installation ===[/bold]")
     console.print(state_module.format_state(report.install, report.target))
+    if report.installed_on_disk:
+        console.print(
+            "[green]Install GAMMA détectée sur le disque (Anomaly + Mod Organizer 2 "
+            "présents) — utilisable même si les étapes ci-dessus ne sont pas cochées "
+            "(install hors pipeline).[/green]"
+        )
 
     return 0 if report.is_ready else 1

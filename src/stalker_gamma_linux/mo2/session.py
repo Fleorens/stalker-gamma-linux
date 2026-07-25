@@ -26,7 +26,7 @@ from stalker_gamma_linux.prefix.proton import ProtonBuild
 
 ProgressCallback = Callable[[str], None]
 
-_ANOMALY_MARKER = "AnomalyLauncher.exe"
+ANOMALY_MARKER = "AnomalyLauncher.exe"
 
 
 def _resolve_root(target: Path | None) -> Path:
@@ -42,8 +42,8 @@ def resolve_anomaly(mo2: Mo2Paths, install: InstallPaths) -> Path:
     l'imbriqué contient bien `AnomalyLauncher.exe`.
     """
     nested = mo2.instance / "anomaly"
-    sibling_ok = system.path_exists(install.anomaly / _ANOMALY_MARKER)
-    if not sibling_ok and system.path_exists(nested / _ANOMALY_MARKER):
+    sibling_ok = system.path_exists(install.anomaly / ANOMALY_MARKER)
+    if not sibling_ok and system.path_exists(nested / ANOMALY_MARKER):
         return nested
     return install.anomaly
 
