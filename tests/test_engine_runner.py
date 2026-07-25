@@ -44,6 +44,9 @@ def test_install_gamma_invokes_full_install(
     paths = _paths(tmp_path)
     runner.install_gamma(paths)
 
+    # Pas de --cache-directory : sa présence fait planter la mise à jour
+    # (GammaSetup fait `downloads.rmdir()` sur un lien symbolique existant,
+    # NotADirectoryError). Voir install_gamma.
     assert calls == [
         (
             "full-install",
@@ -52,8 +55,6 @@ def test_install_gamma_invokes_full_install(
                 str(paths.anomaly),
                 "--gamma",
                 str(paths.gamma),
-                "--cache-directory",
-                str(paths.cache),
             ],
         )
     ]

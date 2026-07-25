@@ -42,6 +42,18 @@ def install_gamma(
     `full-install` est idempotent côté gamma-launcher : rejoué sur une
     installation existante, il ne fait que la mettre à jour — voir
     `update_gamma`, qui appelle exactement cette même fonction.
+
+    On ne passe **volontairement pas** `--cache-directory` ici (contrairement à
+    `install_anomaly`). En sa présence, `GammaSetup` remplace `<gamma>/downloads`
+    par un lien symbolique vers le cache (`downloads.rmdir()` puis
+    `symlink_to(...)`) ; rejoué sur une install existante, ce `rmdir()` s'exécute
+    sur le lien déjà en place et lève `NotADirectoryError` (errno 20 : rmdir
+    refuse un lien symbolique) — la mise à jour plantait toujours ainsi. Sans
+    cache-directory, gamma-launcher saute entièrement ce bloc : le crash devient
+    impossible, `<gamma>/downloads` reste un vrai dossier (ou le lien existant,
+    qu'il suit sans le toucher), et les téléchargements y persistent d'une
+    relance à l'autre — aucun re-téléchargement. Le gros cache utile (l'archive
+    de base Anomaly) reste couvert par `install_anomaly`.
     """
     paths.ensure_directories()
     run(
@@ -51,8 +63,6 @@ def install_gamma(
             str(paths.anomaly),
             "--gamma",
             str(paths.gamma),
-            "--cache-directory",
-            str(paths.cache),
         ],
         on_progress=on_progress,
         cancel_event=cancel_event,
