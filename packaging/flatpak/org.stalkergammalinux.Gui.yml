@@ -57,9 +57,13 @@ finish-args:
   # Python-on-Flatpak, same one Bottles uses for the same reason. Must be a
   # runtime --env (not build-options.env, which only affects build-commands).
   - --env=PYTHONPATH=/app/lib/python3.13/site-packages
+  # Indique au paquet Python `unrar` où trouver la libunrar bundlée (module
+  # libunrar.yml) : sans ça, gamma-launcher plante à l'import dans le sandbox.
+  - --env=UNRAR_LIB_PATH=/app/lib/libunrar.so
 
 modules:
   - p7zip.yml
+  - libunrar.yml
   - python3-requirements.json
   - umu-launcher.yml
   - gamma-launcher.yml

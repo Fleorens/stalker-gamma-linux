@@ -135,6 +135,7 @@ def test_check_libunrar_present(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_check_libunrar_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("UNRAR_LIB_PATH", raising=False)
     monkeypatch.setattr(
         system, "run", lambda cmd: _completed(stdout="libc.so.6 => /usr/lib/libc.so.6")
     )
@@ -142,6 +143,19 @@ def test_check_libunrar_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     requirement = checks.check_libunrar(FAMILY)
 
     assert requirement.status is Status.MISSING
+
+
+def test_check_libunrar_found_via_unrar_lib_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Cas Flatpak : la lib bundlée est signalée par UNRAR_LIB_PATH, pas par
+    # ldconfig (elle n'est pas dans le cache système du sandbox).
+    monkeypatch.setenv("UNRAR_LIB_PATH", "/app/lib/libunrar.so")
+    monkeypatch.setattr(system, "path_exists", lambda p: str(p) == "/app/lib/libunrar.so")
+    monkeypatch.setattr(system, "run", lambda cmd: _completed(stdout=""))
+
+    requirement = checks.check_libunrar(FAMILY)
+
+    assert requirement.status is Status.OK
+    assert "/app/lib/libunrar.so" in requirement.detail
 
 
 def test_check_vulkan_tool_missing(monkeypatch: pytest.MonkeyPatch) -> None:

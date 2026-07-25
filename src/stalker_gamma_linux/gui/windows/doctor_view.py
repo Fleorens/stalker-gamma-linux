@@ -149,11 +149,16 @@ class DoctorPage(Adw.NavigationPage):
         group = Adw.PreferencesGroup(title="Installation", description=description)
         for step in state.STEPS:
             done = install_state.is_done(step)
-            row = Adw.ActionRow(
-                title=state.STEP_LABELS[step],
-                subtitle="Fait" if done else "Pas encore fait",
-            )
-            row.add_prefix(_status_icon(Status.OK if done else Status.MISSING))
+            if done:
+                icon_status, subtitle = Status.OK, "Fait"
+            elif installed_on_disk:
+                # Install présente mais posée hors pipeline : ni « fait » ni un
+                # manque alarmant — un simple constat neutre (icône info).
+                icon_status, subtitle = Status.UNAVAILABLE, "hors pipeline (install déjà présente)"
+            else:
+                icon_status, subtitle = Status.MISSING, "Pas encore fait"
+            row = Adw.ActionRow(title=state.STEP_LABELS[step], subtitle=subtitle)
+            row.add_prefix(_status_icon(icon_status))
             group.add(row)
         return group
 

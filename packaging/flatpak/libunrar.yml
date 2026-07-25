@@ -1,0 +1,16 @@
+# libunrar : requise par gamma-launcher — le paquet Python `unrar` la charge en
+# ctypes DÈS L'IMPORT du module (launcher.archive), donc son absence fait planter
+# tout `install`/`update` dans le sandbox avant même de traiter un .rar. Non
+# embarquée à l'origine (licence UnRAR, non-FOSS ⇒ écartée du canal Flathub),
+# mais sans elle le Flatpak ne peut rien installer/mettre à jour. Bundlée ici
+# pour le canal self-hosted ; `UNRAR_LIB_PATH=/app/lib/libunrar.so` (finish-args)
+# indique sa position au paquet `unrar`.
+name: libunrar
+buildsystem: simple
+build-commands:
+  - make -f makefile lib
+  - install -Dm755 libunrar.so /app/lib/libunrar.so
+sources:
+  - type: archive
+    url: https://www.rarlab.com/rar/unrarsrc-7.1.6.tar.gz
+    sha256: ca5e1da37dd6fa1b78bb5ed675486413f79e4a917709744aa04b6f93dfd914f0

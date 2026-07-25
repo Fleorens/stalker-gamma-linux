@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -116,7 +117,18 @@ def check_7z(family: DistroFamily) -> Requirement:
 
 
 def check_libunrar(family: DistroFamily) -> Requirement:
-    result = system.host_run(["ldconfig", "-p"])
+    # Contrairement à steam/vulkaninfo (outils *hôte*), libunrar est chargée par
+    # gamma-launcher (paquet `unrar`, ctypes) DANS le contexte d'exécution — le
+    # bac à sable Flatpak, pas l'hôte. On vérifie donc localement (`system.run`,
+    # pas `host_run`) : sinon on afficherait « OK » (hôte) pendant que l'engine
+    # plante faute de libunrar dans le sandbox. UNRAR_LIB_PATH (posé par le
+    # Flatpak vers la lib bundlée) prime sur le cache ldconfig.
+    lib_path = os.environ.get("UNRAR_LIB_PATH")
+    if lib_path and system.path_exists(Path(lib_path)):
+        return Requirement(
+            name="libunrar", status=Status.OK, detail=f"libunrar fournie ({lib_path})"
+        )
+    result = system.run(["ldconfig", "-p"])
     if "libunrar" in result.stdout:
         return Requirement(name="libunrar", status=Status.OK, detail="libunrar détectée")
     return Requirement(
