@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import threading
 from collections import deque
 from collections.abc import Callable, Sequence
+from pathlib import Path
 
 from stalker_gamma_linux.engine.errors import (
     EngineCancelledError,
@@ -30,6 +32,24 @@ _TERMINATE_GRACE_SECONDS = 5
 
 def _noop(_: str) -> None:
     return None
+
+
+def _resolve_engine_binary() -> str | None:
+    """Localise `gamma-launcher`. D'abord le PATH ; sinon, à côté de
+    l'interpréteur courant (`sys.executable`).
+
+    `gamma-launcher` est un console_script installé dans le même venv que nous
+    (dépendance de pyproject). Mais ce venv n'est pas forcément sur le PATH du
+    process quand la GUI est lancée depuis l'entrée du menu ou un symlink
+    `~/.local/bin` (piège PATH/venv récurrent, cf. docs). Le repli sur le
+    dossier de `sys.executable` le retrouve alors de façon fiable, sans dépendre
+    du PATH ni activer le venv.
+    """
+    found = system.which(_ENGINE_BINARY)
+    if found is not None:
+        return found
+    sibling = Path(sys.executable).parent / _ENGINE_BINARY
+    return str(sibling) if sibling.exists() else None
 
 
 def _watch_cancellation(process: subprocess.Popen[str], cancel_event: threading.Event) -> None:
@@ -75,7 +95,7 @@ def run(
     process est terminé proprement (`terminate`, puis `kill` après
     `_TERMINATE_GRACE_SECONDS`) et `EngineCancelledError` est levée.
     """
-    binary = system.which(_ENGINE_BINARY)
+    binary = _resolve_engine_binary()
     if binary is None:
         raise EngineNotFoundError
 

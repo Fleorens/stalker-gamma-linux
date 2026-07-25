@@ -8,6 +8,7 @@ Toute la logique (install/update/play/mo2) reste dans `orchestrator`/
 
 from __future__ import annotations
 
+import importlib.resources
 import queue
 import threading
 from collections.abc import Callable
@@ -16,8 +17,9 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
+gi.require_version("Gdk", "4.0")
 
-from gi.repository import Adw, Gio, Gtk  # noqa: E402
+from gi.repository import Adw, Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from stalker_gamma_linux import orchestrator  # noqa: E402
 from stalker_gamma_linux.gui import prefs, viewmodel  # noqa: E402
@@ -40,6 +42,19 @@ _DEFAULT_WIDTH = 820
 _DEFAULT_HEIGHT = 620
 # Cibles tactiles/manette généreuses (recommandation GNOME HIG : 44px min).
 _BUTTON_HEIGHT = 56
+
+
+def _set_status_logo(status_page: Adw.StatusPage) -> None:
+    """Affiche le logo GAMMA embarqué sur l'écran principal (plus parlant que
+    l'icône manette générique). Repli sur une icône de thème si l'image manque.
+    """
+    icon = importlib.resources.files("stalker_gamma_linux") / "assets" / "icon.png"
+    try:
+        texture = Gdk.Texture.new_from_filename(str(icon))
+    except GLib.Error:
+        status_page.set_icon_name("applications-games-symbolic")
+    else:
+        status_page.set_paintable(texture)
 
 
 class MainWindow(Adw.ApplicationWindow):
@@ -85,7 +100,8 @@ class MainWindow(Adw.ApplicationWindow):
         header_bar = Adw.HeaderBar()
         header_bar.pack_end(menu_button)
 
-        self._status_page = Adw.StatusPage(icon_name="applications-games-symbolic")
+        self._status_page = Adw.StatusPage()
+        _set_status_logo(self._status_page)
 
         self._primary_content = Adw.ButtonContent(
             icon_name="media-playback-start-symbolic", label="Installer"

@@ -1,6 +1,7 @@
 import subprocess
 import threading
 from collections.abc import Callable, Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -57,11 +58,30 @@ class _CancellableFakeProcess:
         return -15
 
 
-def test_run_raises_when_binary_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_raises_when_binary_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(system, "which", lambda cmd: None)
+    # Repli sur sys.executable : on pointe vers un dossier SANS gamma-launcher,
+    # sinon le vrai binaire du venv de test serait trouvé.
+    monkeypatch.setattr(process.sys, "executable", str(tmp_path / "python"))
 
     with pytest.raises(EngineNotFoundError):
         process.run("anomaly-install", ["--anomaly", "/tmp/x"])
+
+
+def test_run_falls_back_to_sys_executable_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Cœur du fix : gamma-launcher absent du PATH mais présent à côté de
+    # l'interpréteur (le venv, non activé quand la GUI vient du menu).
+    (tmp_path / "gamma-launcher").write_text("#!/bin/sh\n")
+    monkeypatch.setattr(system, "which", lambda cmd: None)
+    monkeypatch.setattr(process.sys, "executable", str(tmp_path / "python"))
+
+    resolved = process._resolve_engine_binary()
+
+    assert resolved == str(tmp_path / "gamma-launcher")
 
 
 def test_run_streams_lines_to_progress_callback(monkeypatch: pytest.MonkeyPatch) -> None:
