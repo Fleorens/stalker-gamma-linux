@@ -149,7 +149,7 @@ command -v gtk-update-icon-cache >/dev/null 2>&1 && \
     gtk-update-icon-cache -qtf "${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor" >/dev/null 2>&1 || true
 
 case ":$PATH:" in
-    *":$LOCAL_BIN:"*) log "Raccourcis prêts (commande + menu applications : « Installeur GAMMA »)." ;;
+    *":$LOCAL_BIN:"*) log "Raccourcis prêts (commande + menu applications : « Lanceur GAMMA »)." ;;
     *) warn "Ajoute $LOCAL_BIN à ton PATH pour la commande ; l'entrée du menu, elle, marche déjà." ;;
 esac
 
@@ -163,14 +163,14 @@ PY
 then
     warn "GTK4 / libadwaita / PyGObject manquants — la GUI ne peut pas s'ouvrir sans eux."
     printf '  Installe-les :\n    %s\n' "$(gtk_install_hint)"
-    printf '  Puis relance ce script, ou clique « Installeur GAMMA » dans ton menu.\n'
+    printf '  Puis relance ce script, ou clique « Lanceur GAMMA » dans ton menu.\n'
     exit 0
 fi
 
 # 7. Lancement de la GUI d'installation (sauf --no-launch). La fenêtre guide le
 #    reste : diagnostic des prérequis, choix de la cible, installation.
 if [ "$NO_LAUNCH" -eq 1 ]; then
-    log "Prêt. Lance « Installeur GAMMA » (menu) ou : stalker-gamma-linux-gui"
+    log "Prêt. Lance « Lanceur GAMMA » (menu) ou : stalker-gamma-linux-gui"
     exit 0
 fi
 log "Lancement de l'installeur GAMMA…"
