@@ -22,13 +22,12 @@ PACKAGE_MANAGER: Mapping[DistroFamily, str] = {
 }
 FLATPAK_INSTALL = "flatpak install flathub"
 
-# umu-launcher n'a PAS de paquet PyPI : `pipx install umu-launcher` renvoie un 404
-# (confirmé en construisant les paquets, cf. docs/PACKAGING.md). La voie fiable
-# hors Arch est le zipapp autonome des releases officielles, déposé dans ~/.local/bin.
-_UMU_ZIPAPP_HINT = (
-    "zipapp officiel (pas de paquet PyPI), extraire umu-run dans ~/.local/bin : "
-    "https://github.com/Open-Wine-Components/umu-launcher/releases"
-)
+# umu-launcher n'a PAS de paquet PyPI (`pipx install` 404) ni de paquet dans
+# les dépôts Fedora/Debian — seul Arch l'empaquette. On l'installe donc
+# NOUS-MÊMES (zipapp officiel ~420 Kio → ~/.local/bin, sans sudo) :
+# `prefix.umu.install_umu`, exposé en CLI `install-umu` et en un clic dans la
+# GUI. Ce hint est la commande de repli copiable, pas une procédure manuelle.
+_UMU_ZIPAPP_HINT = "stalker-gamma-linux install-umu   # automatique, sans sudo (zipapp officiel)"
 
 
 @dataclass(frozen=True, slots=True)

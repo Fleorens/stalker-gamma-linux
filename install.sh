@@ -104,6 +104,16 @@ mkdir -p "$LOCAL_BIN"
 ln -sf "$VENV_DIR/bin/stalker-gamma-linux-gui" "$LOCAL_BIN/stalker-gamma-linux-gui"
 ln -sf "$VENV_DIR/bin/stalker-gamma-linux" "$LOCAL_BIN/stalker-gamma-linux"
 
+# 4bis. umu-launcher : LE prérequis sans paquet Fedora/Debian (pas de PyPI non
+#       plus). On l'installe nous-mêmes — zipapp officiel ~420 Kio déposé dans
+#       ~/.local/bin, sans sudo. Non fatal : la GUI a un bouton « Installer »
+#       dans son Diagnostic si le réseau manque ici.
+if ! command -v umu-run >/dev/null 2>&1 && [ ! -x "$LOCAL_BIN/umu-run" ]; then
+    log "umu-launcher absent — installation automatique (zipapp officiel)…"
+    "$VENV_DIR/bin/stalker-gamma-linux" install-umu \
+        || warn "Installation d'umu-launcher impossible (réseau ?) — la GUI proposera de réessayer."
+fi
+
 # 5. Entrée bureau : l'appli apparaît dans le menu (« Installeur GAMMA (Linux) »)
 #    pour les lancements suivants. Exec en chemin absolu (indépendant du PATH du
 #    menu, souvent minimal). Icône embarquée dans le paquet.

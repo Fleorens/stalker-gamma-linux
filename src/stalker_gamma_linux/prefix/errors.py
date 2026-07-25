@@ -44,6 +44,10 @@ class UmuNotFoundError(PrefixError):
         )
 
 
+class UmuDownloadError(PrefixError):
+    """Le téléchargement/la pose du zipapp umu-launcher a échoué (`prefix.umu`)."""
+
+
 class ProtonDownloadError(PrefixError):
     """Le téléchargement ou l'extraction de Proton-GE a échoué."""
 

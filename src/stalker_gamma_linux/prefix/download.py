@@ -43,12 +43,13 @@ def _default_install_dir() -> Path:
     return Path.home() / ".local" / "share" / "Steam" / "compatibilitytools.d"
 
 
-def _read_remote_text(url: str) -> str:
+def read_remote_text(url: str) -> str:
+    """Lecture texte distante — public : réutilisé par `prefix.umu`."""
     with urllib.request.urlopen(url, timeout=_FETCH_TIMEOUT_SECONDS) as response:
         return str(response.read().decode("utf-8"))
 
 
-def _download_to(url: str, dest: Path, *, cancel_event: threading.Event | None = None) -> None:
+def download_to(url: str, dest: Path, *, cancel_event: threading.Event | None = None) -> None:
     """Copie `url` vers `dest` par blocs, en vérifiant `cancel_event` entre chacun.
 
     Équivalent de `shutil.copyfileobj`, mais interruptible : un blocage réseau
@@ -74,7 +75,7 @@ def _sha512(path: Path) -> str:
 
 def _remote_checksum(release: str) -> str:
     url = f"{_RELEASE_BASE_URL}/{release}/{release}.sha512sum"
-    tokens = _read_remote_text(url).split()
+    tokens = read_remote_text(url).split()
     if not tokens or len(tokens[0]) != _SHA512_HEX_LENGTH:
         raise ProtonDownloadError(f"Fichier de checksum illisible pour {release} ({url})")
     return tokens[0]
@@ -89,7 +90,7 @@ def resolve_latest_ge_release(*, on_progress: ProgressCallback | None = None) ->
     """
     progress = on_progress or (lambda _line: None)
     try:
-        payload = json.loads(_read_remote_text(_LATEST_RELEASE_API_URL))
+        payload = json.loads(read_remote_text(_LATEST_RELEASE_API_URL))
         tag = str(payload.get("tag_name", "")) if isinstance(payload, dict) else ""
     except (OSError, ValueError):
         tag = ""
@@ -135,7 +136,7 @@ def download_proton_ge(
         with tempfile.TemporaryDirectory(dir=resolved_dir) as tmp:
             archive = Path(tmp) / f"{release}.tar.gz"
             progress(f"Téléchargement de {release}…")
-            _download_to(archive_url, archive, cancel_event=cancel_event)
+            download_to(archive_url, archive, cancel_event=cancel_event)
             progress("Vérification du checksum SHA-512…")
             actual = _sha512(archive)
             if actual != expected:

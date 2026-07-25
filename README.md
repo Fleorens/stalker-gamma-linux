@@ -70,12 +70,20 @@ needs for a Wine launcher.
   Debian/Ubuntu: `sudo apt install gir1.2-gtk-4.0 gir1.2-adw-1 python3-gi` ·
   Arch: `sudo pacman -S gtk4 libadwaita python-gobject`. If they're missing the
   script prints the exact command for your distro.
-- **umu-launcher** (`umu-run` in `PATH`) — for the install itself. No PyPI
-  package (`pipx install umu-launcher` 404s), no native package on
-  Fedora/Debian/Ubuntu yet: grab the official
-  ["zipapp" release](https://github.com/Open-Wine-Components/umu-launcher/releases)
-  and put `umu-run` in `~/.local/bin`. Arch: `sudo pacman -S umu-launcher`.
-- Steam, protontricks, `7z`, `libunrar`, Vulkan drivers help but are secondary.
+- **umu-launcher** — **installed automatically**, nothing to do. It is the
+  one prerequisite with no PyPI package (`pipx install umu-launcher` 404s)
+  and no package in the Fedora/Debian/Ubuntu repos, so the tool handles it
+  itself: `install.sh` (and the **Install** button in the GUI's Diagnostic
+  view, and `stalker-gamma-linux install-umu`) downloads the official
+  ~420 KiB [zipapp release](https://github.com/Open-Wine-Components/umu-launcher/releases)
+  and drops `umu-run` into `~/.local/bin` — no sudo. Prefer a real package?
+  Arch: `sudo pacman -S umu-launcher`; Fedora/Debian: upstream publishes
+  `.rpm`/`.deb` files on the same releases page.
+- `7z` and `libunrar` are needed for the install itself (shown in the
+  Diagnostic with the exact command for your distro). Steam, protontricks
+  and Vulkan drivers are **optional**: the pipeline runs everything through
+  umu (own runtime, Proton-GE fetched from GitHub) — Steam only matters for
+  Steam Input / Gaming Mode on the Deck, Vulkan only to actually play.
 
 **Other channels.** **Flatpak** (`make package-flatpak`) targets a future
 Flathub one-click, but a sandbox around a Wine launcher needs the whole stack

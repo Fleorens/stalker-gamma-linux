@@ -14,6 +14,7 @@ from stalker_gamma_linux.mo2 import run_mo2, run_play
 from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
 from stalker_gamma_linux.orchestrator import run_install, run_update
 from stalker_gamma_linux.prefix import run_prefix_doctor
+from stalker_gamma_linux.prefix.umu import run_install_umu
 
 _logger = logging.getLogger(logging_setup.LOGGER_NAME)
 
@@ -137,6 +138,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Répertoire d'installation visé (défaut : ~/Games/stalker-gamma)",
     )
 
+    subparsers.add_parser(
+        "install-umu",
+        help=(
+            "Installe umu-launcher (zipapp officiel ~420 Kio) dans ~/.local/bin — "
+            "sans sudo, seul prérequis sans paquet Fedora/Debian"
+        ),
+    )
+
     return parser
 
 
@@ -160,6 +169,8 @@ def _dispatch(args: argparse.Namespace) -> int:
         )
     if args.command == "shortcut":
         return run_shortcut(args.target)
+    if args.command == "install-umu":
+        return run_install_umu()
     raise AssertionError(f"commande inconnue : {args.command}")
 
 

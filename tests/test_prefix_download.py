@@ -34,8 +34,8 @@ def _patch_remote(
         fetched_urls.append(url)
         dest.write_bytes(archive_bytes)
 
-    monkeypatch.setattr(download, "_read_remote_text", fake_read_remote_text)
-    monkeypatch.setattr(download, "_download_to", fake_download_to)
+    monkeypatch.setattr(download, "read_remote_text", fake_read_remote_text)
+    monkeypatch.setattr(download, "download_to", fake_download_to)
     return fetched_urls
 
 
@@ -63,8 +63,8 @@ def test_download_is_idempotent_when_build_present(
     def fail_fetch(*args: object) -> None:
         raise AssertionError("aucun accès réseau attendu quand le build est déjà présent")
 
-    monkeypatch.setattr(download, "_read_remote_text", fail_fetch)
-    monkeypatch.setattr(download, "_download_to", fail_fetch)
+    monkeypatch.setattr(download, "read_remote_text", fail_fetch)
+    monkeypatch.setattr(download, "download_to", fail_fetch)
 
     assert download.download_proton_ge(RELEASE, install_dir) == existing
 
@@ -114,7 +114,7 @@ def test_download_wraps_network_errors(tmp_path: Path, monkeypatch: pytest.Monke
     def fail_fetch(url: str) -> str:
         raise OSError("réseau injoignable")
 
-    monkeypatch.setattr(download, "_read_remote_text", fail_fetch)
+    monkeypatch.setattr(download, "read_remote_text", fail_fetch)
 
     with pytest.raises(ProtonDownloadError) as excinfo:
         download.download_proton_ge(RELEASE, tmp_path / "compatibilitytools.d")
@@ -124,7 +124,7 @@ def test_download_wraps_network_errors(tmp_path: Path, monkeypatch: pytest.Monke
 
 def test_resolve_latest_ge_release_parses_github_api(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        download, "_read_remote_text", lambda url: '{"tag_name": "GE-Proton12-3"}'
+        download, "read_remote_text", lambda url: '{"tag_name": "GE-Proton12-3"}'
     )
 
     assert download.resolve_latest_ge_release() == "GE-Proton12-3"
@@ -136,7 +136,7 @@ def test_resolve_latest_ge_release_falls_back_on_api_error(
     def fail_fetch(url: str) -> str:
         raise OSError("rate limit")
 
-    monkeypatch.setattr(download, "_read_remote_text", fail_fetch)
+    monkeypatch.setattr(download, "read_remote_text", fail_fetch)
     seen: list[str] = []
 
     release = download.resolve_latest_ge_release(on_progress=seen.append)
@@ -148,7 +148,7 @@ def test_resolve_latest_ge_release_falls_back_on_api_error(
 def test_resolve_latest_ge_release_falls_back_on_unexpected_tag(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(download, "_read_remote_text", lambda url: '{"tag_name": "v1.0"}')
+    monkeypatch.setattr(download, "read_remote_text", lambda url: '{"tag_name": "v1.0"}')
 
     assert download.resolve_latest_ge_release() == download.FALLBACK_GE_RELEASE
 

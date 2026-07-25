@@ -129,9 +129,50 @@ class DoctorPage(Adw.NavigationPage):
         for step in plan.manual_steps:
             row = Adw.ActionRow(title=step.name, subtitle=step.command)
             row.set_subtitle_lines(3)
+            if step.name == "umu-launcher":
+                # Le seul prérequis sans paquet distro : on sait l'installer
+                # nous-mêmes (zipapp officiel → ~/.local/bin, sans sudo).
+                row.add_suffix(self._install_umu_button())
             row.add_suffix(self._copy_button(step.command))
             group.add(row)
         return group
+
+    def _install_umu_button(self) -> Gtk.Button:
+        button = Gtk.Button(label="Installer", valign=Gtk.Align.CENTER)
+        button.add_css_class("suggested-action")
+        button.set_tooltip_text(
+            "Télécharge le zipapp officiel (~420 Kio) dans ~/.local/bin — sans sudo"
+        )
+        button.connect("clicked", self._on_install_umu)
+        return button
+
+    def _on_install_umu(self, button: Gtk.Button) -> None:
+        from stalker_gamma_linux.prefix.errors import UmuDownloadError
+        from stalker_gamma_linux.prefix.umu import install_umu
+
+        button.set_sensitive(False)
+        self._show_toast("Téléchargement d'umu-launcher…")
+
+        def worker() -> None:
+            try:
+                target = install_umu()
+            except UmuDownloadError as error:
+                GLib.idle_add(self._on_umu_install_done, button, str(error))
+                return
+            GLib.idle_add(self._on_umu_install_done, button, None, str(target))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_umu_install_done(
+        self, button: Gtk.Button, error: str | None, target: str = ""
+    ) -> bool:
+        if error is not None:
+            button.set_sensitive(True)
+            self._show_toast(f"Échec : {error}")
+        else:
+            self._show_toast(f"umu-run installé ({target})")
+            self._start_refresh()
+        return False
 
     def _build_requirements_group(
         self, title: str, requirements: tuple[Requirement, ...]
