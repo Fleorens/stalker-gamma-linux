@@ -4,6 +4,8 @@
 
 **A real Linux port of the [S.T.A.L.K.E.R. G.A.M.M.A.](https://github.com/Grokitach/Stalker_GAMMA) installation experience.**
 
+![Accueil du launcher](docs/screenshots/accueil.png)
+
 The game itself (Anomaly, X-Ray Monolith engine) already runs great under Proton.
 What does *not* work on Linux is everything around it: the official launcher is
 .NET + PowerShell, Mod Organizer 2 needs careful Wine/Proton setup, and today's
@@ -103,15 +105,38 @@ for debug output on the console; a full rotating log is always kept under
 
 ### GUI
 
-A GTK4/libadwaita GUI is available as `stalker-gamma-linux-gui` — install →
-play without touching a terminal, plus a graphical Diagnostic view and a
-Preferences window (install path, Proton-GE version, desktop-shortcut
-opt-in). It needs GTK4 + libadwaita + PyGObject from your distribution (not
+The GUI (`stalker-gamma-linux-gui`) is a real **launcher**, not a generic
+settings window: procedurally generated Zone artwork, the GAMMA logo, a big
+PLAY/INSTALL button, and everything you need to know at a glance — install
+target, free disk space on that volume, and a live "system ready / N
+prerequisites missing" chip that opens the full Diagnostic view.
+
+| | |
+|---|---|
+| ![Pré-installation](docs/screenshots/pre-installation.png) | ![Installation](docs/screenshots/installation.png) |
+
+- **Guided install** — before anything is downloaded, a dialog shows the
+  target directory, the free space on that volume with a colored verdict
+  (enough / tight / insufficient — installation is blocked under 160 GiB,
+  ~250 GiB recommended), and lets you pick another disk.
+- **Real progress** — the install pipeline is rendered as a phase timeline
+  (done / already done / running with live engine detail / pending), a real
+  progress fraction (no fake pulsing bar), elapsed time, and an embedded
+  console with the full engine log. Cancelling is clean and resuming skips
+  validated steps.
+- **Diagnostic** — same data as `doctor`, one glance verdict on top,
+  copy-paste remediation commands per distro.
+
+It needs GTK4 + libadwaita + PyGObject from your distribution (not
 pip-installable — no manylinux wheel exists for PyGObject); running the
 command without them prints the install command for your distro instead of
 a raw traceback. It calls the exact same `orchestrator`/`mo2` code as the
 CLI — no duplicated install logic — and never blocks the UI thread during a
 download. The CLI remains fully independent and usable on its own.
+
+The background artwork is generated deterministically by
+`scripts/generate_background.py` (numpy + Pillow, fixed seed) — no external
+asset, reproducible at any time.
 
 ## Legal
 

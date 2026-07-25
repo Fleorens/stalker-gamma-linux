@@ -323,12 +323,38 @@ ailleurs dans le code, `engine/process.py` etc.) : `on_progress: ... | None
 = None` + `progress = on_progress or print` **dans le corps** de la fonction,
 résolu à chaque appel.
 
-### `gui.viewmodel`/`gui.worker`/`gui.prefs` : testables sans `gi`
+### Modules purs (`viewmodel`, `worker`, `prefs`, `phases`, `space`, `summary`, `format`) : testables sans `gi`
 
-`gui/__init__.py` est vide de tout import : ces trois modules ne dépendent
+`gui/__init__.py` est vide de tout import : ces modules ne dépendent
 jamais de PyGObject et sont testés par `pytest` comme n'importe quel autre
 module du projet (`tests/test_gui_*.py`), y compris sur une machine sans
-GTK4/libadwaita. Seuls `gui/app.py` et `gui/windows/*.py` importent `gi`.
+GTK4/libadwaita. Seuls `gui/app.py`, `gui/theme.py` et `gui/windows/*.py`
+importent `gi`.
+
+Le rendu « launcher » (refonte post-T08) repose sur quatre modules purs
+supplémentaires, chacun avec sa suite de tests :
+
+- **`phases.py`** : timeline immuable des étapes d'install/update. Chaque
+  événement `Reporter` (`step`/`skip` indexés « n/total », `progress`,
+  `error`, `success`) produit une **nouvelle** `Timeline` ; la vue
+  progression ne fait que la redessiner (états fait / déjà fait / en cours
+  avec détail moteur / échec) et en tirer une **fraction réelle** — plus de
+  barre en pulsation pendant une installation.
+- **`space.py`** : espace libre sur le volume de la cible
+  (`shutil.disk_usage` sur le premier ancêtre existant), verdict
+  OK / juste / insuffisant / inconnu. Le dialog de pré-installation bloque
+  sous `MINIMUM_FREE_BYTES` (160 Gio) et avertit sous
+  `RECOMMENDED_FREE_BYTES` (250 Gio, recommandation amont).
+- **`summary.py`** : compresse l'`EnvironmentReport` (7 prérequis) en une
+  puce « Système prêt / N prérequis manquants » pour l'accueil — la collecte
+  tourne dans un thread au démarrage et à chaque retour de tâche.
+- **`format.py`** : parsing d'index « n/total », tailles (`Gio`), durées.
+
+L'identité visuelle vit dans `gui/theme.py` (palette « Zone », feuille de
+style unique — aucune vue ne fait de CSS inline) ; l'artwork de fond est
+généré de façon déterministe par `scripts/generate_background.py`
+(numpy + Pillow, seed fixe, jamais importés par le paquet) et embarqué en
+`assets/background.jpg`.
 
 - **`viewmodel.py`** : `InstallStatus` (NOT_INSTALLED/INSTALLED) ne lit que
   `state.py` (TOML local, quasi instantané) — **pas**
