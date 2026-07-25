@@ -87,20 +87,26 @@ INSTALL_COMMANDS: Mapping[str, InstallCommand] = {
         },
     ),
     "libunrar": InstallCommand(
-        # Fedora : le paquet est `libunrar` (la bibliothèque .so chargée en
-        # ctypes par gamma-launcher) — PAS `unrar`, qui ne contient que le
-        # binaire CLI et laisse le diagnostic « absent » (bug réel constaté en
-        # VM le 2026-07-25). Sur Arch, libunrar n'est que dans l'AUR (pas dans
-        # les dépôts pacman) : étape manuelle `yay` plutôt qu'un faux `pacman -S`.
+        # Le paquet doit fournir la bibliothèque .so (chargée en ctypes par
+        # gamma-launcher), pas le binaire CLI `unrar` — les deux sont des
+        # paquets distincts partout (bug réel constaté en VM le 2026-07-25 :
+        # `dnf install unrar` laissait le diagnostic « absent »).
+        # Noms vérifiés le 2026-07-25 sur les dépôts officiels :
+        # - Fedora : `libunrar` (RPM Fusion nonfree) ;
+        # - Debian 13+/Ubuntu 24.04+ : `libunrar5t64` (transition time64 —
+        #   l'ancien nom `libunrar5` ne survit que sur Debian 12) ;
+        # - Arch : `libunrar` est passé dans extra (l'AUR n'est plus requis).
         packages={
             DistroFamily.FEDORA: ("libunrar",),
-            DistroFamily.DEBIAN: ("libunrar5",),
+            DistroFamily.DEBIAN: ("libunrar5t64",),
+            DistroFamily.ARCH: ("libunrar",),
         },
-        manual={DistroFamily.ARCH: "yay -S libunrar  # AUR"},
         note=(
             "Fedora : dépôt RPM Fusion nonfree requis — l'activer d'abord si "
             "besoin : sudo dnf install https://mirrors.rpmfusion.org/nonfree/"
-            "fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
+            "fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm · "
+            "Debian/Ubuntu : composant non-free/multiverse requis ; sur "
+            "Debian 12 le paquet s'appelle libunrar5"
         ),
     ),
     "vulkan": InstallCommand(
