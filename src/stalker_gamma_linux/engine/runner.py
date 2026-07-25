@@ -15,6 +15,19 @@ from stalker_gamma_linux.engine.paths import InstallPaths
 from stalker_gamma_linux.engine.process import ProgressCallback, run
 
 
+def _extract_tmpdir(paths: InstallPaths) -> Path:
+    """Dossier temporaire d'extraction, sur le disque d'installation.
+
+    gamma-launcher extrait chaque archive dans `TMPDIR` (`/tmp` par défaut).
+    Sur Linux `/tmp` est presque toujours un tmpfs **en RAM** (défaut Fedora,
+    plafonné à ~50 % de la RAM) : les archives multi-Go de GAMMA le saturent
+    (`OSError` ENOSPC/EDQUOT). On le place sous `cache/` — même système de
+    fichiers que `mods/`, donc de la place et un déplacement final local. Voir
+    `engine.process._engine_environment`.
+    """
+    return paths.cache / "tmp"
+
+
 def install_anomaly(
     paths: InstallPaths,
     *,
@@ -28,6 +41,7 @@ def install_anomaly(
         ["--anomaly", str(paths.anomaly), "--cache-directory", str(paths.cache)],
         on_progress=on_progress,
         cancel_event=cancel_event,
+        tmpdir=_extract_tmpdir(paths),
     )
 
 
@@ -66,6 +80,7 @@ def install_gamma(
         ],
         on_progress=on_progress,
         cancel_event=cancel_event,
+        tmpdir=_extract_tmpdir(paths),
     )
 
 
@@ -147,6 +162,7 @@ def build_flat_install(
         ],
         on_progress=on_progress,
         cancel_event=cancel_event,
+        tmpdir=_extract_tmpdir(paths),
     )
 
 

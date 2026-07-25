@@ -132,6 +132,44 @@ def test_run_disables_gamma_launcher_persistent_config(monkeypatch: pytest.Monke
     assert captured_env["GAMMA_LAUNCHER_NO_CONFIG"] == "1"
 
 
+def test_run_redirects_tmpdir_when_given(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/gamma-launcher")
+    captured_env: dict[str, str] = {}
+
+    def factory(*args: Any, **kwargs: Any) -> _FakeProcess:
+        captured_env.update(kwargs["env"])
+        return _FakeProcess([], 0)
+
+    monkeypatch.setattr(subprocess, "Popen", factory)
+    target = tmp_path / "cache" / "tmp"
+
+    process.run("full-install", [], tmpdir=target)
+
+    # TMPDIR pointe hors du tmpfs /tmp (extraction des archives multi-Go) et le
+    # dossier est bien créé.
+    assert captured_env["TMPDIR"] == str(target)
+    assert target.is_dir()
+
+
+def test_run_leaves_tmpdir_untouched_without_argument(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/gamma-launcher")
+    captured_env: dict[str, str] = {}
+
+    def factory(*args: Any, **kwargs: Any) -> _FakeProcess:
+        captured_env.update(kwargs["env"])
+        return _FakeProcess([], 0)
+
+    monkeypatch.setattr(subprocess, "Popen", factory)
+    monkeypatch.delenv("TMPDIR", raising=False)
+
+    process.run("remove-reshade", [])
+
+    # Sans tmpdir, on n'impose rien : l'environnement hérité est laissé tel quel.
+    assert "TMPDIR" not in captured_env
+
+
 def test_run_decodes_output_tolerantly(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/gamma-launcher")
     captured: dict[str, Any] = {}

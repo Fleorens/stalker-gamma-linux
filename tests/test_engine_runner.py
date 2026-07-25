@@ -60,6 +60,32 @@ def test_install_gamma_invokes_full_install(
     ]
 
 
+def test_install_gamma_redirects_tmpdir_to_install_drive(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(runner, "run", lambda subcommand, args, **kw: captured.update(kw))
+
+    paths = _paths(tmp_path)
+    runner.install_gamma(paths)
+
+    # Extraction hors du tmpfs /tmp : le TMPDIR imposé est sur le disque cible
+    # (sous cache/, même FS que mods/).
+    assert captured["tmpdir"] == paths.cache / "tmp"
+
+
+def test_install_anomaly_redirects_tmpdir_to_install_drive(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(runner, "run", lambda subcommand, args, **kw: captured.update(kw))
+
+    paths = _paths(tmp_path)
+    runner.install_anomaly(paths)
+
+    assert captured["tmpdir"] == paths.cache / "tmp"
+
+
 def test_update_gamma_is_an_alias_for_install_gamma(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

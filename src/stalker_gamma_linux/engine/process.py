@@ -71,11 +71,21 @@ def _watch_cancellation(process: subprocess.Popen[str], cancel_event: threading.
             process.kill()
 
 
-def _engine_environment() -> dict[str, str]:
+def _engine_environment(tmpdir: Path | None = None) -> dict[str, str]:
     env = dict(os.environ)
     # Neutralise le config.ini persistant de gamma-launcher (voir docs/ARCHITECTURE.md) :
     # nos chemins explicites doivent rester la seule source de vérité.
     env["GAMMA_LAUNCHER_NO_CONFIG"] = "1"
+    if tmpdir is not None:
+        # gamma-launcher extrait chaque archive dans un dossier temporaire
+        # (`tempfile` → `TMPDIR`, `/tmp` par défaut). Sur Linux `/tmp` est presque
+        # toujours un tmpfs **en RAM** (défaut Fedora, ~50 % de la RAM) : les
+        # archives multi-Go de GAMMA (3DSS ~3,7 Go compressés, bien plus
+        # décompressés) le saturent → `OSError` (ENOSPC/EDQUOT). On redirige
+        # `TMPDIR` sur le disque d'installation (même FS que `mods/` : de la
+        # place, et le déplacement final reste local).
+        tmpdir.mkdir(parents=True, exist_ok=True)
+        env["TMPDIR"] = str(tmpdir)
     return env
 
 
@@ -85,6 +95,7 @@ def run(
     *,
     on_progress: ProgressCallback | None = None,
     cancel_event: threading.Event | None = None,
+    tmpdir: Path | None = None,
 ) -> None:
     """Lance `gamma-launcher <subcommand> <args>` et suit sa progression ligne à ligne.
 
@@ -94,6 +105,8 @@ def run(
     `cancel_event` (optionnel, GUI) : s'il est levé pendant l'exécution, le
     process est terminé proprement (`terminate`, puis `kill` après
     `_TERMINATE_GRACE_SECONDS`) et `EngineCancelledError` est levée.
+    `tmpdir` (optionnel) : redirige `TMPDIR` du sous-process (extraction des
+    archives) hors du tmpfs `/tmp` — voir `_engine_environment`.
     """
     binary = _resolve_engine_binary()
     if binary is None:
@@ -112,7 +125,7 @@ def run(
         encoding="utf-8",
         errors="replace",
         bufsize=1,
-        env=_engine_environment(),
+        env=_engine_environment(tmpdir),
     )
 
     watcher: threading.Thread | None = None
