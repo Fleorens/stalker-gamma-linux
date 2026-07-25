@@ -152,13 +152,30 @@ def test_check_vulkan_tool_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     assert requirement.status is Status.MISSING
 
 
-def test_check_vulkan_no_device(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_check_vulkan_no_device_on_bare_metal(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/vulkaninfo")
     monkeypatch.setattr(system, "run", lambda cmd: _completed(stdout="no devices found"))
+    monkeypatch.setattr(system, "detect_virtualization", lambda: None)
 
     requirement = checks.check_vulkan(FAMILY)
 
     assert requirement.status is Status.MISSING
+    assert requirement.install_hint is not None
+    assert requirement.key == "vulkan"
+
+
+def test_check_vulkan_missing_in_vm_is_informational(monkeypatch: pytest.MonkeyPatch) -> None:
+    # En VM (pas de GPU passthrough), l'absence de Vulkan n'est ni actionnable ni
+    # bloquante : le GPU ne sert qu'à jouer, pas à installer.
+    monkeypatch.setattr(system, "which", lambda cmd: None)
+    monkeypatch.setattr(system, "detect_virtualization", lambda: "kvm")
+
+    requirement = checks.check_vulkan(FAMILY)
+
+    assert requirement.status is Status.UNAVAILABLE
+    assert not requirement.status.is_blocking
+    assert requirement.install_hint is None
+    assert "VM" in requirement.detail
 
 
 def test_check_vulkan_device_found(monkeypatch: pytest.MonkeyPatch) -> None:

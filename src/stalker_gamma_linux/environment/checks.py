@@ -45,6 +45,7 @@ def check_steam(family: DistroFamily) -> Requirement:
         status=Status.MISSING,
         detail="Steam introuvable (ni natif, ni Flatpak)",
         install_hint=INSTALL_COMMANDS["steam"].for_family(family),
+        key="steam",
     )
 
 
@@ -56,6 +57,7 @@ def check_umu(family: DistroFamily) -> Requirement:
         status=Status.MISSING,
         detail="umu-run introuvable dans le PATH",
         install_hint=INSTALL_COMMANDS["umu-launcher"].for_family(family),
+        key="umu-launcher",
     )
 
 
@@ -73,6 +75,7 @@ def check_protontricks(family: DistroFamily) -> Requirement:
             status=Status.MISSING,
             detail="protontricks introuvable (ni natif, ni Flatpak)",
             install_hint=INSTALL_COMMANDS["protontricks"].for_family(family),
+            key="protontricks",
         )
 
     result = system.run(["protontricks", "--version"])
@@ -89,6 +92,7 @@ def check_protontricks(family: DistroFamily) -> Requirement:
             status=Status.OUTDATED,
             detail=f"version {version_str} détectée, {min_str}+ requise",
             install_hint=INSTALL_COMMANDS["protontricks"].for_family(family),
+            key="protontricks",
         )
     return Requirement(
         name="protontricks",
@@ -105,6 +109,7 @@ def check_7z(family: DistroFamily) -> Requirement:
         status=Status.MISSING,
         detail="ni 7z ni 7zz trouvés dans le PATH",
         install_hint=INSTALL_COMMANDS["7z"].for_family(family),
+        key="7z",
     )
 
 
@@ -117,26 +122,42 @@ def check_libunrar(family: DistroFamily) -> Requirement:
         status=Status.MISSING,
         detail="libunrar absente du cache ldconfig",
         install_hint=INSTALL_COMMANDS["libunrar"].for_family(family),
+        key="libunrar",
     )
 
 
 def check_vulkan(family: DistroFamily) -> Requirement:
-    if system.which("vulkaninfo") is None:
+    tool = system.which("vulkaninfo")
+    has_device = False
+    if tool is not None:
+        result = system.run(["vulkaninfo", "--summary"])
+        has_device = result.returncode == 0 and "deviceName" in result.stdout
+    if has_device:
+        return Requirement(name="GPU Vulkan", status=Status.OK, detail="device Vulkan détecté")
+
+    # Pas de device Vulkan. En VM (sans passthrough GPU) c'est normal et non
+    # actionnable — le GPU ne sert qu'à *jouer*, pas à télécharger/installer —
+    # donc on ne l'affiche pas comme un manque bloquant avec un faux remède.
+    virt = system.detect_virtualization()
+    if virt is not None:
         return Requirement(
             name="GPU Vulkan",
-            status=Status.MISSING,
-            detail="vulkaninfo introuvable dans le PATH",
-            install_hint=INSTALL_COMMANDS["vulkan"].for_family(family),
+            status=Status.UNAVAILABLE,
+            detail=f"non détecté (normal en VM : {virt}) — requis seulement pour jouer",
         )
-    result = system.run(["vulkaninfo", "--summary"])
-    if result.returncode != 0 or "deviceName" not in result.stdout:
-        return Requirement(
-            name="GPU Vulkan",
-            status=Status.MISSING,
-            detail="aucun device Vulkan détecté",
-            install_hint=INSTALL_COMMANDS["vulkan"].for_family(family),
-        )
-    return Requirement(name="GPU Vulkan", status=Status.OK, detail="device Vulkan détecté")
+
+    detail = (
+        "vulkaninfo introuvable dans le PATH"
+        if tool is None
+        else "aucun device Vulkan détecté"
+    )
+    return Requirement(
+        name="GPU Vulkan",
+        status=Status.MISSING,
+        detail=detail,
+        install_hint=INSTALL_COMMANDS["vulkan"].for_family(family),
+        key="vulkan",
+    )
 
 
 def check_gtk_gui(family: DistroFamily) -> Requirement:
@@ -160,6 +181,7 @@ def check_gtk_gui(family: DistroFamily) -> Requirement:
             status=Status.MISSING,
             detail=f"GTK4/libadwaita (PyGObject) indisponibles : {error}",
             install_hint=INSTALL_COMMANDS["gtk-gui"].for_family(family),
+            key="gtk-gui",
         )
     return Requirement(
         name="GTK GUI", status=Status.OK, detail="GTK4 + libadwaita détectés (PyGObject)"

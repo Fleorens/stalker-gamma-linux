@@ -82,8 +82,9 @@ gi; ..."` succeeds) — no PyGObject module needed in the manifest.
 - **`umu-launcher.yml`** — bundles the official self-contained "zipapp"
   release (single Python script, dependencies frozen inside). Same
   sandboxing reason as p7zip, plus a real host-side gap: umu-launcher has no
-  PyPI package (`environment/commands.py`'s `pipx install umu-launcher` hint
-  404s — confirmed while building this), so most hosts won't have `umu-run`
+  PyPI package (`pipx install umu-launcher` 404s — confirmed while building
+  this; `environment/commands.py` now points Fedora/Debian users at the zipapp
+  release instead), so most hosts won't have `umu-run`
   on PATH either. This is exactly how Florian runs umu today on his own
   machine (manual zipapp install, see project history) — bundling it removes
   that manual step entirely for Flatpak users.

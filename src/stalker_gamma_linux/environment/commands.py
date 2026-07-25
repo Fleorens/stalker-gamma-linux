@@ -1,4 +1,11 @@
-"""Suggestions de commandes d'installation, par distribution et par outil."""
+"""Remèdes d'installation par prérequis : paquets système + méthodes hors-paquet.
+
+Les remèdes sont décrits en données structurées (nom(s) de paquet par famille de
+distribution) plutôt qu'en commandes déjà assemblées : ça permet à
+`environment.plan` de **fusionner** les prérequis manquants en une seule commande
+`sudo dnf install a b c` à copier-coller, au lieu d'éparpiller une ligne par outil.
+`for_family` reconstruit la commande d'un seul prérequis (rétro-compatible).
+"""
 
 from __future__ import annotations
 
@@ -7,69 +14,101 @@ from dataclasses import dataclass, field
 
 from stalker_gamma_linux.environment.distro import DistroFamily
 
+# Préfixe d'installation du gestionnaire de paquets natif, par famille.
+PACKAGE_MANAGER: Mapping[DistroFamily, str] = {
+    DistroFamily.FEDORA: "sudo dnf install",
+    DistroFamily.ARCH: "sudo pacman -S",
+    DistroFamily.DEBIAN: "sudo apt install",
+}
+FLATPAK_INSTALL = "flatpak install flathub"
+
+# umu-launcher n'a PAS de paquet PyPI : `pipx install umu-launcher` renvoie un 404
+# (confirmé en construisant les paquets, cf. docs/PACKAGING.md). La voie fiable
+# hors Arch est le zipapp autonome des releases officielles, déposé dans ~/.local/bin.
+_UMU_ZIPAPP_HINT = (
+    "zipapp officiel (pas de paquet PyPI), extraire umu-run dans ~/.local/bin : "
+    "https://github.com/Open-Wine-Components/umu-launcher/releases"
+)
+
 
 @dataclass(frozen=True, slots=True)
 class InstallCommand:
-    by_family: Mapping[DistroFamily, str] = field(default_factory=dict)
-    flatpak: str | None = None
+    # Paquet(s) natif(s) par famille : regroupables en une seule commande.
+    packages: Mapping[DistroFamily, tuple[str, ...]] = field(default_factory=dict)
+    # Méthode hors gestionnaire de paquets (ex. zipapp umu), par famille.
+    manual: Mapping[DistroFamily, str] = field(default_factory=dict)
+    # Application Flatpak de repli quand aucun paquet natif n'est connu.
+    flatpak_app: str | None = None
+    # Mise en garde attachée aux paquets (ex. dépôt tiers requis).
+    note: str | None = None
 
     def for_family(self, family: DistroFamily) -> str | None:
-        command = self.by_family.get(family)
-        if command is not None:
-            return command
-        return self.flatpak
+        """Commande d'installation d'un seul prérequis : paquet > manuel > flatpak."""
+        packages = self.packages.get(family)
+        if packages:
+            command = f"{PACKAGE_MANAGER[family]} {' '.join(packages)}"
+            return f"{command}  # {self.note}" if self.note else command
+        manual = self.manual.get(family)
+        if manual is not None:
+            return manual
+        if self.flatpak_app is not None:
+            return f"{FLATPAK_INSTALL} {self.flatpak_app}"
+        return None
 
 
 INSTALL_COMMANDS: Mapping[str, InstallCommand] = {
     "steam": InstallCommand(
-        by_family={
-            DistroFamily.FEDORA: "sudo dnf install steam",
-            DistroFamily.ARCH: "sudo pacman -S steam",
-            DistroFamily.DEBIAN: "sudo apt install steam",
+        packages={
+            DistroFamily.FEDORA: ("steam",),
+            DistroFamily.ARCH: ("steam",),
+            DistroFamily.DEBIAN: ("steam",),
         },
-        flatpak="flatpak install flathub com.valvesoftware.Steam",
+        flatpak_app="com.valvesoftware.Steam",
     ),
     "umu-launcher": InstallCommand(
-        by_family={
-            DistroFamily.ARCH: "sudo pacman -S umu-launcher",
-            DistroFamily.FEDORA: "pipx install umu-launcher",
-            DistroFamily.DEBIAN: "pipx install umu-launcher",
+        packages={DistroFamily.ARCH: ("umu-launcher",)},
+        manual={
+            DistroFamily.FEDORA: _UMU_ZIPAPP_HINT,
+            DistroFamily.DEBIAN: _UMU_ZIPAPP_HINT,
         },
     ),
     "protontricks": InstallCommand(
-        by_family={
-            DistroFamily.FEDORA: "sudo dnf install protontricks",
-            DistroFamily.ARCH: "sudo pacman -S protontricks",
-            DistroFamily.DEBIAN: "sudo apt install protontricks",
+        packages={
+            DistroFamily.FEDORA: ("protontricks",),
+            DistroFamily.ARCH: ("protontricks",),
+            DistroFamily.DEBIAN: ("protontricks",),
         },
-        flatpak="flatpak install flathub com.github.Matoking.protontricks",
+        flatpak_app="com.github.Matoking.protontricks",
     ),
     "7z": InstallCommand(
-        by_family={
-            DistroFamily.FEDORA: "sudo dnf install p7zip p7zip-plugins",
-            DistroFamily.ARCH: "sudo pacman -S p7zip",
-            DistroFamily.DEBIAN: "sudo apt install p7zip-full",
+        packages={
+            DistroFamily.FEDORA: ("p7zip", "p7zip-plugins"),
+            DistroFamily.ARCH: ("p7zip",),
+            DistroFamily.DEBIAN: ("p7zip-full",),
         },
     ),
     "libunrar": InstallCommand(
-        by_family={
-            DistroFamily.FEDORA: "sudo dnf install unrar  # RPM Fusion",
-            DistroFamily.ARCH: "yay -S libunrar  # AUR",
-            DistroFamily.DEBIAN: "sudo apt install libunrar5",
+        # Sur Arch, libunrar n'est que dans l'AUR (pas dans les dépôts pacman) :
+        # étape manuelle `yay` plutôt qu'un faux `pacman -S`.
+        packages={
+            DistroFamily.FEDORA: ("unrar",),
+            DistroFamily.DEBIAN: ("libunrar5",),
         },
+        manual={DistroFamily.ARCH: "yay -S libunrar  # AUR"},
+        note="dépôt RPM Fusion requis",
     ),
     "vulkan": InstallCommand(
-        by_family={
-            DistroFamily.FEDORA: "sudo dnf install vulkan-tools mesa-vulkan-drivers",
-            DistroFamily.ARCH: "sudo pacman -S vulkan-tools vulkan-icd-loader",
-            DistroFamily.DEBIAN: "sudo apt install vulkan-tools mesa-vulkan-drivers",
+        packages={
+            DistroFamily.FEDORA: ("vulkan-tools", "mesa-vulkan-drivers"),
+            DistroFamily.ARCH: ("vulkan-tools", "vulkan-icd-loader"),
+            DistroFamily.DEBIAN: ("vulkan-tools", "mesa-vulkan-drivers"),
         },
     ),
     "gtk-gui": InstallCommand(
-        by_family={
-            DistroFamily.FEDORA: "sudo dnf install gtk4 libadwaita python3-gobject",
-            DistroFamily.ARCH: "sudo pacman -S gtk4 libadwaita python-gobject",
-            DistroFamily.DEBIAN: "sudo apt install gir1.2-gtk-4.0 gir1.2-adw-1 python3-gi",
+        packages={
+            DistroFamily.FEDORA: ("gtk4", "libadwaita", "python3-gobject"),
+            DistroFamily.ARCH: ("gtk4", "libadwaita", "python-gobject"),
+            DistroFamily.DEBIAN: ("gir1.2-gtk-4.0", "gir1.2-adw-1", "python3-gi"),
         },
     ),
 }

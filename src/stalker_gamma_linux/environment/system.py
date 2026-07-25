@@ -49,3 +49,20 @@ def path_exists(path: Path) -> bool:
 def disk_usage(path: Path) -> DiskUsage:
     usage = shutil.disk_usage(path)
     return DiskUsage(total=usage.total, used=usage.used, free=usage.free)
+
+
+def detect_virtualization() -> str | None:
+    """Type de virtualisation détecté (ex. "kvm", "oracle", "vmware"), ou None sur bare-metal.
+
+    S'appuie sur `systemd-detect-virt` (exit 0 + un type non "none" = virtualisé).
+    Renvoie aussi None si l'outil est absent : on ne peut alors pas conclure, donc
+    on reste sur le comportement « machine réelle » (prudent : mieux vaut proposer
+    un correctif inutile que masquer un vrai manque de pilote).
+    """
+    if which("systemd-detect-virt") is None:
+        return None
+    result = run(["systemd-detect-virt"])
+    virt = result.stdout.strip()
+    if result.returncode == 0 and virt and virt != "none":
+        return virt
+    return None
