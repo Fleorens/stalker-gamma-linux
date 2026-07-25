@@ -8,8 +8,9 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("Gdk", "4.0")
 
-from gi.repository import Adw, Gdk, Gio, Gtk  # noqa: E402
+from gi.repository import Adw, Gio  # noqa: E402
 
+from stalker_gamma_linux.gui import theme  # noqa: E402
 from stalker_gamma_linux.gui.windows.main_window import MainWindow  # noqa: E402
 
 # `Gio.Application` exige syntaxiquement un id à la D-Bus (au moins un point) —
@@ -18,17 +19,6 @@ from stalker_gamma_linux.gui.windows.main_window import MainWindow  # noqa: E402
 # pas de segment `io.github.<compte>` (dépendrait d'un compte GitHub précis) ;
 # `stalkergammalinux` est notre propre espace de noms, stable.
 APPLICATION_ID = "org.stalkergammalinux.Gui"
-
-# Ambiance S.T.A.L.K.E.R./GAMMA plutôt que le libadwaita générique : accent
-# « vert toxique » (au lieu du bleu GNOME) et un fond de fenêtre plus sombre.
-# L'app force aussi le thème sombre (set_color_scheme ci-dessous) — un installeur
-# de modpack post-apo, c'est sombre, pas une app bureautique claire.
-_STYLE = """
-@define-color accent_bg_color #5f8a2b;
-@define-color accent_fg_color #f4ffe6;
-@define-color accent_color #a6d95b;
-window.background { background-color: #17190f; }
-"""
 
 
 class StalkerGammaApplication(Adw.Application):
@@ -40,14 +30,9 @@ class StalkerGammaApplication(Adw.Application):
 
     def do_startup(self) -> None:
         Adw.Application.do_startup(self)
-        Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
-        display = Gdk.Display.get_default()
-        if display is not None:
-            provider = Gtk.CssProvider()
-            provider.load_from_string(_STYLE)
-            Gtk.StyleContext.add_provider_for_display(
-                display, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-            )
+        # Toute l'identité visuelle (thème sombre forcé, palette « Zone »,
+        # classes des vues) vit dans `gui.theme`.
+        theme.install_theme()
 
     def do_activate(self) -> None:
         if self._window is None:

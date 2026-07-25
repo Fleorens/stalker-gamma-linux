@@ -34,7 +34,7 @@ dev = ["ruff>=0.6", "mypy>=1.11", "pytest>=8.0", "PyGObject-stubs>=2.10"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-stalker_gamma_linux = ["assets/icon.png"]
+stalker_gamma_linux = ["assets/icon.png", "assets/logo.png", "assets/background.jpg"]
 
 [tool.ruff]
 line-length = 100

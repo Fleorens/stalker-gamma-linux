@@ -26,6 +26,8 @@ from stalker_gamma_linux.environment.plan import (  # noqa: E402
     InstallPlan,
     build_install_plan,
 )
+from stalker_gamma_linux.gui.summary import summarize  # noqa: E402
+from stalker_gamma_linux.gui.windows.background import wrap_with_background  # noqa: E402
 
 
 class DoctorPage(Adw.NavigationPage):
@@ -62,8 +64,9 @@ class DoctorPage(Adw.NavigationPage):
         toolbar_view = Adw.ToolbarView()
         toolbar_view.add_top_bar(header_bar)
         toolbar_view.set_content(self._stack)
+        toolbar_view.add_css_class("over-artwork")
 
-        super().__init__(title="Diagnostic", child=toolbar_view)
+        super().__init__(title="Diagnostic", child=wrap_with_background(toolbar_view))
 
         self._start_refresh()
 
@@ -82,7 +85,7 @@ class DoctorPage(Adw.NavigationPage):
         for group in self._groups:
             self._preferences_page.remove(group)
         plan = build_install_plan(report.environment, report.environment.distro.family)
-        groups: list[Adw.PreferencesGroup] = []
+        groups: list[Adw.PreferencesGroup] = [self._build_verdict_group(report)]
         if not plan.is_empty:
             # En tête : la seule chose à faire pour débloquer, prête à copier.
             groups.append(self._build_plan_group(plan))
@@ -99,6 +102,16 @@ class DoctorPage(Adw.NavigationPage):
         self._stack.set_visible_child_name("content")
         self._refresh_button.set_sensitive(True)
         return False
+
+    def _build_verdict_group(self, report: doctor.DoctorReport) -> Adw.PreferencesGroup:
+        """Verdict d'un coup d'œil en tête de page, même vocabulaire que l'accueil."""
+        verdict = summarize(report.environment)
+        chip = Gtk.Label(label=verdict.label, halign=Gtk.Align.START)
+        chip.add_css_class("chip")
+        chip.add_css_class("chip-ok" if verdict.is_ready else "chip-warn")
+        group = Adw.PreferencesGroup()
+        group.add(chip)
+        return group
 
     def _build_plan_group(self, plan: InstallPlan) -> Adw.PreferencesGroup:
         group = Adw.PreferencesGroup(
@@ -182,7 +195,9 @@ class DoctorPage(Adw.NavigationPage):
 
 def _status_icon(status: Status) -> Gtk.Image:
     if status is Status.OK:
-        image = Gtk.Image.new_from_icon_name("emblem-ok-symbolic")
+        # `object-select-symbolic` : la coche toujours présente dans Adwaita —
+        # `emblem-ok-symbolic` a disparu des thèmes récents (rendu « icône cassée »).
+        image = Gtk.Image.new_from_icon_name("object-select-symbolic")
         image.add_css_class("success")
         return image
     if status is Status.UNAVAILABLE:
