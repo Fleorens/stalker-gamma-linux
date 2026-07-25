@@ -172,17 +172,26 @@ def verify(
     on_progress: ProgressCallback | None = None,
     cancel_event: threading.Event | None = None,
 ) -> None:
-    """Vérifie l'installation (`check-anomaly` puis `check-md5`).
+    """Vérifie l'intégrité des archives de mods (`check-md5`).
 
-    Lève `VerificationError` si l'une des deux vérifications échoue.
+    Lève `VerificationError` en cas d'échec.
+
+    On ne lance **pas** `check-anomaly` ici. Il compare les fichiers d'Anomaly
+    aux sommes de contrôle *vanilla* (`tools/checksums.md5`), or une install
+    GAMMA patche volontairement `bin/*.exe` et `fsgame.ltx` : lancé après le
+    patch il échoue donc toujours sur ces fichiers (faux négatif). gamma-launcher
+    le documente lui-même (« Only works if GAMMA installation did not patch
+    bin/ »). L'Anomaly de base est déjà vérifiée par `anomaly-install`, avant le
+    patch — le seul moment où cette vérification est valide.
     """
-    for subcommand, args in (
-        ("check-anomaly", ["--anomaly", str(paths.anomaly)]),
-        ("check-md5", ["--gamma", str(paths.gamma)]),
-    ):
-        try:
-            run(subcommand, args, on_progress=on_progress, cancel_event=cancel_event)
-        except EngineExecutionError as error:
-            raise VerificationError(
-                error.subcommand, error.returncode, error.output_tail
-            ) from error
+    try:
+        run(
+            "check-md5",
+            ["--gamma", str(paths.gamma)],
+            on_progress=on_progress,
+            cancel_event=cancel_event,
+        )
+    except EngineExecutionError as error:
+        raise VerificationError(
+            error.subcommand, error.returncode, error.output_tail
+        ) from error

@@ -168,8 +168,8 @@ def run_update(
     """Met à jour le modpack GAMMA, retire ReShade et re-vérifie l'installation.
 
     `full-install` (via `update_gamma`, alias documenté) ne retélécharge que ce
-    qui a changé en amont ; `verify` re-contrôle Anomaly (`check-anomaly`) et
-    les mods (`check-md5`). Retourne 0 au succès, 1 si une étape échoue,
+    qui a changé en amont ; `verify` re-contrôle l'intégrité des archives de
+    mods (`check-md5`). Retourne 0 au succès, 1 si une étape échoue,
     `CANCELLED_EXIT_CODE` si `cancel_event` (GUI) a été levé.
     """
     root = target if target is not None else DEFAULT_INSTALL_TARGET
@@ -184,7 +184,7 @@ def run_update(
         engine.purge_shader_cache(
             install, on_progress=reporter.progress, cancel_event=cancel_event
         )
-        reporter.step("3/3", "Vérification (Anomaly + MD5 des mods)…")
+        reporter.step("3/3", "Vérification (MD5 des archives de mods)…")
         engine.verify(install, on_progress=reporter.progress, cancel_event=cancel_event)
     except EngineCancelledError:
         reporter.warn("Mise à jour annulée.")

@@ -97,15 +97,20 @@ def test_update_gamma_is_an_alias_for_install_gamma(
     assert calls == ["full-install"]
 
 
-def test_verify_runs_check_anomaly_then_check_md5(
+def test_verify_runs_check_md5_only(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    calls: list[str] = []
-    monkeypatch.setattr(runner, "run", lambda subcommand, args, **kw: calls.append(subcommand))
+    calls: list[tuple[str, list[str]]] = []
+    monkeypatch.setattr(
+        runner, "run", lambda subcommand, args, **kw: calls.append((subcommand, args))
+    )
 
-    runner.verify(_paths(tmp_path))
+    paths = _paths(tmp_path)
+    runner.verify(paths)
 
-    assert calls == ["check-anomaly", "check-md5"]
+    # Pas de check-anomaly : il compare aux checksums vanilla, or GAMMA patche
+    # bin/*.exe et fsgame.ltx → échec systématique post-patch. Voir verify.
+    assert calls == [("check-md5", ["--gamma", str(paths.gamma)])]
 
 
 def test_verify_wraps_execution_error_as_verification_error(
@@ -119,7 +124,7 @@ def test_verify_wraps_execution_error_as_verification_error(
     with pytest.raises(VerificationError) as excinfo:
         runner.verify(_paths(tmp_path))
 
-    assert excinfo.value.subcommand == "check-anomaly"
+    assert excinfo.value.subcommand == "check-md5"
 
 
 def test_remove_reshade_invokes_subcommand(
