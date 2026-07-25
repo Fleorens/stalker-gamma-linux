@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>org.stalkergammalinux.Gui</id>
-  <name>GAMMA Linux Installer</name>
+  <name>GAMMA Linux Launcher</name>
   <summary>Install, manage and launch S.T.A.L.K.E.R. G.A.M.M.A. on Linux</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>

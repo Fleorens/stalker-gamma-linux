@@ -22,11 +22,20 @@ _PREFS_FILENAME = "gui-prefs.toml"
 
 @dataclass(frozen=True, slots=True)
 class Preferences:
-    """`proton_release` à `None` = comportement par défaut (dernière release GE, T04)."""
+    """`proton_release` à `None` = comportement par défaut (dernière release GE, T04).
+
+    `create_steam_shortcut` à `False` par défaut : ce n'est PAS l'icône du menu
+    applications (`install.sh` la crée déjà, une seule fois, en pointant sur la
+    GUI) — c'est une entrée supplémentaire qui lance `play` en direct, utile
+    uniquement comme cible pour Steam « Ajouter un jeu non-Steam ». Cochée par
+    défaut, elle produisait deux icônes « Installeur GAMMA » quasi identiques
+    dans le menu (constaté en VM le 2026-07-26) : une qui ouvre la GUI, une qui
+    saute droit dans le jeu.
+    """
 
     install_path: Path = DEFAULT_INSTALL_TARGET
     proton_release: str | None = None
-    create_steam_shortcut: bool = True
+    create_steam_shortcut: bool = False
 
     def with_install_path(self, path: Path) -> Preferences:
         return replace(self, install_path=path)
@@ -58,7 +67,7 @@ def load_preferences() -> Preferences:
     return Preferences(
         install_path=Path(str(raw_path)) if raw_path else DEFAULT_INSTALL_TARGET,
         proton_release=str(raw_release) if raw_release else None,
-        create_steam_shortcut=bool(data.get("create_steam_shortcut", True)),
+        create_steam_shortcut=bool(data.get("create_steam_shortcut", False)),
     )
 
 

@@ -64,7 +64,7 @@ class MainWindow(Adw.ApplicationWindow):
     def __init__(self, *, application: Adw.Application) -> None:
         super().__init__(
             application=application,
-            title="G.A.M.M.A. pour Linux",
+            title="Lanceur GAMMA (Linux)",
             default_width=_DEFAULT_WIDTH,
             default_height=_DEFAULT_HEIGHT,
         )
@@ -161,7 +161,7 @@ class MainWindow(Adw.ApplicationWindow):
         toolbar_view.add_css_class("over-artwork")
 
         return Adw.NavigationPage(
-            title="G.A.M.M.A. pour Linux",
+            title="Lanceur GAMMA (Linux)",
             tag="main",
             child=wrap_with_background(toolbar_view),
         )
@@ -255,7 +255,7 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _on_show_about(self, _action: Gio.SimpleAction, _param: None) -> None:
         about = Adw.AboutDialog(
-            application_name="G.A.M.M.A. pour Linux",
+            application_name="Lanceur GAMMA (Linux)",
             developer_name="Projet communautaire, non affilié à GSC Game World",
             comments=(
                 "Installe et lance le modpack S.T.A.L.K.E.R. G.A.M.M.A. de "

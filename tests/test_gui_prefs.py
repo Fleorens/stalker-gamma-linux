@@ -17,7 +17,10 @@ def test_load_preferences_defaults_when_file_absent(
     assert loaded == prefs.Preferences()
     assert loaded.install_path == DEFAULT_INSTALL_TARGET
     assert loaded.proton_release is None
-    assert loaded.create_steam_shortcut is True
+    # False par défaut : install.sh crée déjà l'icône du menu applications
+    # (le launcher) — ce raccourci-ci est l'entrée « jouer en direct »
+    # optionnelle, surtout utile pour Steam (voir gui/prefs.py).
+    assert loaded.create_steam_shortcut is False
 
 
 def test_load_preferences_defaults_when_file_corrupted(

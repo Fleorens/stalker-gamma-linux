@@ -76,7 +76,11 @@ class InstallDialog(Adw.Dialog):
         self._space_row.add_suffix(self._space_chip)
 
         self._shortcut_row = Adw.SwitchRow(
-            title="Raccourci dans le menu d'applications",
+            title="Raccourci « jouer en direct »",
+            subtitle=(
+                "En plus du launcher (déjà dans ton menu) — utile surtout pour "
+                "Steam « Ajouter un jeu non-Steam »"
+            ),
             active=preferences.create_steam_shortcut,
         )
 

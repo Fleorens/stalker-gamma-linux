@@ -62,10 +62,11 @@ class PreferencesDialog(Adw.PreferencesDialog):
         steam_group = Adw.PreferencesGroup(title="Steam")
         page.add(steam_group)
         self._shortcut_row = Adw.SwitchRow(
-            title="Créer un raccourci bureau à l'installation",
+            title="Raccourci « jouer en direct » à l'installation",
             subtitle=(
-                "À réutiliser ensuite avec le bouton natif de Steam « Ajouter un "
-                "jeu non-Steam » — l'ajout à Steam lui-même reste manuel."
+                "En plus du launcher (déjà dans ton menu) — à réutiliser avec le "
+                "bouton natif de Steam « Ajouter un jeu non-Steam » ; l'ajout à "
+                "Steam lui-même reste manuel."
             ),
             active=preferences.create_steam_shortcut,
         )

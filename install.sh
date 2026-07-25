@@ -114,9 +114,12 @@ if ! command -v umu-run >/dev/null 2>&1 && [ ! -x "$LOCAL_BIN/umu-run" ]; then
         || warn "Installation d'umu-launcher impossible (réseau ?) — la GUI proposera de réessayer."
 fi
 
-# 5. Entrée bureau : l'appli apparaît dans le menu (« Installeur GAMMA (Linux) »)
+# 5. Entrée bureau : l'appli apparaît dans le menu (« Lanceur GAMMA (Linux) »)
 #    pour les lancements suivants. Exec en chemin absolu (indépendant du PATH du
-#    menu, souvent minimal). Icône embarquée dans le paquet.
+#    menu, souvent minimal). Icône embarquée dans le paquet. C'est la SEULE
+#    entrée créée par ce script : le raccourci optionnel de la GUI/CLI
+#    (desktop/entry.py, « Jouer à GAMMA (direct) ») ne se recoupe jamais avec
+#    celle-ci (nom et fichier distincts) — voir gui/prefs.py.
 ICON_SRC="$("$VENV_DIR/bin/python" -c 'import importlib.resources as r; print(r.files("stalker_gamma_linux") / "assets" / "icon.png")' 2>/dev/null || true)"
 mkdir -p "$APPLICATIONS_DIR"
 if [ -n "$ICON_SRC" ] && [ -f "$ICON_SRC" ]; then
@@ -127,8 +130,8 @@ cat > "$APPLICATIONS_DIR/stalker-gamma-linux-gui.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=GAMMA Linux Installer
-Name[fr]=Installeur GAMMA (Linux)
+Name=GAMMA Linux Launcher
+Name[fr]=Lanceur GAMMA (Linux)
 GenericName=S.T.A.L.K.E.R. GAMMA installer & launcher
 GenericName[fr]=Installeur et lanceur S.T.A.L.K.E.R. GAMMA
 Comment=Install, manage and launch S.T.A.L.K.E.R. G.A.M.M.A. on Linux

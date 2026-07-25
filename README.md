@@ -52,7 +52,7 @@ curl -fsSL https://raw.githubusercontent.com/Fleorens/stalker-gamma-linux/main/i
 
 No `sudo`, nothing written outside your home. It bootstraps a
 `--system-site-packages` venv under `~/.local/share/stalker-gamma-linux/`,
-installs the package, adds a **GAMMA Linux Installer** entry to your app menu,
+installs the package, adds a **GAMMA Linux Launcher** entry to your app menu,
 and launches the GUI. The window drives the rest: live prerequisite diagnostic,
 install target, download/install, then Play. Already have a checkout?
 `./install.sh` does the same without cloning; `--no-launch` sets everything up
