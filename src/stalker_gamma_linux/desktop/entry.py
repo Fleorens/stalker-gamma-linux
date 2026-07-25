@@ -9,8 +9,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-APP_NAME = "S.T.A.L.K.E.R. G.A.M.M.A."
-COMMENT = "Anomaly + le modpack G.A.M.M.A., via Mod Organizer 2 sous Proton"
+APP_NAME = "Installeur GAMMA (Linux)"
+COMMENT = "Installe et lance le modpack G.A.M.M.A. (Anomaly + MO2 sous Proton)"
 
 # Caractères réservés à l'intérieur d'une valeur `Exec=` entre guillemets.
 # Le backslash doit être échappé EN PREMIER, sinon les backslashes insérés par

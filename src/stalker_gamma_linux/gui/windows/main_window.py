@@ -46,7 +46,7 @@ class MainWindow(Adw.ApplicationWindow):
     def __init__(self, *, application: Adw.Application) -> None:
         super().__init__(
             application=application,
-            title="S.T.A.L.K.E.R. G.A.M.M.A.",
+            title="Installeur GAMMA (Linux)",
             default_width=_DEFAULT_WIDTH,
             default_height=_DEFAULT_HEIGHT,
         )
@@ -113,7 +113,7 @@ class MainWindow(Adw.ApplicationWindow):
         toolbar_view.add_top_bar(header_bar)
         toolbar_view.set_content(self._status_page)
 
-        page = Adw.NavigationPage(title="S.T.A.L.K.E.R. G.A.M.M.A.", tag="main", child=toolbar_view)
+        page = Adw.NavigationPage(title="Installeur GAMMA (Linux)", tag="main", child=toolbar_view)
         return page
 
     # -- état --------------------------------------------------------------
@@ -123,11 +123,11 @@ class MainWindow(Adw.ApplicationWindow):
         self._current_state = result
 
         if result.is_installed:
-            self._status_page.set_title("S.T.A.L.K.E.R. G.A.M.M.A. est installé")
+            self._status_page.set_title("GAMMA est installé")
             self._primary_content.set_label("Jouer")
             self._primary_content.set_icon_name("media-playback-start-symbolic")
         else:
-            self._status_page.set_title("S.T.A.L.K.E.R. G.A.M.M.A. n'est pas installé")
+            self._status_page.set_title("GAMMA n'est pas installé")
             self._primary_content.set_label("Installer")
             self._primary_content.set_icon_name("system-software-install-symbolic")
         self._status_page.set_description(f"Cible : {result.target}")

@@ -41,7 +41,7 @@ def test_render_desktop_entry_contains_expected_fields() -> None:
     lines = entry.splitlines()
     assert lines[0] == "[Desktop Entry]"
     assert "Type=Application" in lines
-    assert "Name=S.T.A.L.K.E.R. G.A.M.M.A." in lines
+    assert "Name=Installeur GAMMA (Linux)" in lines
     assert "Exec=/bin/stalker-gamma-linux play --target /games/gamma" in lines
     assert "Path=/games/gamma" in lines
     assert "Icon=/icons/stalker-gamma-linux.png" in lines

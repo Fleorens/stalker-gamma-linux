@@ -9,6 +9,7 @@ brut. La CLI (`cli.py`) n'importe jamais ce module ni `gui/`.
 
 from __future__ import annotations
 
+import os
 import sys
 
 from stalker_gamma_linux.environment.checks import check_gtk_gui
@@ -17,6 +18,14 @@ from stalker_gamma_linux.environment.models import Status
 
 
 def main() -> int:
+    # GTK4 dessine via un renderer GL/Vulkan par défaut. Sur une machine sans
+    # GPU utilisable — VM sans accélération 3D, pilote GL cassé, session
+    # distante — la fenêtre échoue silencieusement à s'afficher (« rien ne se
+    # passe » au clic). Un installeur n'a besoin d'aucune accélération : on
+    # bascule sur le renderer logiciel (cairo) par défaut, tout en laissant
+    # l'utilisateur forcer autre chose via GSK_RENDERER s'il le souhaite.
+    os.environ.setdefault("GSK_RENDERER", "cairo")
+
     requirement = check_gtk_gui(detect_distro().family)
     if requirement.status is not Status.OK:
         print(f"stalker-gamma-linux-gui : {requirement.detail}", file=sys.stderr)
