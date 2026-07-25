@@ -200,8 +200,8 @@ def _status_icon(status: Status) -> Gtk.Image:
         image = Gtk.Image.new_from_icon_name("object-select-symbolic")
         image.add_css_class("success")
         return image
-    if status is Status.UNAVAILABLE:
-        # Constat neutre (ex. GPU en VM) : ni vert « OK », ni orange « alerte ».
+    if status in (Status.UNAVAILABLE, Status.OPTIONAL):
+        # Constat neutre (GPU en VM, outil facultatif) : ni vert, ni alerte.
         return Gtk.Image.new_from_icon_name("dialog-information-symbolic")
     image = Gtk.Image.new_from_icon_name("dialog-warning-symbolic")
     image.add_css_class("warning")

@@ -97,7 +97,12 @@ def test_format_report_shows_one_consolidated_command(monkeypatch: pytest.Monkey
     # Un seul bloc groupé, pas une ligne « → » éparpillée par prérequis.
     assert "Pour tout installer d'un coup :" in text
     assert text.count("sudo dnf install") == 1
-    assert "sudo dnf install steam protontricks p7zip p7zip-plugins unrar" in text
+    # Steam et protontricks sont facultatifs (pipeline via umu) : signalés en
+    # [ OPTION ] mais jamais dans la commande à exécuter.
+    assert "sudo dnf install p7zip p7zip-plugins unrar" in text
+    assert "steam" not in text.split("sudo dnf install")[1].splitlines()[0]
+    assert "[ OPTION ] Steam" in text
+    assert "[ OPTION ] protontricks" in text
     assert "→" not in text
     # umu-launcher n'a pas de paquet : étape à part, via le zipapp (jamais pipx).
     assert "umu-launcher : " in text

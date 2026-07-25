@@ -16,6 +16,10 @@ class Status(StrEnum):
     # en VM sans passthrough) : on ne propose pas de correctif et ça ne bloque
     # pas l'installation, qui n'a besoin du GPU que pour *jouer*.
     UNAVAILABLE = "non disponible ici"
+    # Absent mais facultatif : le pipeline (umu) n'en a pas besoin — utile pour
+    # du confort (Steam Input, mode Gaming du Deck) ou du dépannage manuel
+    # (protontricks). Jamais bloquant, jamais dans le plan « à faire ».
+    OPTIONAL = "recommandé, absent"
 
     @property
     def is_blocking(self) -> bool:

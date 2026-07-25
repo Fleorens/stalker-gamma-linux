@@ -16,6 +16,7 @@ _STATUS_LABEL = {
     Status.MISSING: "[MANQUANT]",
     Status.OUTDATED: "[ANCIEN]",
     Status.UNAVAILABLE: "[ INFO ]",
+    Status.OPTIONAL: "[ OPTION ]",
 }
 
 

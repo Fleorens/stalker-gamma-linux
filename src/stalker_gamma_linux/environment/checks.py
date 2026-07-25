@@ -43,10 +43,17 @@ def check_steam(family: DistroFamily) -> Requirement:
         return Requirement(name="Steam", status=Status.OK, detail="Steam natif détecté")
     if _flatpak_app_installed("com.valvesoftware.Steam"):
         return Requirement(name="Steam", status=Status.OK, detail="Steam (Flatpak) détecté")
+    # Facultatif : l'installation et le jeu passent par umu (runtime autonome),
+    # Proton-GE est téléchargé depuis GitHub si absent. Steam ne sert qu'au
+    # confort (Steam Input, mode Gaming du Deck via « jeu non-Steam ») et comme
+    # source alternative de Proton — jamais requis par le pipeline.
     return Requirement(
         name="Steam",
-        status=Status.MISSING,
-        detail="Steam introuvable (ni natif, ni Flatpak)",
+        status=Status.OPTIONAL,
+        detail=(
+            "absent — facultatif : utile pour Steam Input / mode Gaming (Deck), "
+            "pas nécessaire pour installer ni jouer (umu s'en charge)"
+        ),
         install_hint=INSTALL_COMMANDS["steam"].for_family(family),
         key="steam",
     )
@@ -73,10 +80,15 @@ def check_protontricks(family: DistroFamily) -> Requirement:
                 status=Status.OK,
                 detail="protontricks (Flatpak) détecté",
             )
+        # Facultatif : jamais invoqué par le pipeline (les verbs du préfixe
+        # passent par umu) — seulement cité comme voie de dépannage manuelle.
         return Requirement(
             name="protontricks",
-            status=Status.MISSING,
-            detail="protontricks introuvable (ni natif, ni Flatpak)",
+            status=Status.OPTIONAL,
+            detail=(
+                "absent — facultatif : outil de dépannage manuel du préfixe, "
+                "le pipeline n'en a pas besoin (verbs posés via umu)"
+            ),
             install_hint=INSTALL_COMMANDS["protontricks"].for_family(family),
             key="protontricks",
         )

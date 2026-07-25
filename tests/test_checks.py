@@ -36,12 +36,15 @@ def test_check_steam_flatpak(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "Flatpak" in requirement.detail
 
 
-def test_check_steam_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_check_steam_absent_est_facultatif(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Le pipeline passe par umu (runtime autonome, Proton-GE via GitHub) :
+    # Steam absent ne doit ni bloquer doctor ni entrer dans le plan « à faire ».
     monkeypatch.setattr(system, "which", lambda cmd: None)
 
     requirement = checks.check_steam(FAMILY)
 
-    assert requirement.status is Status.MISSING
+    assert requirement.status is Status.OPTIONAL
+    assert not requirement.status.is_blocking
     assert requirement.install_hint == "sudo dnf install steam"
 
 
@@ -100,12 +103,14 @@ def test_check_protontricks_missing_falls_back_to_flatpak(
     assert "Flatpak" in requirement.detail
 
 
-def test_check_protontricks_entirely_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_check_protontricks_absent_est_facultatif(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Jamais invoqué par le pipeline (verbs posés via umu) : dépannage manuel.
     monkeypatch.setattr(system, "which", lambda cmd: None)
 
     requirement = checks.check_protontricks(FAMILY)
 
-    assert requirement.status is Status.MISSING
+    assert requirement.status is Status.OPTIONAL
+    assert not requirement.status.is_blocking
 
 
 def test_check_7z_present_as_7zz(monkeypatch: pytest.MonkeyPatch) -> None:
