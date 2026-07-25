@@ -39,5 +39,5 @@ def test_umu_hint_uses_zipapp_not_pipx() -> None:
 def test_libunrar_note_is_carried_inline() -> None:
     hint = INSTALL_COMMANDS["libunrar"].for_family(DistroFamily.FEDORA)
     assert hint is not None
-    assert hint.startswith("sudo dnf install unrar")
+    assert hint.startswith("sudo dnf install libunrar")
     assert "RPM Fusion" in hint

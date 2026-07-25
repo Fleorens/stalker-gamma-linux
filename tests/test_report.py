@@ -95,11 +95,13 @@ def test_format_report_shows_one_consolidated_command(monkeypatch: pytest.Monkey
     text = format_report(build_report(target=Path("/games/stalker-gamma")))
 
     # Un seul bloc groupé, pas une ligne « → » éparpillée par prérequis.
+    # (la note RPM Fusion contient sa propre commande dnf : on compte la
+    # commande groupée elle-même, pas la sous-chaîne générique.)
     assert "Pour tout installer d'un coup :" in text
-    assert text.count("sudo dnf install") == 1
+    assert text.count("sudo dnf install p7zip") == 1
     # Steam et protontricks sont facultatifs (pipeline via umu) : signalés en
     # [ OPTION ] mais jamais dans la commande à exécuter.
-    assert "sudo dnf install p7zip p7zip-plugins unrar" in text
+    assert "sudo dnf install p7zip p7zip-plugins libunrar" in text
     assert "steam" not in text.split("sudo dnf install")[1].splitlines()[0]
     assert "[ OPTION ] Steam" in text
     assert "[ OPTION ] protontricks" in text

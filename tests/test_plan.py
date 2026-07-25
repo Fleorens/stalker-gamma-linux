@@ -28,8 +28,9 @@ def test_groups_blocking_native_packages_into_one_command() -> None:
 
     plan = build_install_plan(report, DistroFamily.FEDORA)
 
-    assert plan.package_command == "sudo dnf install steam protontricks unrar"
-    assert plan.package_notes == ("dépôt RPM Fusion requis",)
+    assert plan.package_command == "sudo dnf install steam protontricks libunrar"
+    assert len(plan.package_notes) == 1
+    assert "RPM Fusion" in plan.package_notes[0]
     assert plan.manual_steps == ()
 
 

@@ -87,14 +87,21 @@ INSTALL_COMMANDS: Mapping[str, InstallCommand] = {
         },
     ),
     "libunrar": InstallCommand(
-        # Sur Arch, libunrar n'est que dans l'AUR (pas dans les dépôts pacman) :
-        # étape manuelle `yay` plutôt qu'un faux `pacman -S`.
+        # Fedora : le paquet est `libunrar` (la bibliothèque .so chargée en
+        # ctypes par gamma-launcher) — PAS `unrar`, qui ne contient que le
+        # binaire CLI et laisse le diagnostic « absent » (bug réel constaté en
+        # VM le 2026-07-25). Sur Arch, libunrar n'est que dans l'AUR (pas dans
+        # les dépôts pacman) : étape manuelle `yay` plutôt qu'un faux `pacman -S`.
         packages={
-            DistroFamily.FEDORA: ("unrar",),
+            DistroFamily.FEDORA: ("libunrar",),
             DistroFamily.DEBIAN: ("libunrar5",),
         },
         manual={DistroFamily.ARCH: "yay -S libunrar  # AUR"},
-        note="dépôt RPM Fusion requis",
+        note=(
+            "Fedora : dépôt RPM Fusion nonfree requis — l'activer d'abord si "
+            "besoin : sudo dnf install https://mirrors.rpmfusion.org/nonfree/"
+            "fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
+        ),
     ),
     "vulkan": InstallCommand(
         packages={
