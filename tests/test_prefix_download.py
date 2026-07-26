@@ -142,7 +142,7 @@ def test_resolve_latest_ge_release_falls_back_on_api_error(
     release = download.resolve_latest_ge_release(on_progress=seen.append)
 
     assert release == download.FALLBACK_GE_RELEASE
-    assert any("repli" in line for line in seen)
+    assert any("falling back" in line for line in seen)
 
 
 def test_resolve_latest_ge_release_falls_back_on_unexpected_tag(

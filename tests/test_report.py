@@ -72,8 +72,8 @@ def test_format_report_lists_each_requirement(monkeypatch: pytest.MonkeyPatch) -
 
     assert "Fedora Linux 41" in text
     assert "Steam" in text
-    assert "GPU Vulkan" in text
-    assert "Tous les prérequis sont satisfaits." in text
+    assert "Vulkan GPU" in text
+    assert "All prerequisites are satisfied." in text
 
 
 def test_format_report_shows_one_consolidated_command(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -97,17 +97,17 @@ def test_format_report_shows_one_consolidated_command(monkeypatch: pytest.Monkey
     # Un seul bloc groupé, pas une ligne « → » éparpillée par prérequis.
     # (la note RPM Fusion contient sa propre commande dnf : on compte la
     # commande groupée elle-même, pas la sous-chaîne générique.)
-    assert "Pour tout installer d'un coup :" in text
+    assert "To install everything at once:" in text
     assert text.count("sudo dnf install p7zip") == 1
     # Steam et protontricks sont facultatifs (pipeline via umu) : signalés en
     # [ OPTION ] mais jamais dans la commande à exécuter.
     assert "sudo dnf install p7zip p7zip-plugins libunrar" in text
     assert "steam" not in text.split("sudo dnf install")[1].splitlines()[0]
-    assert "[ OPTION ] Steam" in text
-    assert "[ OPTION ] protontricks" in text
+    assert "[OPTIONAL] Steam" in text
+    assert "[OPTIONAL] protontricks" in text
     assert "→" not in text
     # umu-launcher n'a pas de paquet : étape à part, via le zipapp (jamais pipx).
-    assert "umu-launcher : " in text
+    assert "umu-launcher: " in text
     assert "pipx" not in text
 
 

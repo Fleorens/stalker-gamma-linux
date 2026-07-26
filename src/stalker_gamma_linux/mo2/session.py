@@ -15,6 +15,7 @@ from stalker_gamma_linux.engine.errors import EngineError
 from stalker_gamma_linux.engine.paths import InstallPaths
 from stalker_gamma_linux.environment import system
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
+from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.mo2 import diagnostics, flat, instance, launch
 from stalker_gamma_linux.mo2.errors import AnomalyNotFoundError, Mo2Error
 from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
@@ -68,10 +69,10 @@ def run_mo2(
     try:
         build = provision.ensure_prefix(prefix, search_dirs=search_dirs, on_progress=progress)
         _configure_best_effort(mo2, anomaly, progress)
-        progress("Lancement de Mod Organizer 2…")
+        progress(_("Launching Mod Organizer 2…"))
         launch.launch_mo2(mo2, prefix, build.path, on_progress=progress)
     except (PrefixError, Mo2Error) as error:
-        progress(f"Erreur : {error}")
+        progress(_("Error: {error}").format(error=error))
         return 1
     return 0
 
@@ -99,10 +100,14 @@ def run_play(
         if flat_mode:
             return _run_flat(root, install, prefix, build, progress)
         instance.configure_instance(mo2, resolve_anomaly(mo2, install))
-        progress(f"Lancement d'Anomaly via MO2 (« {executable} », USVFS)…")
+        progress(
+            _("Launching Anomaly via MO2 (« {executable} », USVFS)…").format(
+                executable=executable
+            )
+        )
         launch.launch_game(mo2, prefix, build.path, executable=executable, on_progress=progress)
     except (PrefixError, EngineError, Mo2Error) as error:
-        progress(f"Erreur : {error}")
+        progress(_("Error: {error}").format(error=error))
         return 1
 
     # Le jeu s'est lancé : c'est un succès. Le diagnostic USVFS est **indicatif**
@@ -118,7 +123,11 @@ def _configure_best_effort(mo2: Mo2Paths, anomaly: Path, on_progress: ProgressCa
     try:
         instance.configure_instance(mo2, anomaly)
     except AnomalyNotFoundError as error:
-        on_progress(f"Avertissement : {error}\nOuverture de MO2 sans configurer le chemin du jeu.")
+        on_progress(
+            _("Warning: {error}\nOpening MO2 without configuring the game path.").format(
+                error=error
+            )
+        )
 
 
 def _run_flat(
@@ -130,11 +139,13 @@ def _run_flat(
 ) -> int:
     final = flat.flat_dir(root)
     on_progress(
-        "⚠ Mode flat (fallback) : USVFS contourné, Anomaly et les mods sont fusionnés. "
-        "Tu PERDS la flexibilité des mods (plus d'activation/désactivation via MO2). "
-        "Voir docs/INSTALL-MANUAL.md annexe A.\n"
+        _(
+            "⚠ Flat mode (fallback): USVFS bypassed, Anomaly and the mods are merged. "
+            "You LOSE mod flexibility (no more enabling/disabling via MO2). "
+            "See docs/INSTALL-MANUAL.md appendix A.\n"
+        )
     )
     engine.build_flat_install(install, final, on_progress=on_progress)
-    on_progress("Lancement de l'installation flat…")
+    on_progress(_("Launching the flat install…"))
     flat.launch_flat(final, prefix, build.path, on_progress=on_progress)
     return 0

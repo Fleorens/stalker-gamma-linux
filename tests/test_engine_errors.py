@@ -21,7 +21,7 @@ def test_execution_error_includes_known_hint_for_moddb_mirror_issue() -> None:
 def test_execution_error_falls_back_to_generic_resume_hint() -> None:
     error = EngineExecutionError("full-install", 1, "some unrelated failure")
 
-    assert "cache déjà téléchargé" in str(error)
+    assert "cache already downloaded" in str(error)
 
 
 def test_verification_error_is_an_execution_error_subtype() -> None:

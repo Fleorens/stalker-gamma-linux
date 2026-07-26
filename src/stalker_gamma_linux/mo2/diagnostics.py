@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from stalker_gamma_linux.environment import system
+from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.mo2.instance import GAMMA_PROFILE
 from stalker_gamma_linux.mo2.modlist import enabled_mods, read_modlist
 from stalker_gamma_linux.mo2.paths import Mo2Paths
@@ -73,43 +74,42 @@ def usvfs_active_in(log_text: str) -> bool:
 
 
 def _no_log_message(enabled: int) -> str:
-    return (
-        f"Aucun journal USVFS ({_USVFS_LOG_GLOB}) trouvé : impossible de confirmer "
-        "que le VFS s'est monté.\n"
-        f"→ Lance le jeu **via MO2** (commande `play`, pas l'exécutable directement) "
-        f"au moins une fois. Profil G.A.M.M.A : {enabled} mods activés."
-    )
+    return _(
+        "No USVFS log ({glob}) found: can't confirm the VFS mounted.\n"
+        "→ Launch the game **via MO2** (the `play` command, not the executable "
+        "directly) at least once. G.A.M.M.A profile: {enabled} mods enabled."
+    ).format(glob=_USVFS_LOG_GLOB, enabled=enabled)
 
 
 def _dead_no_mods_message() -> str:
-    return (
-        "⚠ Aucun mod activé dans le profil G.A.M.M.A (modlist.txt) : MO2 n'a rien à "
-        "monter, le jeu démarrera forcément en vanilla.\n"
-        "→ Reconfigure l'instance (gamePath + profil), puis vérifie que "
-        "l'installation du modpack est complète (full-install / check-md5)."
+    return _(
+        "⚠ No mod enabled in the G.A.M.M.A profile (modlist.txt): MO2 has nothing to "
+        "mount, the game will necessarily start vanilla.\n"
+        "→ Reconfigure the instance (gamePath + profile), then check that the "
+        "modpack install is complete (full-install / check-md5)."
     )
 
 
 def _dead_message(log: Path, enabled: int) -> str:
-    return (
-        f"⚠ USVFS peut-être inactif : aucun marqueur de VFS vivant (hooks du "
-        f"process cible / mappings) trouvé dans {log}.\n"
-        f"Si le jeu affiche bien le contenu GAMMA, ignore cet avertissement (les "
-        f"logs usvfs varient selon les versions). Sinon, le jeu a pu démarrer en "
-        f"vanilla malgré {enabled} mods activés — remèdes (cf. {_COMPAT_DOC}) :\n"
-        "  1. Vérifier qu'on lance bien via MO2 (moshortcut) et non l'exe direct.\n"
-        "  2. Passer en Proton 9.0 ou 10.0 *vanilla* de Steam (le plus fiable).\n"
-        "  3. Essayer GE-Proton9-20.\n"
-        "  4. Dernier recours : mode flat sans MO2 (`play --flat`), au prix de la "
-        "flexibilité des mods."
-    )
+    return _(
+        "⚠ USVFS may be inactive: no live-VFS marker (target process hooks / "
+        "mappings) found in {log}.\n"
+        "If the game does show GAMMA content, ignore this warning (usvfs logs "
+        "vary across versions). Otherwise, the game may have started vanilla "
+        "despite {enabled} enabled mods — remedies (see {doc}):\n"
+        "  1. Make sure you're launching via MO2 (moshortcut), not the exe directly.\n"
+        "  2. Switch to Steam's *vanilla* Proton 9.0 or 10.0 (most reliable).\n"
+        "  3. Try GE-Proton9-20.\n"
+        "  4. Last resort: flat mode without MO2 (`play --flat`), at the cost of "
+        "mod flexibility."
+    ).format(log=log, enabled=enabled, doc=_COMPAT_DOC)
 
 
 def _active_message(log: Path, enabled: int) -> str:
-    return (
-        f"USVFS actif : le VFS a été injecté dans le jeu et sert les mods "
-        f"({enabled} mods activés dans le profil G.A.M.M.A)."
-    )
+    return _(
+        "USVFS active: the VFS was injected into the game and serves the mods "
+        "({enabled} mods enabled in the G.A.M.M.A profile)."
+    ).format(enabled=enabled)
 
 
 def diagnose_usvfs(mo2: Mo2Paths, *, profile: str = GAMMA_PROFILE) -> UsvfsDiagnosis:

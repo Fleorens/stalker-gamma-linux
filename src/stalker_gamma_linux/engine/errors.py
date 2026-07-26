@@ -2,24 +2,32 @@
 
 from __future__ import annotations
 
+from stalker_gamma_linux.i18n import _
+
 # (piège, indice) constatés dans docs/INSTALL-MANUAL.md §9 et le code amont.
 _KNOWN_HINTS: tuple[tuple[str, str], ...] = (
     (
         "ModDB download link not found",
-        "Miroir ModDB mort côté amont (issue #167 de gamma-launcher). "
-        "Mets à jour gamma-launcher vers la dernière release puis relance : "
-        "le cache déjà téléchargé est conservé.",
+        _(
+            "Dead ModDB mirror upstream (gamma-launcher issue #167). "
+            "Update gamma-launcher to the latest release and retry: "
+            "the already-downloaded cache is kept."
+        ),
     ),
     (
         "symbol lookup",
-        "Erreur connue avec le binaire de release sur certaines distributions. "
-        "Relance avec `LD_PRELOAD=/usr/lib/libreadline.so`, ou installe "
-        "gamma-launcher via pip dans un venv plutôt que le binaire autonome.",
+        _(
+            "Known issue with the release binary on some distributions. "
+            "Retry with `LD_PRELOAD=/usr/lib/libreadline.so`, or install "
+            "gamma-launcher via pip in a venv instead of the standalone binary."
+        ),
     ),
     (
         "Couldn't find path to unrar library",
-        "libunrar est absente. Installe-la (voir `stalker-gamma-linux doctor` "
-        "pour la commande adaptée à ta distribution) puis relance.",
+        _(
+            "libunrar is missing. Install it (see `stalker-gamma-linux doctor` "
+            "for the command for your distribution) and retry."
+        ),
     ),
 )
 
@@ -40,10 +48,12 @@ class EngineNotFoundError(EngineError):
 
     def __init__(self) -> None:
         super().__init__(
-            "gamma-launcher introuvable dans le PATH. Installe-le dans le même "
-            "environnement que stalker-gamma-linux, par exemple : "
-            "pip install 'gamma-launcher @ "
-            "git+https://github.com/Mord3rca/gamma-launcher.git@v3.1'"
+            _(
+                "gamma-launcher not found in PATH. Install it in the same "
+                "environment as stalker-gamma-linux, for example: "
+                "pip install 'gamma-launcher @ "
+                "git+https://github.com/Mord3rca/gamma-launcher.git@v3.1'"
+            )
         )
 
 
@@ -52,7 +62,7 @@ class EngineCancelledError(EngineError):
 
     def __init__(self, subcommand: str) -> None:
         self.subcommand = subcommand
-        super().__init__(f"gamma-launcher {subcommand} annulé.")
+        super().__init__(_("gamma-launcher {subcommand} cancelled.").format(subcommand=subcommand))
 
 
 class EngineExecutionError(EngineError):
@@ -63,17 +73,16 @@ class EngineExecutionError(EngineError):
         self.returncode = returncode
         self.output_tail = output_tail
 
-        message = (
-            f"gamma-launcher {subcommand} a échoué (code {returncode}).\n"
-            f"Dernières lignes de sortie :\n{output_tail}"
-        )
+        message = _(
+            "gamma-launcher {subcommand} failed (code {code}).\nLast output lines:\n{tail}"
+        ).format(subcommand=subcommand, code=returncode, tail=output_tail)
         hint = _actionable_hint(output_tail)
         if hint is not None:
             message += f"\n\n→ {hint}"
         else:
-            message += (
-                "\n\n→ Relance la même commande : le cache déjà téléchargé et "
-                "vérifié n'est pas retéléchargé."
+            message += "\n\n→ " + _(
+                "Retry the same command: the cache already downloaded and "
+                "verified is not re-downloaded."
             )
         super().__init__(message)
 

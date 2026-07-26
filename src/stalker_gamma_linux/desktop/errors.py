@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from stalker_gamma_linux.i18n import _
+
 
 class DesktopError(Exception):
     """Erreur de base pour l'installation du raccourci bureau."""
@@ -15,4 +17,4 @@ class DesktopWriteError(DesktopError):
     def __init__(self, path: Path, cause: OSError) -> None:
         self.path = path
         self.cause = cause
-        super().__init__(f"Impossible d'écrire {path} : {cause}")
+        super().__init__(_("Could not write {path}: {cause}").format(path=path, cause=cause))

@@ -10,6 +10,7 @@ from stalker_gamma_linux.environment import system
 from stalker_gamma_linux.environment.commands import INSTALL_COMMANDS
 from stalker_gamma_linux.environment.distro import DistroFamily
 from stalker_gamma_linux.environment.models import Requirement, Status
+from stalker_gamma_linux.i18n import _
 
 GB = 1024**3
 REQUIRED_DOWNLOAD_GB = 27
@@ -40,9 +41,9 @@ def _parse_version(text: str) -> tuple[int, ...] | None:
 
 def check_steam(family: DistroFamily) -> Requirement:
     if system.host_which("steam") is not None:
-        return Requirement(name="Steam", status=Status.OK, detail="Steam natif détecté")
+        return Requirement(name="Steam", status=Status.OK, detail=_("Native Steam detected"))
     if _flatpak_app_installed("com.valvesoftware.Steam"):
-        return Requirement(name="Steam", status=Status.OK, detail="Steam (Flatpak) détecté")
+        return Requirement(name="Steam", status=Status.OK, detail=_("Steam (Flatpak) detected"))
     # Facultatif : l'installation et le jeu passent par umu (runtime autonome),
     # Proton-GE est téléchargé depuis GitHub si absent. Steam ne sert qu'au
     # confort (Steam Input, mode Gaming du Deck via « jeu non-Steam ») et comme
@@ -50,9 +51,9 @@ def check_steam(family: DistroFamily) -> Requirement:
     return Requirement(
         name="Steam",
         status=Status.OPTIONAL,
-        detail=(
-            "absent — facultatif : utile pour Steam Input / mode Gaming (Deck), "
-            "pas nécessaire pour installer ni jouer (umu s'en charge)"
+        detail=_(
+            "absent — optional: useful for Steam Input / Gaming Mode (Deck), "
+            "not needed to install or play (umu handles it)"
         ),
         install_hint=INSTALL_COMMANDS["steam"].for_family(family),
         key="steam",
@@ -61,11 +62,11 @@ def check_steam(family: DistroFamily) -> Requirement:
 
 def check_umu(family: DistroFamily) -> Requirement:
     if system.which("umu-run") is not None:
-        return Requirement(name="umu-launcher", status=Status.OK, detail="umu-run détecté")
+        return Requirement(name="umu-launcher", status=Status.OK, detail=_("umu-run detected"))
     return Requirement(
         name="umu-launcher",
         status=Status.MISSING,
-        detail="umu-run introuvable dans le PATH",
+        detail=_("umu-run not found in PATH"),
         install_hint=INSTALL_COMMANDS["umu-launcher"].for_family(family),
         key="umu-launcher",
     )
@@ -78,16 +79,16 @@ def check_protontricks(family: DistroFamily) -> Requirement:
             return Requirement(
                 name="protontricks",
                 status=Status.OK,
-                detail="protontricks (Flatpak) détecté",
+                detail=_("protontricks (Flatpak) detected"),
             )
         # Facultatif : jamais invoqué par le pipeline (les verbs du préfixe
         # passent par umu) — seulement cité comme voie de dépannage manuelle.
         return Requirement(
             name="protontricks",
             status=Status.OPTIONAL,
-            detail=(
-                "absent — facultatif : outil de dépannage manuel du préfixe, "
-                "le pipeline n'en a pas besoin (verbs posés via umu)"
+            detail=_(
+                "absent — optional: manual prefix troubleshooting tool, "
+                "the pipeline doesn't need it (verbs are applied via umu)"
             ),
             install_hint=INSTALL_COMMANDS["protontricks"].for_family(family),
             key="protontricks",
@@ -97,7 +98,7 @@ def check_protontricks(family: DistroFamily) -> Requirement:
     version = _parse_version(result.stdout or result.stderr)
     if version is None:
         return Requirement(
-            name="protontricks", status=Status.OK, detail="détecté (version illisible)"
+            name="protontricks", status=Status.OK, detail=_("detected (version unreadable)")
         )
     if version < MIN_PROTONTRICKS_VERSION:
         version_str = ".".join(str(part) for part in version)
@@ -105,24 +106,28 @@ def check_protontricks(family: DistroFamily) -> Requirement:
         return Requirement(
             name="protontricks",
             status=Status.OUTDATED,
-            detail=f"version {version_str} détectée, {min_str}+ requise",
+            detail=_("version {version} detected, {minimum}+ required").format(
+                version=version_str, minimum=min_str
+            ),
             install_hint=INSTALL_COMMANDS["protontricks"].for_family(family),
             key="protontricks",
         )
     return Requirement(
         name="protontricks",
         status=Status.OK,
-        detail=f"version {'.'.join(str(part) for part in version)} détectée",
+        detail=_("version {version} detected").format(
+            version=".".join(str(part) for part in version)
+        ),
     )
 
 
 def check_7z(family: DistroFamily) -> Requirement:
     if system.which("7z") is not None or system.which("7zz") is not None:
-        return Requirement(name="7z", status=Status.OK, detail="7z détecté")
+        return Requirement(name="7z", status=Status.OK, detail=_("7z detected"))
     return Requirement(
         name="7z",
         status=Status.MISSING,
-        detail="ni 7z ni 7zz trouvés dans le PATH",
+        detail=_("neither 7z nor 7zz found in PATH"),
         install_hint=INSTALL_COMMANDS["7z"].for_family(family),
         key="7z",
     )
@@ -138,15 +143,17 @@ def check_libunrar(family: DistroFamily) -> Requirement:
     lib_path = os.environ.get("UNRAR_LIB_PATH")
     if lib_path and system.path_exists(Path(lib_path)):
         return Requirement(
-            name="libunrar", status=Status.OK, detail=f"libunrar fournie ({lib_path})"
+            name="libunrar",
+            status=Status.OK,
+            detail=_("libunrar provided ({path})").format(path=lib_path),
         )
     result = system.run(["ldconfig", "-p"])
     if "libunrar" in result.stdout:
-        return Requirement(name="libunrar", status=Status.OK, detail="libunrar détectée")
+        return Requirement(name="libunrar", status=Status.OK, detail=_("libunrar detected"))
     return Requirement(
         name="libunrar",
         status=Status.MISSING,
-        detail="libunrar absente du cache ldconfig",
+        detail=_("libunrar absent from the ldconfig cache"),
         install_hint=INSTALL_COMMANDS["libunrar"].for_family(family),
         key="libunrar",
     )
@@ -159,7 +166,9 @@ def check_vulkan(family: DistroFamily) -> Requirement:
         result = system.host_run(["vulkaninfo", "--summary"])
         has_device = result.returncode == 0 and "deviceName" in result.stdout
     if has_device:
-        return Requirement(name="GPU Vulkan", status=Status.OK, detail="device Vulkan détecté")
+        return Requirement(
+            name=_("Vulkan GPU"), status=Status.OK, detail=_("Vulkan device detected")
+        )
 
     # Pas de device Vulkan. En VM (sans passthrough GPU) c'est normal et non
     # actionnable — le GPU ne sert qu'à *jouer*, pas à télécharger/installer —
@@ -167,18 +176,20 @@ def check_vulkan(family: DistroFamily) -> Requirement:
     virt = system.detect_virtualization()
     if virt is not None:
         return Requirement(
-            name="GPU Vulkan",
+            name=_("Vulkan GPU"),
             status=Status.UNAVAILABLE,
-            detail=f"non détecté (normal en VM : {virt}) — requis seulement pour jouer",
+            detail=_("not detected (normal in a VM: {virt}) — only needed to play").format(
+                virt=virt
+            ),
         )
 
     detail = (
-        "vulkaninfo introuvable dans le PATH"
+        _("vulkaninfo not found in PATH")
         if tool is None
-        else "aucun device Vulkan détecté"
+        else _("no Vulkan device detected")
     )
     return Requirement(
-        name="GPU Vulkan",
+        name=_("Vulkan GPU"),
         status=Status.MISSING,
         detail=detail,
         install_hint=INSTALL_COMMANDS["vulkan"].for_family(family),
@@ -205,12 +216,12 @@ def check_gtk_gui(family: DistroFamily) -> Requirement:
         return Requirement(
             name="GTK GUI",
             status=Status.MISSING,
-            detail=f"GTK4/libadwaita (PyGObject) indisponibles : {error}",
+            detail=_("GTK4/libadwaita (PyGObject) unavailable: {error}").format(error=error),
             install_hint=INSTALL_COMMANDS["gtk-gui"].for_family(family),
             key="gtk-gui",
         )
     return Requirement(
-        name="GTK GUI", status=Status.OK, detail="GTK4 + libadwaita détectés (PyGObject)"
+        name="GTK GUI", status=Status.OK, detail=_("GTK4 + libadwaita detected (PyGObject)")
     )
 
 
@@ -228,16 +239,21 @@ def check_disk_space(target: Path) -> Requirement:
     probe_path = _nearest_existing_ancestor(target)
     usage = system.disk_usage(probe_path)
     free_gb = usage.free / GB
-    detail = (
-        f"{free_gb:.1f} Go libres sur {probe_path} "
-        f"(requis ≈ {REQUIRED_TOTAL_GB} Go : {REQUIRED_DOWNLOAD_GB} téléchargement "
-        f"+ {REQUIRED_INSTALL_GB} installation)"
+    detail = _(
+        "{free:.1f} GB free on {path} (needs ≈ {total} GB: {download} download "
+        "+ {install} install)"
+    ).format(
+        free=free_gb,
+        path=probe_path,
+        total=REQUIRED_TOTAL_GB,
+        download=REQUIRED_DOWNLOAD_GB,
+        install=REQUIRED_INSTALL_GB,
     )
     if free_gb >= REQUIRED_TOTAL_GB:
-        return Requirement(name="Espace disque", status=Status.OK, detail=detail)
+        return Requirement(name=_("Disk space"), status=Status.OK, detail=detail)
     return Requirement(
-        name="Espace disque",
+        name=_("Disk space"),
         status=Status.MISSING,
         detail=detail,
-        install_hint="Libérer de l'espace ou choisir une autre cible (--target)",
+        install_hint=_("Free up space or choose another target (--target)"),
     )

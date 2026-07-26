@@ -13,6 +13,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from stalker_gamma_linux.environment.distro import DistroFamily
+from stalker_gamma_linux.i18n import _
 
 # Préfixe d'installation du gestionnaire de paquets natif, par famille.
 PACKAGE_MANAGER: Mapping[DistroFamily, str] = {
@@ -27,7 +28,7 @@ FLATPAK_INSTALL = "flatpak install flathub"
 # NOUS-MÊMES (zipapp officiel ~420 Kio → ~/.local/bin, sans sudo) :
 # `prefix.umu.install_umu`, exposé en CLI `install-umu` et en un clic dans la
 # GUI. Ce hint est la commande de repli copiable, pas une procédure manuelle.
-_UMU_ZIPAPP_HINT = "stalker-gamma-linux install-umu   # automatique, sans sudo (zipapp officiel)"
+_UMU_ZIPAPP_HINT = _("stalker-gamma-linux install-umu   # automatic, no sudo (official zipapp)")
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,12 +102,12 @@ INSTALL_COMMANDS: Mapping[str, InstallCommand] = {
             DistroFamily.DEBIAN: ("libunrar5t64",),
             DistroFamily.ARCH: ("libunrar",),
         },
-        note=(
-            "Fedora : dépôt RPM Fusion nonfree requis — l'activer d'abord si "
-            "besoin : sudo dnf install https://mirrors.rpmfusion.org/nonfree/"
+        note=_(
+            "Fedora: RPM Fusion nonfree repo required — enable it first if "
+            "needed: sudo dnf install https://mirrors.rpmfusion.org/nonfree/"
             "fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm · "
-            "Debian/Ubuntu : composant non-free/multiverse requis ; sur "
-            "Debian 12 le paquet s'appelle libunrar5"
+            "Debian/Ubuntu: non-free/multiverse component required; on "
+            "Debian 12 the package is called libunrar5"
         ),
     ),
     "vulkan": InstallCommand(

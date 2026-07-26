@@ -28,6 +28,7 @@ from stalker_gamma_linux.environment.plan import (  # noqa: E402
 )
 from stalker_gamma_linux.gui.summary import summarize  # noqa: E402
 from stalker_gamma_linux.gui.windows.background import wrap_with_background  # noqa: E402
+from stalker_gamma_linux.i18n import _  # noqa: E402
 
 
 class DoctorPage(Adw.NavigationPage):
@@ -55,7 +56,7 @@ class DoctorPage(Adw.NavigationPage):
         self._stack.add_named(self._preferences_page, "content")
 
         self._refresh_button = Gtk.Button(
-            icon_name="view-refresh-symbolic", tooltip_text="Réactualiser"
+            icon_name="view-refresh-symbolic", tooltip_text=_("Refresh")
         )
         self._refresh_button.connect("clicked", lambda _b: self._start_refresh())
         header_bar = Adw.HeaderBar()
@@ -66,7 +67,7 @@ class DoctorPage(Adw.NavigationPage):
         toolbar_view.set_content(self._stack)
         toolbar_view.add_css_class("over-artwork")
 
-        super().__init__(title="Diagnostic", child=wrap_with_background(toolbar_view))
+        super().__init__(title=_("Diagnostic"), child=wrap_with_background(toolbar_view))
 
         self._start_refresh()
 
@@ -91,8 +92,8 @@ class DoctorPage(Adw.NavigationPage):
             groups.append(self._build_plan_group(plan))
         groups.extend(
             (
-                self._build_requirements_group("Environnement", report.environment.requirements),
-                self._build_requirements_group("Préfixe Proton", report.prefix.requirements),
+                self._build_requirements_group(_("Environment"), report.environment.requirements),
+                self._build_requirements_group(_("Proton prefix"), report.prefix.requirements),
                 self._build_install_group(report.install, report.installed_on_disk),
             )
         )
@@ -115,14 +116,14 @@ class DoctorPage(Adw.NavigationPage):
 
     def _build_plan_group(self, plan: InstallPlan) -> Adw.PreferencesGroup:
         group = Adw.PreferencesGroup(
-            title="À faire pour débloquer",
-            description="Installe ces prérequis, puis relance le diagnostic.",
+            title=_("To unblock"),
+            description=_("Install these prerequisites, then rerun the diagnostic."),
         )
         if plan.package_command is not None:
             subtitle = plan.package_command
             for note in plan.package_notes:
                 subtitle = f"{subtitle}\n({note})"
-            row = Adw.ActionRow(title="Paquets système", subtitle=subtitle)
+            row = Adw.ActionRow(title=_("System packages"), subtitle=subtitle)
             row.set_subtitle_lines(1 + len(plan.package_notes))
             row.add_suffix(self._copy_button(plan.package_command))
             group.add(row)
@@ -138,10 +139,10 @@ class DoctorPage(Adw.NavigationPage):
         return group
 
     def _install_umu_button(self) -> Gtk.Button:
-        button = Gtk.Button(label="Installer", valign=Gtk.Align.CENTER)
+        button = Gtk.Button(label=_("Install"), valign=Gtk.Align.CENTER)
         button.add_css_class("suggested-action")
         button.set_tooltip_text(
-            "Télécharge le zipapp officiel (~420 Kio) dans ~/.local/bin — sans sudo"
+            _("Downloads the official zipapp (~420 KiB) into ~/.local/bin — no sudo")
         )
         button.connect("clicked", self._on_install_umu)
         return button
@@ -151,7 +152,7 @@ class DoctorPage(Adw.NavigationPage):
         from stalker_gamma_linux.prefix.umu import install_umu
 
         button.set_sensitive(False)
-        self._show_toast("Téléchargement d'umu-launcher…")
+        self._show_toast(_("Downloading umu-launcher…"))
 
         def worker() -> None:
             try:
@@ -168,9 +169,9 @@ class DoctorPage(Adw.NavigationPage):
     ) -> bool:
         if error is not None:
             button.set_sensitive(True)
-            self._show_toast(f"Échec : {error}")
+            self._show_toast(_("Failed: {error}").format(error=error))
         else:
-            self._show_toast(f"umu-run installé ({target})")
+            self._show_toast(_("umu-run installed ({target})").format(target=target))
             self._start_refresh()
         return False
 
@@ -195,22 +196,27 @@ class DoctorPage(Adw.NavigationPage):
         self, install_state: state.InstallState, installed_on_disk: bool
     ) -> Adw.PreferencesGroup:
         description = (
-            "Install GAMMA détectée sur le disque (Anomaly + MO2) — jouable même si "
-            "les étapes ci-dessous ne sont pas cochées."
+            _(
+                "GAMMA install detected on disk (Anomaly + MO2) — playable even if "
+                "the steps below aren't checked off."
+            )
             if installed_on_disk
             else None
         )
-        group = Adw.PreferencesGroup(title="Installation", description=description)
+        group = Adw.PreferencesGroup(title=_("Installation"), description=description)
         for step in state.STEPS:
             done = install_state.is_done(step)
             if done:
-                icon_status, subtitle = Status.OK, "Fait"
+                icon_status, subtitle = Status.OK, _("Done")
             elif installed_on_disk:
                 # Install présente mais posée hors pipeline : ni « fait » ni un
                 # manque alarmant — un simple constat neutre (icône info).
-                icon_status, subtitle = Status.UNAVAILABLE, "hors pipeline (install déjà présente)"
+                icon_status, subtitle = (
+                    Status.UNAVAILABLE,
+                    _("outside the pipeline (install already present)"),
+                )
             else:
-                icon_status, subtitle = Status.MISSING, "Pas encore fait"
+                icon_status, subtitle = Status.MISSING, _("Not done yet")
             row = Adw.ActionRow(title=state.STEP_LABELS[step], subtitle=subtitle)
             row.add_prefix(_status_icon(icon_status))
             group.add(row)
@@ -219,7 +225,7 @@ class DoctorPage(Adw.NavigationPage):
     def _copy_button(self, command: str) -> Gtk.Button:
         button = Gtk.Button(
             icon_name="edit-copy-symbolic",
-            tooltip_text="Copier la commande",
+            tooltip_text=_("Copy the command"),
             valign=Gtk.Align.CENTER,
         )
         button.add_css_class("flat")
@@ -231,7 +237,7 @@ class DoctorPage(Adw.NavigationPage):
         if display is None:
             return
         display.get_clipboard().set(text)
-        self._show_toast("Commande copiée dans le presse-papiers")
+        self._show_toast(_("Command copied to clipboard"))
 
 
 def _status_icon(status: Status) -> Gtk.Image:

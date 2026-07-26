@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "stalker-gamma-linux"
 version = "0.1.0"
-description = "Couche d'intégration Linux pour l'installation de S.T.A.L.K.E.R. G.A.M.M.A."
+description = "Linux integration layer for installing S.T.A.L.K.E.R. G.A.M.M.A."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
@@ -28,13 +28,24 @@ stalker-gamma-linux-gui = "stalker_gamma_linux.gui.launch:main"
 # `environment.checks.check_gtk_gui` pour les commandes par distribution), ou d'un
 # venv créé avec `--system-site-packages`. La CLI ne dépend jamais de ce groupe.
 gui = ["PyGObject>=3.50"]
-dev = ["ruff>=0.6", "mypy>=1.11", "pytest>=8.0", "PyGObject-stubs>=2.10"]
+dev = [
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pytest>=8.0",
+    "PyGObject-stubs>=2.10",
+    "Babel>=2.14",  # extraction/compilation .pot/.po/.mo (i18n) — jamais requis à l'exécution
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-stalker_gamma_linux = ["assets/icon.png", "assets/logo.png", "assets/background.jpg"]
+stalker_gamma_linux = [
+    "assets/icon.png",
+    "assets/logo.png",
+    "assets/background.jpg",
+    "locale/*/LC_MESSAGES/*.mo",
+]
 
 [tool.ruff]
 line-length = 100

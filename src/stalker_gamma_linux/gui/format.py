@@ -22,11 +22,11 @@ def parse_step_index(index: str) -> tuple[int, int] | None:
 
 
 def format_gib(n_bytes: int) -> str:
-    """« 245 Gio », « 1,5 Gio » — virgule française, une décimale sous 10 Gio."""
+    """« 245 GB », « 1.5 GB » — une décimale sous 10 GB."""
     gib = n_bytes / _GIB
     if gib >= 10:
-        return f"{gib:.0f} Gio"
-    return f"{gib:.1f} Gio".replace(".", ",")
+        return f"{gib:.0f} GB"
+    return f"{gib:.1f} GB"
 
 
 def format_duration(seconds: float) -> str:

@@ -13,6 +13,7 @@ import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 
+from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.prefix.errors import (
     ChecksumMismatchError,
     PrefixCancelledError,
@@ -61,7 +62,7 @@ def download_to(url: str, dest: Path, *, cancel_event: threading.Event | None = 
     ):
         while chunk := response.read(_DOWNLOAD_CHUNK_BYTES):
             if cancel_event is not None and cancel_event.is_set():
-                raise PrefixCancelledError(f"téléchargement de {url}")
+                raise PrefixCancelledError(_("downloading {url}").format(url=url))
             output.write(chunk)
 
 
@@ -77,7 +78,9 @@ def _remote_checksum(release: str) -> str:
     url = f"{_RELEASE_BASE_URL}/{release}/{release}.sha512sum"
     tokens = read_remote_text(url).split()
     if not tokens or len(tokens[0]) != _SHA512_HEX_LENGTH:
-        raise ProtonDownloadError(f"Fichier de checksum illisible pour {release} ({url})")
+        raise ProtonDownloadError(
+            _("Unreadable checksum file for {release} ({url})").format(release=release, url=url)
+        )
     return tokens[0]
 
 
@@ -95,7 +98,11 @@ def resolve_latest_ge_release(*, on_progress: ProgressCallback | None = None) ->
     except (OSError, ValueError):
         tag = ""
     if not _GE_TAG_RE.match(tag):
-        progress(f"API GitHub injoignable — repli sur {FALLBACK_GE_RELEASE}")
+        progress(
+            _("GitHub API unreachable — falling back to {release}").format(
+                release=FALLBACK_GE_RELEASE
+            )
+        )
         return FALLBACK_GE_RELEASE
     return tag
 
@@ -125,7 +132,7 @@ def download_proton_ge(
     if (target / "proton").exists():
         return target
     if cancel_event is not None and cancel_event.is_set():
-        raise PrefixCancelledError(f"téléchargement de {release}")
+        raise PrefixCancelledError(_("downloading {release}").format(release=release))
 
     resolved_dir.mkdir(parents=True, exist_ok=True)
     archive_url = f"{_RELEASE_BASE_URL}/{release}/{release}.tar.gz"
@@ -135,29 +142,36 @@ def download_proton_ge(
         # le rename final est atomique et un échec ne laisse aucun résidu.
         with tempfile.TemporaryDirectory(dir=resolved_dir) as tmp:
             archive = Path(tmp) / f"{release}.tar.gz"
-            progress(f"Téléchargement de {release}…")
+            progress(_("Downloading {release}…").format(release=release))
             download_to(archive_url, archive, cancel_event=cancel_event)
-            progress("Vérification du checksum SHA-512…")
+            progress(_("Verifying SHA-512 checksum…"))
             actual = _sha512(archive)
             if actual != expected:
                 raise ChecksumMismatchError(release, expected, actual)
-            progress("Extraction…")
+            progress(_("Extracting…"))
             with tarfile.open(archive) as tar:
                 tar.extractall(Path(tmp), filter="data")
             extracted = Path(tmp) / release
             if not (extracted / "proton").exists():
                 raise ProtonDownloadError(
-                    f"Archive {release} inattendue : exécutable `proton` absent après extraction"
+                    _(
+                        "Unexpected archive {release}: `proton` executable "
+                        "missing after extraction"
+                    ).format(release=release)
                 )
             if target.exists():
                 # Reste d'une extraction interrompue (le cas complet a retourné plus haut).
                 shutil.rmtree(target)
             extracted.rename(target)
     except tarfile.TarError as error:
-        raise ProtonDownloadError(f"Archive {release} corrompue : {error}") from error
+        raise ProtonDownloadError(
+            _("Corrupted archive {release}: {error}").format(release=release, error=error)
+        ) from error
     except OSError as error:
         raise ProtonDownloadError(
-            f"Téléchargement de {release} impossible ({archive_url}) : {error}"
+            _("Could not download {release} ({url}): {error}").format(
+                release=release, url=archive_url, error=error
+            )
         ) from error
-    progress(f"{release} installé dans {resolved_dir}")
+    progress(_("{release} installed in {dir}").format(release=release, dir=resolved_dir))
     return target

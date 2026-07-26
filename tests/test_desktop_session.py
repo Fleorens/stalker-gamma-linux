@@ -23,7 +23,7 @@ def test_run_shortcut_success_prints_steam_instructions(
     assert exit_code == 0
     out = capsys.readouterr().out
     assert str(paths.desktop_file) in out
-    assert "Ajouter un jeu non-Steam" in out
+    assert "Add a Non-Steam Game" in out
     assert "/bin/stalker-gamma-linux" in out
     assert f"play --target {tmp_path / 'gamma'}" in out
 
@@ -54,4 +54,4 @@ def test_run_shortcut_reports_error(
     exit_code = session.run_shortcut(Path("/games/gamma"))
 
     assert exit_code == 1
-    assert "Erreur" in capsys.readouterr().out
+    assert "Error" in capsys.readouterr().out

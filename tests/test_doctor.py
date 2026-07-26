@@ -40,12 +40,12 @@ def test_run_doctor_combines_all_three_sections(
 
     out = capsys.readouterr().out
     assert exit_code == 0
-    assert "Environnement" in out
-    assert "Préfixe Proton" in out
+    assert "Environment" in out
+    assert "Proton prefix" in out
     assert "Installation" in out
     assert "Fedora Linux 41" in out
     assert "[ OK ]" in out
-    assert "[ A FAIRE ]" in out
+    assert "[ TODO ]" in out
 
 
 def test_build_full_report_exposes_structured_requirements(
@@ -61,7 +61,7 @@ def test_build_full_report_exposes_structured_requirements(
     assert report.target == tmp_path
     assert report.is_ready is report.environment.is_ready
     assert any(requirement.name == "Steam" for requirement in report.environment.requirements)
-    assert any(requirement.name == "Préfixe" for requirement in report.prefix.requirements)
+    assert any(requirement.name == "Prefix" for requirement in report.prefix.requirements)
     assert report.install.is_done("anomaly")
     assert not report.install.is_done("gamma")
 

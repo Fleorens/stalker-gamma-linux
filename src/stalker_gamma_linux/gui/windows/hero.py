@@ -18,6 +18,7 @@ from gi.repository import Adw, Gtk, Pango  # noqa: E402
 
 from stalker_gamma_linux.gui import theme, viewmodel  # noqa: E402
 from stalker_gamma_linux.gui.summary import SystemSummary  # noqa: E402
+from stalker_gamma_linux.i18n import _  # noqa: E402
 
 # Le PNG source fait 720x341 : sans contrainte, Gtk.Picture le rend à taille
 # naturelle et le logo avale la fenêtre. Un size_request ne pose qu'un
@@ -54,7 +55,7 @@ class HeroBox(Gtk.Box):
         self.append(self._subtitle)
 
         self._chip_spinner = Adw.Spinner()
-        self._chip_label = Gtk.Label(label="Analyse du système…")
+        self._chip_label = Gtk.Label(label=_("Analyzing system…"))
         chip_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         chip_content.append(self._chip_spinner)
         chip_content.append(self._chip_label)
@@ -68,9 +69,9 @@ class HeroBox(Gtk.Box):
     def show_state(self, state: viewmodel.MainWindowState, *, free_label: str | None) -> None:
         # Sobre et factuel — pas de flavor text (retour Florian).
         if state.is_installed:
-            self._title.set_label("PRÊT À JOUER")
+            self._title.set_label(_("READY TO PLAY"))
         else:
-            self._title.set_label("INSTALLATION REQUISE")
+            self._title.set_label(_("INSTALLATION REQUIRED"))
         subtitle = str(state.target)
         if free_label is not None:
             subtitle = f"{subtitle}  ·  {free_label}"
@@ -84,7 +85,7 @@ class HeroBox(Gtk.Box):
         self._chip.remove_css_class("chip-warn")
         self._chip.add_css_class("chip-ok" if summary.is_ready else "chip-warn")
         self._chip.set_tooltip_text(
-            "Tout est en place. Cliquer pour le détail."
+            _("Everything is in place. Click for details.")
             if summary.is_ready
-            else "Cliquer pour voir le diagnostic et les commandes d'installation."
+            else _("Click to see the diagnostic and install commands.")
         )

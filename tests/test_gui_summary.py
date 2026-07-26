@@ -21,7 +21,7 @@ class TestSummarize:
     def test_tout_ok(self) -> None:
         result = summarize(_report(_req("Steam", Status.OK), _req("umu", Status.OK)))
         assert result.is_ready
-        assert result.label == "Système prêt"
+        assert result.label == "System ready"
 
     def test_unavailable_ne_bloque_pas(self) -> None:
         result = summarize(_report(_req("GPU Vulkan", Status.UNAVAILABLE)))
@@ -32,7 +32,7 @@ class TestSummarize:
             _report(_req("Steam", Status.OK), _req("umu-launcher", Status.MISSING))
         )
         assert not result.is_ready
-        assert result.label == "Prérequis manquant : umu-launcher"
+        assert result.label == "Missing prerequisite: umu-launcher"
 
     def test_plusieurs_manquants_sont_comptes(self) -> None:
         result = summarize(
@@ -42,5 +42,5 @@ class TestSummarize:
                 _req("7z", Status.OUTDATED),
             )
         )
-        assert result.label == "3 prérequis manquants"
+        assert result.label == "3 missing prerequisites"
         assert result.blocking == ("Steam", "umu-launcher", "7z")

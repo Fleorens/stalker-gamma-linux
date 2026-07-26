@@ -14,6 +14,7 @@ from enum import Enum, auto
 from pathlib import Path
 
 from stalker_gamma_linux.gui.format import format_gib
+from stalker_gamma_linux.i18n import _
 
 MINIMUM_FREE_BYTES = 160 * 1024**3
 RECOMMENDED_FREE_BYTES = 250 * 1024**3
@@ -34,8 +35,8 @@ class SpaceReport:
     @property
     def free_label(self) -> str:
         if self.free_bytes is None:
-            return "espace libre inconnu"
-        return f"{format_gib(self.free_bytes)} libres"
+            return _("unknown free space")
+        return _("{size} free").format(size=format_gib(self.free_bytes))
 
 
 def verdict_for(free_bytes: int) -> SpaceVerdict:

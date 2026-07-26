@@ -146,6 +146,13 @@ The background artwork is generated deterministically by
 `scripts/generate_background.py` (numpy + Pillow, fixed seed) — no external
 asset, reproducible at any time.
 
+### Language
+
+The CLI and GUI are in **English by default** and follow your system locale
+(`LANGUAGE`/`LANG`) automatically — no setting to change. French is fully
+translated today; contributing another language is a normal gettext
+workflow, see "Internationalisation" in `docs/ARCHITECTURE.md`.
+
 ## Legal
 
 This repository contains **code and documentation only**. It never rehosts the

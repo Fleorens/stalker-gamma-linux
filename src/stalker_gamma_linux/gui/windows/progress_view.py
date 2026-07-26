@@ -33,6 +33,7 @@ from stalker_gamma_linux.gui.worker import (  # noqa: E402
     ReporterEvent,
     WorkerEvent,
 )
+from stalker_gamma_linux.i18n import _  # noqa: E402
 from stalker_gamma_linux.orchestrator import CANCELLED_EXIT_CODE  # noqa: E402
 
 _POLL_INTERVAL_MS = 80
@@ -96,7 +97,7 @@ class _PhaseRow(Gtk.Box):
             else:
                 self._stack.set_visible_child_name("icon")
                 self._icon.set_from_icon_name(_STATUS_ICON[phase.status])
-        suffix = " — déjà fait" if phase.status is phases.PhaseStatus.SKIPPED else ""
+        suffix = _(" — already done") if phase.status is phases.PhaseStatus.SKIPPED else ""
         self._label.set_label(f"{phase.label}{suffix}")
         self._detail.set_visible(phase.detail is not None)
         if phase.detail is not None:
@@ -132,7 +133,7 @@ class ProgressPage(Adw.NavigationPage):
         for side in ("top", "bottom", "start", "end"):
             getattr(content, f"set_margin_{side}")(24)
 
-        self._status_label = Gtk.Label(label="Préparation…", xalign=0, wrap=True)
+        self._status_label = Gtk.Label(label=_("Preparing…"), xalign=0, wrap=True)
         self._status_label.add_css_class("title-3")
         self._elapsed_label = Gtk.Label(label="", xalign=1, hexpand=True)
         self._elapsed_label.add_css_class("elapsed")
@@ -154,7 +155,7 @@ class ProgressPage(Adw.NavigationPage):
 
         content.append(self._build_console())
 
-        self._cancel_button = Gtk.Button(label="Annuler")
+        self._cancel_button = Gtk.Button(label=_("Cancel"))
         self._cancel_button.add_css_class("destructive-action")
         self._cancel_button.add_css_class("pill")
         self._cancel_button.set_visible(cancellable)
@@ -223,7 +224,7 @@ class ProgressPage(Adw.NavigationPage):
     # -- événements ----------------------------------------------------------
 
     def _on_cancel_clicked(self, _button: Gtk.Button) -> None:
-        self._status_label.set_label("Annulation en cours…")
+        self._status_label.set_label(_("Cancelling…"))
         self._cancel_button.set_sensitive(False)
         self._task.cancel()
 
@@ -260,7 +261,7 @@ class ProgressPage(Adw.NavigationPage):
         elif isinstance(event, DoneEvent):
             self._handle_done(event.exit_code)
         elif isinstance(event, FailedEvent):
-            self._append_log(f"Erreur inattendue : {event.error}")
+            self._append_log(_("Unexpected error: {error}").format(error=event.error))
             self._handle_done(1)
 
     def _handle_reporter_event(self, event: ReporterEvent) -> None:
@@ -273,7 +274,7 @@ class ProgressPage(Adw.NavigationPage):
                 f"[{event.index}] {event.message}" if event.index else event.message
             )
         elif event.kind == "error":
-            self._append_log(f"Erreur : {event.message}")
+            self._append_log(_("Error: {message}").format(message=event.message))
             if event.hint is not None:
                 self._append_log(f"→ {event.hint}")
         else:
@@ -297,11 +298,11 @@ class ProgressPage(Adw.NavigationPage):
             if self._timeline is not None:
                 self._timeline = self._timeline.complete()
                 self._render_timeline()
-            self._status_label.set_label("Terminé.")
+            self._status_label.set_label(_("Done."))
             self._progress_bar.set_fraction(1.0)
             self._percent_label.set_label("100%")
         elif exit_code == CANCELLED_EXIT_CODE:
-            self._status_label.set_label("Annulé — reprendra où c'était arrêté.")
+            self._status_label.set_label(_("Cancelled — will resume where it left off."))
         else:
-            self._status_label.set_label("Échec — détail dans la console ci-dessous.")
+            self._status_label.set_label(_("Failed — see details in the console below."))
         self._on_finished(exit_code)

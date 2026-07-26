@@ -8,15 +8,16 @@ from stalker_gamma_linux.environment import checks
 from stalker_gamma_linux.environment.distro import detect_distro
 from stalker_gamma_linux.environment.models import EnvironmentReport, Status
 from stalker_gamma_linux.environment.plan import build_install_plan, format_install_plan
+from stalker_gamma_linux.i18n import _
 
 DEFAULT_INSTALL_TARGET = Path.home() / "Games" / "stalker-gamma"
 
 _STATUS_LABEL = {
-    Status.OK: "[ OK ]",
-    Status.MISSING: "[MANQUANT]",
-    Status.OUTDATED: "[ANCIEN]",
-    Status.UNAVAILABLE: "[ INFO ]",
-    Status.OPTIONAL: "[ OPTION ]",
+    Status.OK: _("[ OK ]"),
+    Status.MISSING: _("[MISSING]"),
+    Status.OUTDATED: _("[OUTDATED]"),
+    Status.UNAVAILABLE: _("[ INFO ]"),
+    Status.OPTIONAL: _("[OPTIONAL]"),
 }
 
 
@@ -37,17 +38,22 @@ def build_report(target: Path | None = None) -> EnvironmentReport:
 
 
 def format_report(report: EnvironmentReport) -> str:
-    lines = [f"Distribution : {report.distro.pretty_name} ({report.distro.family.value})", ""]
+    lines = [
+        _("Distribution: {name} ({family})").format(
+            name=report.distro.pretty_name, family=report.distro.family.value
+        ),
+        "",
+    ]
     for requirement in report.requirements:
         label = _STATUS_LABEL[requirement.status]
         lines.append(f"{label} {requirement.name} — {requirement.detail}")
     lines.append("")
     if report.is_ready:
-        lines.append("Tous les prérequis sont satisfaits.")
+        lines.append(_("All prerequisites are satisfied."))
     else:
         # Un seul bloc « voici la commande à lancer » plutôt qu'une ligne de
         # remède éparpillée sous chaque prérequis (cf. environment.plan).
-        lines.append("Prérequis manquants.")
+        lines.append(_("Missing prerequisites."))
         lines.extend(format_install_plan(build_install_plan(report, report.distro.family)))
     return "\n".join(lines)
 

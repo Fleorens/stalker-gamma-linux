@@ -538,6 +538,50 @@ d'archives de gamma-launcher importent `unrar` (ctypes) au chargement, qui
 exige `libunrar.so` — absent des images `python:*-slim` (Debian), présent
 d'origine sur Ubuntu (`multiverse`).
 
+## Internationalisation
+
+Toutes les chaînes visibles par l'utilisateur (CLI, GUI, messages d'erreur des
+modules métier partagés) sont en **anglais dans le code source** (`msgid`
+gettext) et passent par `stalker_gamma_linux.i18n._()`. L'anglais est donc la
+langue de repli automatique : `gettext.translation(..., fallback=True)`
+retourne le `msgid` tel quel dès qu'aucune traduction n'est chargée ou que la
+locale demandée n'a pas de `.mo` correspondant — pas de configuration
+supplémentaire, comportement standard de toute appli GTK/gettext. La locale
+effective suit les variables d'environnement POSIX usuelles (`LANGUAGE`,
+`LC_ALL`, `LC_MESSAGES`, `LANG`), résolue **une fois** à l'import du module
+(modèle gettext classique : un changement de langue en cours de session
+nécessite un redémarrage, jamais un bug).
+
+Traductions disponibles : `src/stalker_gamma_linux/locale/<code>/LC_MESSAGES/
+stalker-gamma-linux.po` (+ `.mo` compilé, embarqué au paquet via
+`package-data`). Français fourni à 100 % à la refonte i18n (2026-07-26,
+226 chaînes). Outillage **Babel** (`dev` extra, pip pur — pas de dépendance
+système `gettext`/`xgettext`, cohérent avec le reste du projet qui n'exige
+jamais sudo) :
+
+```sh
+make extract-messages   # régénère le .pot depuis tous les `_("...")` de src/
+make update-messages    # fusionne les nouveaux msgids dans chaque .po existant
+make compile-messages   # .po → .mo, à refaire avant de tester une traduction
+```
+
+Ajouter une langue : `pybabel init -i src/stalker_gamma_linux/locale/
+stalker-gamma-linux.pot -d src/stalker_gamma_linux/locale -l <code> -D
+stalker-gamma-linux`, traduire le `.po` généré, puis `make compile-messages`.
+
+Piège de test : les assertions de `pytest` portent sur le texte anglais
+(source), qui ne doit pas dépendre de la locale de la machine qui exécute la
+suite (ex. poste de développement en `fr_FR.UTF-8`). `tests/conftest.py` fixe
+`LANGUAGE=en` **au niveau module** (pas dans une fixture) : `i18n.py` résout
+sa traduction une seule fois, au premier import — une fixture, même
+`autouse`, s'exécute après cet import et arriverait trop tard.
+
+Hors périmètre gettext (laissé en l'état, ce ne sont pas des chaînes
+traduisibles) : les identifiants internes (`STEPS`, valeurs de l'enum
+`Status`, clés `INSTALL_COMMANDS`) ne sont jamais affichés directement — un
+dict de mapping séparé s'en charge à chaque fois — et le CSS de `gui/theme.py`
+(commentaires de code, pas du texte utilisateur).
+
 ## Références
 
 - Moteur : https://github.com/Mord3rca/gamma-launcher

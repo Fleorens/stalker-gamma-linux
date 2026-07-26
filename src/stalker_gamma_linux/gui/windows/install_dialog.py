@@ -21,12 +21,13 @@ from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from stalker_gamma_linux.gui import prefs, space  # noqa: E402
 from stalker_gamma_linux.gui.format import format_gib  # noqa: E402
+from stalker_gamma_linux.i18n import _  # noqa: E402
 
 _VERDICT_CHIP = {
-    space.SpaceVerdict.OK: ("chip-ok", "Espace suffisant"),
-    space.SpaceVerdict.TIGHT: ("chip-warn", "Espace juste"),
-    space.SpaceVerdict.INSUFFICIENT: ("chip-error", "Espace insuffisant"),
-    space.SpaceVerdict.UNKNOWN: ("chip-warn", "Espace libre inconnu"),
+    space.SpaceVerdict.OK: ("chip-ok", _("Enough space")),
+    space.SpaceVerdict.TIGHT: ("chip-warn", _("Tight on space")),
+    space.SpaceVerdict.INSUFFICIENT: ("chip-error", _("Not enough space")),
+    space.SpaceVerdict.UNKNOWN: ("chip-warn", _("Unknown free space")),
 }
 
 
@@ -40,7 +41,7 @@ class InstallDialog(Adw.Dialog):
         preferences: prefs.Preferences,
         on_confirmed: Callable[[prefs.Preferences], None],
     ) -> None:
-        super().__init__(title="Installer G.A.M.M.A.", content_width=440)
+        super().__init__(title=_("Install G.A.M.M.A."), content_width=440)
         self._parent_window = parent_window
         self._prefs = preferences
         self._on_confirmed = on_confirmed
@@ -49,37 +50,37 @@ class InstallDialog(Adw.Dialog):
         header.add_css_class("flat")
 
         intro = Gtk.Label(
-            label=(
-                "Anomaly, le modpack complet et Mod Organizer 2 vont être\n"
-                "téléchargés puis installés sous le répertoire choisi."
+            label=_(
+                "Anomaly, the full modpack, and Mod Organizer 2 will be\n"
+                "downloaded and installed under the chosen directory."
             ),
             justify=Gtk.Justification.CENTER,
             wrap=True,
         )
         intro.add_css_class("dim-label")
 
-        self._target_row = Adw.ActionRow(title="Répertoire d'installation")
+        self._target_row = Adw.ActionRow(title=_("Install directory"))
         self._target_row.add_css_class("property")
         choose = Gtk.Button(
             icon_name="folder-open-symbolic",
-            tooltip_text="Choisir un autre répertoire",
+            tooltip_text=_("Choose another directory"),
             valign=Gtk.Align.CENTER,
         )
         choose.add_css_class("flat")
         choose.connect("clicked", self._on_choose_target)
         self._target_row.add_suffix(choose)
 
-        self._space_row = Adw.ActionRow(title="Espace libre sur ce volume")
+        self._space_row = Adw.ActionRow(title=_("Free space on this volume"))
         self._space_row.add_css_class("property")
         self._space_chip = Gtk.Label()
         self._space_chip.set_valign(Gtk.Align.CENTER)
         self._space_row.add_suffix(self._space_chip)
 
         self._shortcut_row = Adw.SwitchRow(
-            title="Raccourci « jouer en direct »",
-            subtitle=(
-                "En plus du launcher (déjà dans ton menu) — utile surtout pour "
-                "Steam « Ajouter un jeu non-Steam »"
+            title=_("« Play directly » shortcut"),
+            subtitle=_(
+                "In addition to the launcher (already in your menu) — mainly useful "
+                "for Steam's « Add a Non-Steam Game »"
             ),
             active=preferences.create_steam_shortcut,
         )
@@ -93,7 +94,7 @@ class InstallDialog(Adw.Dialog):
         self._space_note = Gtk.Label(justify=Gtk.Justification.CENTER, wrap=True)
         self._space_note.add_css_class("dim-label")
 
-        self._confirm = Gtk.Button(label="LANCER L'INSTALLATION")
+        self._confirm = Gtk.Button(label=_("START INSTALLATION"))
         self._confirm.add_css_class("action-play")
         self._confirm.set_size_request(-1, 52)
         self._confirm.connect("clicked", self._on_confirm)
@@ -137,27 +138,35 @@ class InstallDialog(Adw.Dialog):
         self._confirm.set_sensitive(not blocked)
         if blocked:
             self._space_note.set_label(
-                f"Il faut au moins {format_gib(space.MINIMUM_FREE_BYTES)} libres "
-                f"(recommandé : {format_gib(space.RECOMMENDED_FREE_BYTES)}). "
-                "Choisis un autre disque."
+                _(
+                    "At least {minimum} free is required (recommended: {recommended}). "
+                    "Choose another disk."
+                ).format(
+                    minimum=format_gib(space.MINIMUM_FREE_BYTES),
+                    recommended=format_gib(space.RECOMMENDED_FREE_BYTES),
+                )
             )
         elif report.verdict is space.SpaceVerdict.TIGHT:
             self._space_note.set_label(
-                f"Ça passe, mais {format_gib(space.RECOMMENDED_FREE_BYTES)} libres "
-                "sont recommandés (cache d'archives + mods extraits)."
+                _(
+                    "It'll fit, but {recommended} free is recommended "
+                    "(archive cache + extracted mods)."
+                ).format(recommended=format_gib(space.RECOMMENDED_FREE_BYTES))
             )
         else:
             self._space_note.set_label(
-                "Téléchargement d'environ 40 Gio, installation complète "
-                "d'environ 150 Gio. Interruption possible à tout moment : "
-                "l'installation reprend où elle s'était arrêtée."
+                _(
+                    "About 40 GB to download, ~150 GB for the full install. "
+                    "Can be interrupted at any time: the install resumes where "
+                    "it left off."
+                )
             )
 
     # -- actions -----------------------------------------------------------
 
     def _on_choose_target(self, _button: Gtk.Button) -> None:
         dialog = Gtk.FileDialog(
-            title="Choisir le répertoire d'installation",
+            title=_("Choose the install directory"),
             initial_folder=Gio.File.new_for_path(str(self._prefs.install_path)),
         )
         dialog.select_folder(self._parent_window, None, self._on_target_selected)

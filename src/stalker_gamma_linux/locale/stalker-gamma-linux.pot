@@ -1,0 +1,942 @@
+# Translations template for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-07-26 10:35+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Target install directory (default: ~/Games/stalker-gamma)"
+msgstr ""
+
+msgid "Linux installer and integration for S.T.A.L.K.E.R. G.A.M.M.A."
+msgstr ""
+
+msgid ""
+"Show details (debug) on the console in addition to the full log (always "
+"written under ~/.local/state/stalker-gamma-linux/)"
+msgstr ""
+
+msgid ""
+"Installs Anomaly + the G.A.M.M.A modpack under --target (downloads ~146 "
+"GB)"
+msgstr ""
+
+msgid ""
+"Also creates the desktop shortcut (.desktop + icon) at the end of the "
+"install"
+msgstr ""
+
+msgid ""
+"Updates the G.A.M.M.A modpack, removes ReShade, and re-verifies the "
+"install"
+msgstr ""
+
+msgid "Full report: system prerequisites + prefix status + install status"
+msgstr ""
+
+msgid "Checks the shared Proton prefix status (Proton, verbs, DXVK)"
+msgstr ""
+
+msgid "Repairs: downloads Proton-GE, creates the prefix, applies missing verbs"
+msgstr ""
+
+msgid "Opens Mod Organizer 2 (prefix ready, GAMMA instance configured)"
+msgstr ""
+
+msgid "Launches Anomaly through MO2 (USVFS active) and diagnoses the mods"
+msgstr ""
+
+#, python-brace-format
+msgid "MO2 executable to launch (default: « {executable} »)"
+msgstr ""
+
+msgid ""
+"Fallback without MO2: merged install (usvfs-workaround). LOSES mod "
+"flexibility — only use if USVFS doesn't mount"
+msgstr ""
+
+msgid "Doesn't run the USVFS diagnostic after launch"
+msgstr ""
+
+msgid "Creates/updates the desktop shortcut (.desktop + icon, application menu)"
+msgstr ""
+
+msgid ""
+"Installs umu-launcher (official zipapp ~420 KiB) into ~/.local/bin — no "
+"sudo, the only prerequisite with no Fedora/Debian package"
+msgstr ""
+
+msgid "unexpected error — see the log for details."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Check {log_path} (or retry with --verbose) and open an issue if the "
+"problem persists."
+msgstr ""
+
+msgid "Environment"
+msgstr ""
+
+msgid "Proton prefix"
+msgstr ""
+
+msgid "Installation"
+msgstr ""
+
+msgid ""
+"GAMMA install detected on disk (Anomaly + Mod Organizer 2 present) — "
+"usable even if the steps above aren't checked off (install outside the "
+"pipeline)."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Retry `stalker-gamma-linux install --target {root}`: resuming skips steps"
+" already validated."
+msgstr ""
+
+#, python-brace-format
+msgid "Installing S.T.A.L.K.E.R. G.A.M.M.A. in {root}"
+msgstr ""
+
+msgid "Missing prerequisites — steps depending on them may fail:\n"
+msgstr ""
+
+msgid "Installation cancelled."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"\n"
+"Installation complete. Next steps:\n"
+"  stalker-gamma-linux mo2  --target {root}   # open Mod Organizer 2\n"
+"  stalker-gamma-linux play --target {root}   # play (Anomaly via MO2, "
+"USVFS)"
+msgstr ""
+
+#, python-brace-format
+msgid "Updating S.T.A.L.K.E.R. G.A.M.M.A. in {root}"
+msgstr ""
+
+msgid "G.A.M.M.A modpack (incremental download)…"
+msgstr ""
+
+msgid "Removing ReShade + purging the shader cache…"
+msgstr ""
+
+msgid "Verification (MD5 of mod archives)…"
+msgstr ""
+
+msgid "Update cancelled."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"{count} archive(s) could not be verified online (ModDB page changed or "
+"Cloudflare throttling) — no local corruption detected:\n"
+"{details}\n"
+"Run an update again later for a complete verification."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"\n"
+"Update complete.\n"
+"Reminders: if a custom profile or executable changed upstream, retry "
+"`stalker-gamma-linux mo2 --target {root}` to check the instance; if USVFS"
+" looks dead after the update, see docs/MO2-PROTON-COMPAT.md."
+msgstr ""
+
+msgid "(already done — resuming)"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "Anomaly (base game)"
+msgstr ""
+
+msgid "G.A.M.M.A modpack (mods + MO2 instance)"
+msgstr ""
+
+msgid "Removing ReShade + purging the shader cache"
+msgstr ""
+
+msgid "Shared Proton prefix"
+msgstr ""
+
+msgid "Mod Organizer 2 instance configuration"
+msgstr ""
+
+msgid "Desktop shortcut"
+msgstr ""
+
+#, python-brace-format
+msgid "unknown step: {step}"
+msgstr ""
+
+#, python-brace-format
+msgid "Target: {target}"
+msgstr ""
+
+msgid "[ OK ]"
+msgstr ""
+
+msgid "[ TODO ]"
+msgstr ""
+
+msgid "Play GAMMA (direct)"
+msgstr ""
+
+msgid ""
+"Launches G.A.M.M.A directly (Anomaly + MO2 under Proton), bypassing the "
+"launcher"
+msgstr ""
+
+#, python-brace-format
+msgid "Could not write {path}: {cause}"
+msgstr ""
+
+#, python-brace-format
+msgid "Error: {error}"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Desktop shortcut created/updated: {desktop_file}\n"
+"It shows up in your desktop environment's application menu.\n"
+"\n"
+"To also add it to Steam (useful for Steam Input or Gaming Mode on the "
+"Steam Deck): Steam → Add a Game → Add a Non-Steam Game → Browse, select:"
+"\n"
+"  {executable}\n"
+"then, in that Steam entry's properties, set the launch options to:\n"
+"  {launch_options}\n"
+"Steam then handles the artwork and compat tool choice itself."
+msgstr ""
+
+msgid ""
+"Dead ModDB mirror upstream (gamma-launcher issue #167). Update gamma-"
+"launcher to the latest release and retry: the already-downloaded cache is"
+" kept."
+msgstr ""
+
+msgid ""
+"Known issue with the release binary on some distributions. Retry with "
+"`LD_PRELOAD=/usr/lib/libreadline.so`, or install gamma-launcher via pip "
+"in a venv instead of the standalone binary."
+msgstr ""
+
+msgid ""
+"libunrar is missing. Install it (see `stalker-gamma-linux doctor` for the"
+" command for your distribution) and retry."
+msgstr ""
+
+msgid ""
+"gamma-launcher not found in PATH. Install it in the same environment as "
+"stalker-gamma-linux, for example: pip install 'gamma-launcher @ "
+"git+https://github.com/Mord3rca/gamma-launcher.git@v3.1'"
+msgstr ""
+
+#, python-brace-format
+msgid "gamma-launcher {subcommand} cancelled."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"gamma-launcher {subcommand} failed (code {code}).\n"
+"Last output lines:\n"
+"{tail}"
+msgstr ""
+
+msgid ""
+"Retry the same command: the cache already downloaded and verified is not "
+"re-downloaded."
+msgstr ""
+
+msgid "Native Steam detected"
+msgstr ""
+
+msgid "Steam (Flatpak) detected"
+msgstr ""
+
+msgid ""
+"absent — optional: useful for Steam Input / Gaming Mode (Deck), not "
+"needed to install or play (umu handles it)"
+msgstr ""
+
+msgid "umu-run detected"
+msgstr ""
+
+msgid "umu-run not found in PATH"
+msgstr ""
+
+msgid "protontricks (Flatpak) detected"
+msgstr ""
+
+msgid ""
+"absent — optional: manual prefix troubleshooting tool, the pipeline "
+"doesn't need it (verbs are applied via umu)"
+msgstr ""
+
+msgid "detected (version unreadable)"
+msgstr ""
+
+#, python-brace-format
+msgid "version {version} detected, {minimum}+ required"
+msgstr ""
+
+#, python-brace-format
+msgid "version {version} detected"
+msgstr ""
+
+msgid "7z detected"
+msgstr ""
+
+msgid "neither 7z nor 7zz found in PATH"
+msgstr ""
+
+#, python-brace-format
+msgid "libunrar provided ({path})"
+msgstr ""
+
+msgid "libunrar detected"
+msgstr ""
+
+msgid "libunrar absent from the ldconfig cache"
+msgstr ""
+
+msgid "Vulkan GPU"
+msgstr ""
+
+msgid "Vulkan device detected"
+msgstr ""
+
+#, python-brace-format
+msgid "not detected (normal in a VM: {virt}) — only needed to play"
+msgstr ""
+
+msgid "vulkaninfo not found in PATH"
+msgstr ""
+
+msgid "no Vulkan device detected"
+msgstr ""
+
+#, python-brace-format
+msgid "GTK4/libadwaita (PyGObject) unavailable: {error}"
+msgstr ""
+
+msgid "GTK4 + libadwaita detected (PyGObject)"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"{free:.1f} GB free on {path} (needs ≈ {total} GB: {download} download + "
+"{install} install)"
+msgstr ""
+
+msgid "Disk space"
+msgstr ""
+
+msgid "Free up space or choose another target (--target)"
+msgstr ""
+
+msgid "stalker-gamma-linux install-umu   # automatic, no sudo (official zipapp)"
+msgstr ""
+
+#, python-format
+msgid ""
+"Fedora: RPM Fusion nonfree repo required — enable it first if needed: "
+"sudo dnf install https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-"
+"nonfree-release-$(rpm -E %fedora).noarch.rpm · Debian/Ubuntu: non-"
+"free/multiverse component required; on Debian 12 the package is called "
+"libunrar5"
+msgstr ""
+
+msgid "unknown distribution"
+msgstr ""
+
+msgid "To install everything at once:"
+msgstr ""
+
+msgid "Then, with no system package:"
+msgstr ""
+
+msgid "[MISSING]"
+msgstr ""
+
+msgid "[OUTDATED]"
+msgstr ""
+
+msgid "[ INFO ]"
+msgstr ""
+
+msgid "[OPTIONAL]"
+msgstr ""
+
+#, python-brace-format
+msgid "Distribution: {name} ({family})"
+msgstr ""
+
+msgid "All prerequisites are satisfied."
+msgstr ""
+
+msgid "Missing prerequisites."
+msgstr ""
+
+msgid "unknown free space"
+msgstr ""
+
+#, python-brace-format
+msgid "{size} free"
+msgstr ""
+
+msgid "System ready"
+msgstr ""
+
+#, python-brace-format
+msgid "Missing prerequisite: {name}"
+msgstr ""
+
+#, python-brace-format
+msgid "{count} missing prerequisites"
+msgstr ""
+
+msgid "Play"
+msgstr ""
+
+msgid "Install"
+msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "Diagnostic"
+msgstr ""
+
+msgid "To unblock"
+msgstr ""
+
+msgid "Install these prerequisites, then rerun the diagnostic."
+msgstr ""
+
+msgid "System packages"
+msgstr ""
+
+msgid "Downloads the official zipapp (~420 KiB) into ~/.local/bin — no sudo"
+msgstr ""
+
+msgid "Downloading umu-launcher…"
+msgstr ""
+
+#, python-brace-format
+msgid "Failed: {error}"
+msgstr ""
+
+#, python-brace-format
+msgid "umu-run installed ({target})"
+msgstr ""
+
+msgid ""
+"GAMMA install detected on disk (Anomaly + MO2) — playable even if the "
+"steps below aren't checked off."
+msgstr ""
+
+msgid "Done"
+msgstr ""
+
+msgid "outside the pipeline (install already present)"
+msgstr ""
+
+msgid "Not done yet"
+msgstr ""
+
+msgid "Copy the command"
+msgstr ""
+
+msgid "Command copied to clipboard"
+msgstr ""
+
+msgid "Analyzing system…"
+msgstr ""
+
+msgid "READY TO PLAY"
+msgstr ""
+
+msgid "INSTALLATION REQUIRED"
+msgstr ""
+
+msgid "Everything is in place. Click for details."
+msgstr ""
+
+msgid "Click to see the diagnostic and install commands."
+msgstr ""
+
+msgid "Enough space"
+msgstr ""
+
+msgid "Tight on space"
+msgstr ""
+
+msgid "Not enough space"
+msgstr ""
+
+msgid "Unknown free space"
+msgstr ""
+
+msgid "Install G.A.M.M.A."
+msgstr ""
+
+msgid ""
+"Anomaly, the full modpack, and Mod Organizer 2 will be\n"
+"downloaded and installed under the chosen directory."
+msgstr ""
+
+msgid "Install directory"
+msgstr ""
+
+msgid "Choose another directory"
+msgstr ""
+
+msgid "Free space on this volume"
+msgstr ""
+
+msgid "« Play directly » shortcut"
+msgstr ""
+
+msgid ""
+"In addition to the launcher (already in your menu) — mainly useful for "
+"Steam's « Add a Non-Steam Game »"
+msgstr ""
+
+msgid "START INSTALLATION"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"At least {minimum} free is required (recommended: {recommended}). Choose "
+"another disk."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"It'll fit, but {recommended} free is recommended (archive cache + "
+"extracted mods)."
+msgstr ""
+
+msgid ""
+"About 40 GB to download, ~150 GB for the full install. Can be interrupted"
+" at any time: the install resumes where it left off."
+msgstr ""
+
+msgid "Choose the install directory"
+msgstr ""
+
+msgid "G.A.M.M.A modpack (incremental download)"
+msgstr ""
+
+msgid "Verification (MD5 of mod archives)"
+msgstr ""
+
+msgid "GAMMA Linux Launcher"
+msgstr ""
+
+msgid "Check for updates"
+msgstr ""
+
+msgid "Preferences"
+msgstr ""
+
+msgid "About"
+msgstr ""
+
+msgid "PLAY"
+msgstr ""
+
+msgid "Update"
+msgstr ""
+
+msgid "INSTALL"
+msgstr ""
+
+msgid "Community project, not affiliated with GSC Game World"
+msgstr ""
+
+msgid ""
+"Installs and launches Grokitach's S.T.A.L.K.E.R. G.A.M.M.A. modpack on "
+"Linux: Anomaly, Mod Organizer 2 under Proton, shared prefix, and "
+"incremental updates."
+msgstr ""
+
+msgid "Launching the game"
+msgstr ""
+
+msgid "Opening Mod Organizer 2"
+msgstr ""
+
+msgid "Done."
+msgstr ""
+
+msgid "Cancelled — resuming will continue where it left off."
+msgstr ""
+
+msgid "Failed — see the console and the log."
+msgstr ""
+
+msgid "Choose…"
+msgstr ""
+
+msgid ""
+"Proton-GE version to use for the shared prefix. Leave empty = latest "
+"published release (recommended)."
+msgstr ""
+
+msgid "Version (e.g. GE-Proton10-8)"
+msgstr ""
+
+msgid "« Play directly » shortcut on install"
+msgstr ""
+
+msgid ""
+"In addition to the launcher (already in your menu) — reuse it with "
+"Steam's native « Add a Non-Steam Game » button; adding it to Steam itself"
+" stays manual."
+msgstr ""
+
+msgid " — already done"
+msgstr ""
+
+msgid "Preparing…"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Cancelling…"
+msgstr ""
+
+#, python-brace-format
+msgid "Unexpected error: {error}"
+msgstr ""
+
+#, python-brace-format
+msgid "Error: {message}"
+msgstr ""
+
+msgid "Cancelled — will resume where it left off."
+msgstr ""
+
+msgid "Failed — see details in the console below."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"No USVFS log ({glob}) found: can't confirm the VFS mounted.\n"
+"→ Launch the game **via MO2** (the `play` command, not the executable "
+"directly) at least once. G.A.M.M.A profile: {enabled} mods enabled."
+msgstr ""
+
+msgid ""
+"⚠ No mod enabled in the G.A.M.M.A profile (modlist.txt): MO2 has nothing "
+"to mount, the game will necessarily start vanilla.\n"
+"→ Reconfigure the instance (gamePath + profile), then check that the "
+"modpack install is complete (full-install / check-md5)."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"⚠ USVFS may be inactive: no live-VFS marker (target process hooks / "
+"mappings) found in {log}.\n"
+"If the game does show GAMMA content, ignore this warning (usvfs logs vary"
+" across versions). Otherwise, the game may have started vanilla despite "
+"{enabled} enabled mods — remedies (see {doc}):\n"
+"  1. Make sure you're launching via MO2 (moshortcut), not the exe "
+"directly.\n"
+"  2. Switch to Steam's *vanilla* Proton 9.0 or 10.0 (most reliable).\n"
+"  3. Try GE-Proton9-20.\n"
+"  4. Last resort: flat mode without MO2 (`play --flat`), at the cost of "
+"mod flexibility."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"USVFS active: the VFS was injected into the game and serves the mods "
+"({enabled} mods enabled in the G.A.M.M.A profile)."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Mod Organizer 2 not found: {executable} does not exist.\n"
+"The MO2 instance is built by gamma-launcher during the modpack install. "
+"Run the install (full-install) first before playing."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Invalid Anomaly folder: {directory} does not contain AnomalyLauncher.exe."
+"\n"
+"Install the base game first (anomaly-install) — it's the path MO2 needs "
+"to know as `gamePath`."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Flat install not found: {executable} does not exist.\n"
+"Build it first with gamma-launcher (`usvfs-workaround`) — that's what "
+"`play --flat` does before launching."
+msgstr ""
+
+msgid "Launching Mod Organizer 2…"
+msgstr ""
+
+#, python-brace-format
+msgid "Launching Anomaly via MO2 (« {executable} », USVFS)…"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Warning: {error}\n"
+"Opening MO2 without configuring the game path."
+msgstr ""
+
+msgid ""
+"⚠ Flat mode (fallback): USVFS bypassed, Anomaly and the mods are merged. "
+"You LOSE mod flexibility (no more enabling/disabling via MO2). See docs"
+"/INSTALL-MANUAL.md appendix A.\n"
+msgstr ""
+
+msgid "Launching the flat install…"
+msgstr ""
+
+#, python-brace-format
+msgid "expected an absolute Linux path, got: {path!r}"
+msgstr ""
+
+msgid ""
+"Install umu-launcher (see `stalker-gamma-linux doctor`); manual fallback:"
+" protontricks, docs/INSTALL-MANUAL.md §6.1-6.2"
+msgstr ""
+
+msgid ""
+"no Proton build (neither GE in compatibilitytools.d, nor Steam's Proton "
+"Experimental)"
+msgstr ""
+
+#, python-brace-format
+msgid "`{hint}` downloads the latest GE-Proton release (checksum verified)"
+msgstr ""
+
+msgid "Prefix"
+msgstr ""
+
+#, python-brace-format
+msgid "not initialized ({path} has no system.reg)"
+msgstr ""
+
+msgid "initialized"
+msgstr ""
+
+#, python-brace-format
+msgid " (prefix Proton: {version})"
+msgstr ""
+
+msgid "Winetricks verbs"
+msgstr ""
+
+#, python-brace-format
+msgid "{total}/{total} present"
+msgstr ""
+
+#, python-brace-format
+msgid "{done}/{total} present — missing: {missing}"
+msgstr ""
+
+msgid "prefix not initialized"
+msgstr ""
+
+#, python-brace-format
+msgid "{dll} provided by DXVK"
+msgstr ""
+
+#, python-brace-format
+msgid "no DXVK DLL ({dlls}) detected in system32"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Proton bundles DXVK — never install the winetricks verb `dxvk` (docs"
+"/INSTALL-MANUAL.md §6.2). Retry `{hint}`; if the problem persists, check "
+"the Proton version."
+msgstr ""
+
+msgid "The prefix is healthy."
+msgstr ""
+
+msgid "The prefix needs repairing (--repair)."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"\n"
+"Repair failed: {error}"
+msgstr ""
+
+#, python-brace-format
+msgid "downloading {url}"
+msgstr ""
+
+#, python-brace-format
+msgid "Unreadable checksum file for {release} ({url})"
+msgstr ""
+
+#, python-brace-format
+msgid "GitHub API unreachable — falling back to {release}"
+msgstr ""
+
+#, python-brace-format
+msgid "downloading {release}"
+msgstr ""
+
+#, python-brace-format
+msgid "Downloading {release}…"
+msgstr ""
+
+msgid "Verifying SHA-512 checksum…"
+msgstr ""
+
+msgid "Extracting…"
+msgstr ""
+
+#, python-brace-format
+msgid "Unexpected archive {release}: `proton` executable missing after extraction"
+msgstr ""
+
+#, python-brace-format
+msgid "Corrupted archive {release}: {error}"
+msgstr ""
+
+#, python-brace-format
+msgid "Could not download {release} ({url}): {error}"
+msgstr ""
+
+#, python-brace-format
+msgid "{release} installed in {dir}"
+msgstr ""
+
+msgid ""
+"The upstream file changed or the download is corrupted. Retry (winetricks"
+" re-downloads); if the error persists, update Proton-GE (winetricks is "
+"bundled with it). SHA warnings on vcrun2022 are known and safe to ignore "
+"as long as the verb succeeds (docs/INSTALL-MANUAL.md §6.2)."
+msgstr ""
+
+msgid ""
+"The Proton pointed to by PROTONPATH looks incomplete. Check the Proton-GE"
+" installation (`stalker-gamma-linux prefix-doctor`)."
+msgstr ""
+
+msgid ""
+"umu-run not found in PATH. Install umu-launcher (see `stalker-gamma-linux"
+" doctor` for the command for your distribution). Manual fallback: "
+"protontricks on an existing Steam entry, documented in docs/INSTALL-"
+"MANUAL.md §6.1-6.2."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Invalid SHA-512 checksum for {release}: archive rejected and deleted.\n"
+"Expected: {expected}\n"
+"Got:      {actual}\n"
+"→ Corrupted or tampered download. Retry; if the error persists, check "
+"your connection and the upstream release on GitHub."
+msgstr ""
+
+#, python-brace-format
+msgid "{what} cancelled."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Command `{command}` failed (code {code}).\n"
+"Full log: {log}\n"
+"Last lines:\n"
+"{tail}"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Installing the winetricks verb `{verb}` failed (code {code}).\n"
+"Full log: {log}\n"
+"Last lines:\n"
+"{tail}"
+msgstr ""
+
+msgid ""
+"Retry `stalker-gamma-linux prefix-doctor --repair`: verbs already "
+"installed are not replayed, only the missing one will be retried."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Creating prefix {path} failed: the command returned a non-zero code and "
+"the prefix is not initialized (system.reg missing).\n"
+"{error}"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"umu-run finished without error but prefix {path} is still not initialized"
+" (system.reg missing).\n"
+"Log: {log}"
+msgstr ""
+
+#, python-brace-format
+msgid "GitHub API unreachable — falling back to umu-launcher {release}"
+msgstr ""
+
+#, python-brace-format
+msgid "Downloading umu-launcher {release}…"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Unexpected umu-launcher archive {release}: `{member}` missing or empty "
+"after extraction"
+msgstr ""
+
+#, python-brace-format
+msgid "Corrupted umu-launcher archive {release}: {error}"
+msgstr ""
+
+#, python-brace-format
+msgid "Could not download umu-launcher {release} ({url}): {error}"
+msgstr ""
+
+#, python-brace-format
+msgid "umu-run {release} installed in {dir}"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"umu-run is installed ({target}) but ~/.local/bin is not in your PATH. Add"
+" it (e.g. `export PATH=\"$HOME/.local/bin:$PATH\"` in ~/.bashrc) then "
+"open a new terminal."
+msgstr ""
+
+#, python-brace-format
+msgid "umu-run ready: {target}"
+msgstr ""
+

@@ -33,6 +33,7 @@ from stalker_gamma_linux.environment.report import (
     build_report,
     format_report,
 )
+from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.mo2 import instance
 from stalker_gamma_linux.mo2.errors import Mo2Error
 from stalker_gamma_linux.mo2.paths import Mo2Paths
@@ -41,9 +42,9 @@ from stalker_gamma_linux.prefix import provision
 from stalker_gamma_linux.prefix.errors import PrefixCancelledError, PrefixError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 
-_RESUME_HINT_TEMPLATE = (
-    "Relance `stalker-gamma-linux install --target {root}` : "
-    "la reprise saute les étapes déjà validées."
+_RESUME_HINT_TEMPLATE = _(
+    "Retry `stalker-gamma-linux install --target {root}`: "
+    "resuming skips steps already validated."
 )
 
 # Convention POSIX (128 + SIGINT) : réutilisée pour toute annulation propre,
@@ -82,12 +83,12 @@ def run_install(
     prefix_paths = PrefixPaths.under(root)
     mo2_paths = Mo2Paths.under(root)
 
-    reporter.header(f"Installation de S.T.A.L.K.E.R. G.A.M.M.A. dans {root}")
+    reporter.header(_("Installing S.T.A.L.K.E.R. G.A.M.M.A. in {root}").format(root=root))
 
     env_report = build_report(root)
     if not env_report.is_ready:
         reporter.warn(
-            "Prérequis manquants — les étapes qui en dépendent peuvent échouer :\n"
+            _("Missing prerequisites — steps depending on them may fail:\n")
             + format_report(env_report)
         )
 
@@ -145,16 +146,18 @@ def run_install(
         if shortcut:
             run_step(6, "shortcut", create_shortcut)
     except (_InstallCancelledError, EngineCancelledError, PrefixCancelledError):
-        reporter.warn("Installation annulée.")
+        reporter.warn(_("Installation cancelled."))
         return CANCELLED_EXIT_CODE
     except (EngineError, PrefixError, Mo2Error, DesktopError) as error:
         reporter.error(str(error), hint=_RESUME_HINT_TEMPLATE.format(root=root))
         return 1
 
     reporter.success(
-        f"\nInstallation terminée. Étapes suivantes :\n"
-        f"  stalker-gamma-linux mo2  --target {root}   # ouvrir Mod Organizer 2\n"
-        f"  stalker-gamma-linux play --target {root}   # jouer (Anomaly via MO2, USVFS)"
+        _(
+            "\nInstallation complete. Next steps:\n"
+            "  stalker-gamma-linux mo2  --target {root}   # open Mod Organizer 2\n"
+            "  stalker-gamma-linux play --target {root}   # play (Anomaly via MO2, USVFS)"
+        ).format(root=root)
     )
     return 0
 
@@ -175,21 +178,21 @@ def run_update(
     root = target if target is not None else DEFAULT_INSTALL_TARGET
     install = InstallPaths.under(root)
 
-    reporter.header(f"Mise à jour de S.T.A.L.K.E.R. G.A.M.M.A. dans {root}")
+    reporter.header(_("Updating S.T.A.L.K.E.R. G.A.M.M.A. in {root}").format(root=root))
     try:
-        reporter.step("1/3", "Modpack G.A.M.M.A (téléchargement incrémental)…")
+        reporter.step("1/3", _("G.A.M.M.A modpack (incremental download)…"))
         engine.update_gamma(install, on_progress=reporter.progress, cancel_event=cancel_event)
-        reporter.step("2/3", "Retrait de ReShade + purge du cache de shaders…")
+        reporter.step("2/3", _("Removing ReShade + purging the shader cache…"))
         engine.remove_reshade(install, on_progress=reporter.progress, cancel_event=cancel_event)
         engine.purge_shader_cache(
             install, on_progress=reporter.progress, cancel_event=cancel_event
         )
-        reporter.step("3/3", "Vérification (MD5 des archives de mods)…")
+        reporter.step("3/3", _("Verification (MD5 of mod archives)…"))
         unverifiable = engine.verify(
             install, on_progress=reporter.progress, cancel_event=cancel_event
         )
     except EngineCancelledError:
-        reporter.warn("Mise à jour annulée.")
+        reporter.warn(_("Update cancelled."))
         return CANCELLED_EXIT_CODE
     except EngineError as error:
         reporter.error(str(error))
@@ -202,15 +205,19 @@ def run_update(
         # ou throttling Cloudflare). Voir engine.runner.verify.
         details = "\n".join(f"  - {line}" for line in unverifiable)
         reporter.warn(
-            f"{len(unverifiable)} archive(s) n'ont pas pu être vérifiées en ligne "
-            "(page ModDB modifiée ou limitation Cloudflare) — aucune corruption "
-            f"locale détectée :\n{details}\n"
-            "Relance une mise à jour plus tard pour une vérification complète."
+            _(
+                "{count} archive(s) could not be verified online "
+                "(ModDB page changed or Cloudflare throttling) — no local "
+                "corruption detected:\n{details}\n"
+                "Run an update again later for a complete verification."
+            ).format(count=len(unverifiable), details=details)
         )
     reporter.success(
-        "\nMise à jour terminée.\nRappels : si un profil ou un exécutable "
-        "personnalisé a changé en amont, relance `stalker-gamma-linux mo2 "
-        f"--target {root}` pour vérifier l'instance ; si l'USVFS semble mort "
-        "après la mise à jour, voir docs/MO2-PROTON-COMPAT.md."
+        _(
+            "\nUpdate complete.\nReminders: if a custom profile or executable "
+            "changed upstream, retry `stalker-gamma-linux mo2 "
+            "--target {root}` to check the instance; if USVFS looks dead "
+            "after the update, see docs/MO2-PROTON-COMPAT.md."
+        ).format(root=root)
     )
     return 0

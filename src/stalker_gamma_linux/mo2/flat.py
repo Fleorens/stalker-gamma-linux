@@ -12,6 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from stalker_gamma_linux.environment import system
+from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.mo2.errors import Mo2InstanceError
 from stalker_gamma_linux.prefix import process
 from stalker_gamma_linux.prefix.paths import PrefixPaths
@@ -38,9 +39,11 @@ def launch_flat(
     executable = final_dir / launcher
     if not system.path_exists(executable):
         raise Mo2InstanceError(
-            f"Installation flat introuvable : {executable} n'existe pas.\n"
-            "Construis-la d'abord avec gamma-launcher (`usvfs-workaround`) — c'est ce "
-            "que fait `play --flat` avant de lancer."
+            _(
+                "Flat install not found: {executable} does not exist.\n"
+                "Build it first with gamma-launcher (`usvfs-workaround`) — that's "
+                "what `play --flat` does before launching."
+            ).format(executable=executable)
         )
     return process.run_in_prefix(
         executable,

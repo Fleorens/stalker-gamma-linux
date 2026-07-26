@@ -18,6 +18,7 @@ import tempfile
 import threading
 from pathlib import Path
 
+from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.prefix.download import (
     ProgressCallback,
     download_to,
@@ -52,7 +53,11 @@ def resolve_latest_release(*, on_progress: ProgressCallback | None = None) -> st
     except (OSError, ValueError):
         tag = ""
     if not _UMU_TAG_RE.match(tag):
-        progress(f"API GitHub injoignable — repli sur umu-launcher {FALLBACK_UMU_RELEASE}")
+        progress(
+            _("GitHub API unreachable — falling back to umu-launcher {release}").format(
+                release=FALLBACK_UMU_RELEASE
+            )
+        )
         return FALLBACK_UMU_RELEASE
     return tag
 
@@ -85,27 +90,33 @@ def install_umu(
         # le rename final est atomique et un échec ne laisse aucun résidu.
         with tempfile.TemporaryDirectory(dir=resolved_dir) as tmp:
             archive = Path(tmp) / "umu-zipapp.tar"
-            progress(f"Téléchargement d'umu-launcher {release}…")
+            progress(_("Downloading umu-launcher {release}…").format(release=release))
             download_to(archive_url, archive, cancel_event=cancel_event)
             with tarfile.open(archive) as tar:
                 tar.extractall(Path(tmp), filter="data")
             extracted = Path(tmp) / _MEMBER_NAME
             if not extracted.is_file() or extracted.stat().st_size == 0:
                 raise UmuDownloadError(
-                    f"Archive umu-launcher {release} inattendue : "
-                    f"`{_MEMBER_NAME}` absent ou vide après extraction"
+                    _(
+                        "Unexpected umu-launcher archive {release}: "
+                        "`{member}` missing or empty after extraction"
+                    ).format(release=release, member=_MEMBER_NAME)
                 )
             extracted.chmod(0o755)
             extracted.replace(target)
     except tarfile.TarError as error:
         raise UmuDownloadError(
-            f"Archive umu-launcher {release} corrompue : {error}"
+            _("Corrupted umu-launcher archive {release}: {error}").format(
+                release=release, error=error
+            )
         ) from error
     except OSError as error:
         raise UmuDownloadError(
-            f"Téléchargement d'umu-launcher {release} impossible ({archive_url}) : {error}"
+            _("Could not download umu-launcher {release} ({url}): {error}").format(
+                release=release, url=archive_url, error=error
+            )
         ) from error
-    progress(f"umu-run {release} installé dans {resolved_dir}")
+    progress(_("umu-run {release} installed in {dir}").format(release=release, dir=resolved_dir))
     return target
 
 
@@ -124,10 +135,12 @@ def run_install_umu() -> int:
         # Posé au bon endroit mais invisible du PATH de ce shell : le seul cas
         # est un PATH sans ~/.local/bin (rare — Fedora/Debian/Arch l'y mettent).
         output.warn(
-            f"umu-run est installé ({target}) mais ~/.local/bin n'est pas dans "
-            "ton PATH. Ajoute-le (par ex. `export PATH=\"$HOME/.local/bin:$PATH\"` "
-            "dans ~/.bashrc) puis rouvre un terminal."
+            _(
+                "umu-run is installed ({target}) but ~/.local/bin is not in "
+                "your PATH. Add it (e.g. `export PATH=\"$HOME/.local/bin:$PATH\"` "
+                "in ~/.bashrc) then open a new terminal."
+            ).format(target=target)
         )
         return 0
-    output.success(f"umu-run opérationnel : {target}")
+    output.success(_("umu-run ready: {target}").format(target=target))
     return 0

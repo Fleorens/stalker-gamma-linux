@@ -36,6 +36,7 @@ from stalker_gamma_linux.gui.worker import (  # noqa: E402
     ReporterEvent,
     WorkerEvent,
 )
+from stalker_gamma_linux.i18n import _  # noqa: E402
 from stalker_gamma_linux.mo2 import session as mo2_session  # noqa: E402
 
 JobFunc = Callable[[queue.Queue[WorkerEvent], threading.Event], int]
@@ -48,9 +49,9 @@ _PLAY_WIDTH, _PLAY_HEIGHT = 230, 60
 
 # Étapes de `orchestrator.run_update`, dans l'ordre de ses événements 1/3..3/3.
 _UPDATE_PHASES = (
-    "Modpack G.A.M.M.A (téléchargement incrémental)",
-    "Retrait de ReShade + purge du cache de shaders",
-    "Vérification des archives de mods (MD5)",
+    _("G.A.M.M.A modpack (incremental download)"),
+    _("Removing ReShade + purging the shader cache"),
+    _("Verification (MD5 of mod archives)"),
 )
 
 
@@ -64,7 +65,7 @@ class MainWindow(Adw.ApplicationWindow):
     def __init__(self, *, application: Adw.Application) -> None:
         super().__init__(
             application=application,
-            title="Lanceur GAMMA (Linux)",
+            title=_("GAMMA Linux Launcher"),
             default_width=_DEFAULT_WIDTH,
             default_height=_DEFAULT_HEIGHT,
         )
@@ -98,10 +99,10 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _build_main_page(self) -> Adw.NavigationPage:
         menu = Gio.Menu()
-        menu.append("Vérifier les mises à jour", "win.check-update")
-        menu.append("Diagnostic", "win.show-doctor")
-        menu.append("Préférences", "win.show-preferences")
-        menu.append("À propos", "win.show-about")
+        menu.append(_("Check for updates"), "win.check-update")
+        menu.append(_("Diagnostic"), "win.show-doctor")
+        menu.append(_("Preferences"), "win.show-preferences")
+        menu.append(_("About"), "win.show-about")
         menu_button = Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=menu, primary=True)
 
         header_bar = Adw.HeaderBar(show_title=False)
@@ -110,7 +111,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._hero = HeroBox(on_chip_clicked=self._push_doctor)
 
         self._primary_content = Adw.ButtonContent(
-            icon_name="media-playback-start-symbolic", label="JOUER"
+            icon_name="media-playback-start-symbolic", label=_("PLAY")
         )
         self._primary_button = Gtk.Button(child=self._primary_content)
         self._primary_button.add_css_class("action-play")
@@ -123,7 +124,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._mo2_button.set_size_request(-1, 40)
         self._mo2_button.connect("clicked", lambda _b: self._start_mo2())
 
-        self._update_button = Gtk.Button(label="Mettre à jour")
+        self._update_button = Gtk.Button(label=_("Update"))
         self._update_button.add_css_class("action-secondary")
         self._update_button.set_size_request(-1, 40)
         self._update_button.connect("clicked", lambda _b: self._start_update())
@@ -161,7 +162,7 @@ class MainWindow(Adw.ApplicationWindow):
         toolbar_view.add_css_class("over-artwork")
 
         return Adw.NavigationPage(
-            title="Lanceur GAMMA (Linux)",
+            title=_("GAMMA Linux Launcher"),
             tag="main",
             child=wrap_with_background(toolbar_view),
         )
@@ -174,10 +175,10 @@ class MainWindow(Adw.ApplicationWindow):
 
         self._hero.show_state(result, free_label=None)
         if result.is_installed:
-            self._primary_content.set_label("JOUER")
+            self._primary_content.set_label(_("PLAY"))
             self._primary_content.set_icon_name("media-playback-start-symbolic")
         else:
-            self._primary_content.set_label("INSTALLER")
+            self._primary_content.set_label(_("INSTALL"))
             self._primary_content.set_icon_name("folder-download-symbolic")
         self._mo2_button.set_visible(result.is_installed)
         self._update_button.set_visible(result.is_installed)
@@ -255,12 +256,12 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _on_show_about(self, _action: Gio.SimpleAction, _param: None) -> None:
         about = Adw.AboutDialog(
-            application_name="Lanceur GAMMA (Linux)",
-            developer_name="Projet communautaire, non affilié à GSC Game World",
-            comments=(
-                "Installe et lance le modpack S.T.A.L.K.E.R. G.A.M.M.A. de "
-                "Grokitach sous Linux : Anomaly, Mod Organizer 2 sous Proton, "
-                "préfixe partagé et mises à jour incrémentales."
+            application_name=_("GAMMA Linux Launcher"),
+            developer_name=_("Community project, not affiliated with GSC Game World"),
+            comments=_(
+                "Installs and launches Grokitach's S.T.A.L.K.E.R. G.A.M.M.A. "
+                "modpack on Linux: Anomaly, Mod Organizer 2 under Proton, "
+                "shared prefix, and incremental updates."
             ),
             website="https://github.com/Fleorens/stalker-gamma-linux",
             issue_url="https://github.com/Fleorens/stalker-gamma-linux/issues",
@@ -286,7 +287,7 @@ class MainWindow(Adw.ApplicationWindow):
             )
 
         self._push_task(
-            "Installation",
+            _("Installation"),
             job,
             cancellable=True,
             phase_labels=_install_phases(shortcut=shortcut),
@@ -299,7 +300,7 @@ class MainWindow(Adw.ApplicationWindow):
             reporter = QueueReporter(events)
             return orchestrator.run_update(target, reporter=reporter, cancel_event=cancel_event)
 
-        self._push_task("Mise à jour", job, cancellable=True, phase_labels=_UPDATE_PHASES)
+        self._push_task(_("Update"), job, cancellable=True, phase_labels=_UPDATE_PHASES)
 
     def _start_play(self) -> None:
         target = self._preferences.install_path
@@ -309,7 +310,7 @@ class MainWindow(Adw.ApplicationWindow):
                 target, on_progress=lambda msg: events.put(ReporterEvent("progress", msg))
             )
 
-        self._push_task("Lancer le jeu", job, cancellable=False)
+        self._push_task(_("Launching the game"), job, cancellable=False)
 
     def _start_mo2(self) -> None:
         target = self._preferences.install_path
@@ -319,7 +320,7 @@ class MainWindow(Adw.ApplicationWindow):
                 target, on_progress=lambda msg: events.put(ReporterEvent("progress", msg))
             )
 
-        self._push_task("Ouvrir Mod Organizer 2", job, cancellable=False)
+        self._push_task(_("Opening Mod Organizer 2"), job, cancellable=False)
 
     def _push_task(
         self,
@@ -342,8 +343,8 @@ class MainWindow(Adw.ApplicationWindow):
     def _on_task_finished(self, exit_code: int) -> None:
         self._refresh_status()
         if exit_code == 0:
-            self._show_toast("Terminé.")
+            self._show_toast(_("Done."))
         elif exit_code == orchestrator.CANCELLED_EXIT_CODE:
-            self._show_toast("Annulé — la reprise continuera où c'était arrêté.")
+            self._show_toast(_("Cancelled — resuming will continue where it left off."))
         else:
-            self._show_toast("Échec — voir la console et le journal.")
+            self._show_toast(_("Failed — see the console and the log."))

@@ -78,7 +78,7 @@ class TestInstallUmu:
     ) -> None:
         _patch_download(monkeypatch, b"pas un tar du tout")
 
-        with pytest.raises(UmuDownloadError, match="corrompue"):
+        with pytest.raises(UmuDownloadError, match="Corrupted"):
             umu.install_umu(RELEASE, tmp_path / "bin")
 
     def test_echec_reseau_leve(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -87,7 +87,7 @@ class TestInstallUmu:
 
         monkeypatch.setattr(umu, "download_to", fail)
 
-        with pytest.raises(UmuDownloadError, match="impossible"):
+        with pytest.raises(UmuDownloadError, match="Could not download"):
             umu.install_umu(RELEASE, tmp_path / "bin")
 
 
@@ -109,7 +109,7 @@ class TestResolveLatestRelease:
         result = umu.resolve_latest_release(on_progress=messages.append)
 
         assert result == umu.FALLBACK_UMU_RELEASE
-        assert any("repli" in message for message in messages)
+        assert any("falling back" in message for message in messages)
 
     def test_tag_inattendu_replie_aussi(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(

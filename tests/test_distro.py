@@ -95,4 +95,4 @@ def test_detect_distro_missing_os_release(monkeypatch: pytest.MonkeyPatch) -> No
     distro = detect_distro()
 
     assert distro.family is DistroFamily.UNKNOWN
-    assert distro.pretty_name == "distribution inconnue"
+    assert distro.pretty_name == "unknown distribution"

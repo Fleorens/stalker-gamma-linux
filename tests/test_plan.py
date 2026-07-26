@@ -91,10 +91,10 @@ def test_format_install_plan_renders_single_block() -> None:
 
     text = "\n".join(format_install_plan(plan))
 
-    assert "Pour tout installer d'un coup :" in text
+    assert "To install everything at once:" in text
     assert "sudo dnf install steam" in text
     assert "(dépôt RPM Fusion requis)" in text
-    assert "umu-launcher : zipapp officiel" in text
+    assert "umu-launcher: zipapp officiel" in text
 
 
 def test_format_empty_plan_is_blank() -> None:

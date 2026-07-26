@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 
+from stalker_gamma_linux.i18n import _
+
 # Lettre de lecteur sous laquelle Wine monte la racine Linux `/`.
 WINE_ROOT_DRIVE = "Z:"
 
@@ -25,7 +27,9 @@ def to_windows_path(linux_path: Path | str) -> str:
     """
     posix = PurePosixPath(linux_path)
     if not posix.is_absolute():
-        raise ValueError(f"chemin Linux absolu attendu, reçu : {linux_path!r}")
+        raise ValueError(
+            _("expected an absolute Linux path, got: {path!r}").format(path=linux_path)
+        )
     # PurePosixPath réduit déjà `.` et `//` ; on résout `..` textuellement.
     parts: list[str] = []
     for part in posix.parts[1:]:  # [0] == "/"

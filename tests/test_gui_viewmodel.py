@@ -42,9 +42,9 @@ def test_main_window_state_primary_action_label(tmp_path: Path) -> None:
         ),
     )
 
-    assert not_installed.primary_action_label == "Installer"
+    assert not_installed.primary_action_label == "Install"
     assert not_installed.is_installed is False
-    assert installed.primary_action_label == "Jouer"
+    assert installed.primary_action_label == "Play"
     assert installed.is_installed is True
 
 
@@ -74,7 +74,7 @@ def test_load_main_window_state_detects_existing_install_on_disk(
     result = viewmodel.load_main_window_state(tmp_path)
 
     assert result.status is viewmodel.InstallStatus.INSTALLED
-    assert result.primary_action_label == "Jouer"
+    assert result.primary_action_label == "Play"
     # L'état persisté reste vide : c'est la présence sur le disque qui a tranché.
     assert not result.install.is_done("anomaly")
 

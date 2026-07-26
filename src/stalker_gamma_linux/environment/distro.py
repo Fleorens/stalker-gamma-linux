@@ -8,6 +8,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from stalker_gamma_linux.environment import system
+from stalker_gamma_linux.i18n import _
 
 DEFAULT_OS_RELEASE = Path("/etc/os-release")
 # Dans un Flatpak, /etc/os-release est celui du runtime (GNOME) : flatpak monte
@@ -80,5 +81,5 @@ def detect_distro(path: Path = DEFAULT_OS_RELEASE) -> Distro:
     values = read_os_release(path)
     return Distro(
         family=detect_family(values),
-        pretty_name=values.get("PRETTY_NAME", "distribution inconnue"),
+        pretty_name=values.get("PRETTY_NAME", _("unknown distribution")),
     )

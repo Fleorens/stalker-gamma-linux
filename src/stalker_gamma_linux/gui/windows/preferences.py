@@ -19,6 +19,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from stalker_gamma_linux.gui import prefs  # noqa: E402
+from stalker_gamma_linux.i18n import _  # noqa: E402
 
 
 class PreferencesDialog(Adw.PreferencesDialog):
@@ -29,7 +30,7 @@ class PreferencesDialog(Adw.PreferencesDialog):
         preferences: prefs.Preferences,
         on_saved: Callable[[prefs.Preferences], None],
     ) -> None:
-        super().__init__(title="Préférences")
+        super().__init__(title=_("Preferences"))
         self._parent_window = parent_window
         self._prefs = preferences
         self._on_saved = on_saved
@@ -37,36 +38,36 @@ class PreferencesDialog(Adw.PreferencesDialog):
         page = Adw.PreferencesPage()
         self.add(page)
 
-        install_group = Adw.PreferencesGroup(title="Installation")
+        install_group = Adw.PreferencesGroup(title=_("Installation"))
         page.add(install_group)
         self._path_row = Adw.ActionRow(
-            title="Répertoire d'installation", subtitle=str(preferences.install_path)
+            title=_("Install directory"), subtitle=str(preferences.install_path)
         )
-        choose_button = Gtk.Button(label="Choisir…", valign=Gtk.Align.CENTER)
+        choose_button = Gtk.Button(label=_("Choose…"), valign=Gtk.Align.CENTER)
         choose_button.connect("clicked", self._on_choose_path)
         self._path_row.add_suffix(choose_button)
         install_group.add(self._path_row)
 
         proton_group = Adw.PreferencesGroup(
             title="Proton",
-            description=(
-                "Version Proton-GE à utiliser pour le préfixe partagé. "
-                "Laisser vide = dernière release publiée (recommandé)."
+            description=_(
+                "Proton-GE version to use for the shared prefix. "
+                "Leave empty = latest published release (recommended)."
             ),
         )
         page.add(proton_group)
-        self._release_row = Adw.EntryRow(title="Version (ex. GE-Proton10-8)")
+        self._release_row = Adw.EntryRow(title=_("Version (e.g. GE-Proton10-8)"))
         self._release_row.set_text(preferences.proton_release or "")
         proton_group.add(self._release_row)
 
         steam_group = Adw.PreferencesGroup(title="Steam")
         page.add(steam_group)
         self._shortcut_row = Adw.SwitchRow(
-            title="Raccourci « jouer en direct » à l'installation",
-            subtitle=(
-                "En plus du launcher (déjà dans ton menu) — à réutiliser avec le "
-                "bouton natif de Steam « Ajouter un jeu non-Steam » ; l'ajout à "
-                "Steam lui-même reste manuel."
+            title=_("« Play directly » shortcut on install"),
+            subtitle=_(
+                "In addition to the launcher (already in your menu) — reuse it with "
+                "Steam's native « Add a Non-Steam Game » button; adding it to "
+                "Steam itself stays manual."
             ),
             active=preferences.create_steam_shortcut,
         )
@@ -76,7 +77,7 @@ class PreferencesDialog(Adw.PreferencesDialog):
 
     def _on_choose_path(self, _button: Gtk.Button) -> None:
         dialog = Gtk.FileDialog(
-            title="Choisir le répertoire d'installation",
+            title=_("Choose the install directory"),
             initial_folder=Gio.File.new_for_path(str(self._prefs.install_path)),
         )
         dialog.select_folder(self._parent_window, None, self._on_folder_selected)

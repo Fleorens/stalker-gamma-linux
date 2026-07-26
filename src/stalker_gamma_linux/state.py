@@ -21,15 +21,17 @@ from pathlib import Path
 
 import tomli_w
 
+from stalker_gamma_linux.i18n import _
+
 STEPS: tuple[str, ...] = ("anomaly", "gamma", "reshade", "prefix", "mo2", "shortcut")
 
 STEP_LABELS: dict[str, str] = {
-    "anomaly": "Anomaly (jeu de base)",
-    "gamma": "Modpack G.A.M.M.A (mods + instance MO2)",
-    "reshade": "Retrait de ReShade + purge du cache de shaders",
-    "prefix": "Préfixe Proton partagé",
-    "mo2": "Configuration de l'instance Mod Organizer 2",
-    "shortcut": "Raccourci bureau",
+    "anomaly": _("Anomaly (base game)"),
+    "gamma": _("G.A.M.M.A modpack (mods + MO2 instance)"),
+    "reshade": _("Removing ReShade + purging the shader cache"),
+    "prefix": _("Shared Proton prefix"),
+    "mo2": _("Mod Organizer 2 instance configuration"),
+    "shortcut": _("Desktop shortcut"),
 }
 
 
@@ -94,7 +96,7 @@ def load_state(target: Path) -> InstallState:
 def mark_done(target: Path, step: str) -> InstallState:
     """Marque `step` comme fait pour `target` et persiste. Retourne le nouvel état."""
     if step not in STEPS:
-        raise ValueError(f"étape inconnue : {step}")
+        raise ValueError(_("unknown step: {step}").format(step=step))
     installs = _load_raw()
     key = _target_key(target)
     entry = dict(installs.get(key, {}))
@@ -106,8 +108,8 @@ def mark_done(target: Path, step: str) -> InstallState:
 
 
 def format_state(state: InstallState, target: Path) -> str:
-    lines = [f"Cible : {target}", ""]
+    lines = [_("Target: {target}").format(target=target), ""]
     for step in STEPS:
-        label = "[ OK ]" if state.is_done(step) else "[ A FAIRE ]"
+        label = _("[ OK ]") if state.is_done(step) else _("[ TODO ]")
         lines.append(f"{label} {STEP_LABELS[step]}")
     return "\n".join(lines)

@@ -54,7 +54,7 @@ def test_diagnose_active_on_real_live_log(tmp_path: Path) -> None:
 
     assert result.active is True
     assert result.enabled_mod_count == 2
-    assert "USVFS actif" in result.message
+    assert "USVFS active" in result.message
 
 
 def test_diagnose_active_from_inithooks_alone(tmp_path: Path) -> None:
@@ -79,7 +79,7 @@ def test_diagnose_dead_when_marker_absent_with_mods(tmp_path: Path) -> None:
 
     assert result.active is False
     assert result.enabled_mod_count == 2
-    assert "USVFS peut-être inactif" in result.message
+    assert "USVFS may be inactive" in result.message
     assert "MO2-PROTON-COMPAT.md" in result.message
 
 
@@ -91,7 +91,7 @@ def test_diagnose_dead_no_mods_gives_config_advice(tmp_path: Path) -> None:
 
     assert result.active is False
     assert result.enabled_mod_count == 0
-    assert "Aucun mod activé" in result.message
+    assert "No mod enabled" in result.message
 
 
 def test_diagnose_no_log_reports_missing(tmp_path: Path) -> None:
@@ -101,7 +101,7 @@ def test_diagnose_no_log_reports_missing(tmp_path: Path) -> None:
 
     assert result.active is False
     assert result.checked_log is None
-    assert "Aucun journal USVFS" in result.message
+    assert "No USVFS log" in result.message
 
 
 def test_usvfs_active_in_matches_real_markers() -> None:

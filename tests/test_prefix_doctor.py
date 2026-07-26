@@ -70,9 +70,9 @@ def test_report_flags_missing_verbs_and_native_dxvk_dll(
     report = doctor.build_prefix_report(paths, [compat])
 
     statuses = _statuses(report)
-    assert statuses["Verbs winetricks"] is Status.MISSING
+    assert statuses["Winetricks verbs"] is Status.MISSING
     assert statuses["DXVK"] is Status.MISSING
-    assert statuses["Préfixe"] is Status.OK
+    assert statuses["Prefix"] is Status.OK
 
 
 def test_format_prefix_report_shows_status_and_hints(
@@ -83,9 +83,9 @@ def test_format_prefix_report_shows_status_and_hints(
 
     output = doctor.format_prefix_report(doctor.build_prefix_report(paths, []))
 
-    assert "[MANQUANT]" in output
+    assert "[MISSING]" in output
     assert "--repair" in output
-    assert "réparation" in output.lower()
+    assert "repairing" in output.lower()
 
 
 def test_run_prefix_doctor_exit_codes(
@@ -100,7 +100,7 @@ def test_run_prefix_doctor_exit_codes(
 
     assert doctor.run_prefix_doctor(root, search_dirs=[compat]) == 0
     assert doctor.run_prefix_doctor(tmp_path / "vide", search_dirs=[compat]) == 1
-    assert "Le préfixe est sain." in capsys.readouterr().out
+    assert "The prefix is healthy." in capsys.readouterr().out
 
 
 def test_run_prefix_doctor_repair_invokes_provisioning(
@@ -123,7 +123,7 @@ def test_run_prefix_doctor_repair_invokes_provisioning(
 
     assert exit_code == 0
     assert len(repairs) == 1
-    assert "Le préfixe est sain." in capsys.readouterr().out
+    assert "The prefix is healthy." in capsys.readouterr().out
 
 
 def test_run_prefix_doctor_repair_reports_typed_failure(
@@ -141,4 +141,4 @@ def test_run_prefix_doctor_repair_reports_typed_failure(
     exit_code = doctor.run_prefix_doctor(tmp_path / "install", repair=True, search_dirs=[])
 
     assert exit_code == 1
-    assert "Réparation échouée" in capsys.readouterr().out
+    assert "Repair failed" in capsys.readouterr().out

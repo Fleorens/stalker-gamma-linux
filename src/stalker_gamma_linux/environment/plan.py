@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from stalker_gamma_linux.environment.commands import INSTALL_COMMANDS, PACKAGE_MANAGER
 from stalker_gamma_linux.environment.distro import DistroFamily
 from stalker_gamma_linux.environment.models import EnvironmentReport
+from stalker_gamma_linux.i18n import _
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,14 +71,14 @@ def format_install_plan(plan: InstallPlan) -> list[str]:
     """Rendu texte (CLI) du plan : bloc paquets groupé puis étapes manuelles."""
     if plan.is_empty:
         return []
-    lines = ["", "Pour tout installer d'un coup :"]
+    lines = ["", _("To install everything at once:")]
     if plan.package_command is not None:
         lines.append(f"    {plan.package_command}")
         for note in plan.package_notes:
             lines.append(f"    ({note})")
     if plan.manual_steps:
         lines.append("")
-        lines.append("Puis, sans paquet système :")
+        lines.append(_("Then, with no system package:"))
         for step in plan.manual_steps:
-            lines.append(f"    • {step.name} : {step.command}")
+            lines.append(f"    • {step.name}: {step.command}")
     return lines

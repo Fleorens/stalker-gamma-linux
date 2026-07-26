@@ -9,14 +9,16 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-# Distinct du launcher principal (« Lanceur GAMMA (Linux) », créé par
+from stalker_gamma_linux.i18n import _
+
+# Distinct du launcher principal (« GAMMA Linux Launcher », créé par
 # install.sh) : cette entrée saute droit dans `play`, sans passer par la GUI —
 # utile surtout comme cible pour Steam « Ajouter un jeu non-Steam »
 # (desktop/session.py). Un nom identique aux deux produisait deux icônes
 # visuellement indiscernables dans le menu applications (constaté en VM,
 # 2026-07-26) alors que leur comportement diffère entièrement.
-APP_NAME = "Jouer à GAMMA (direct)"
-COMMENT = "Lance directement G.A.M.M.A. (Anomaly + MO2 sous Proton), sans passer par le launcher"
+APP_NAME = _("Play GAMMA (direct)")
+COMMENT = _("Launches G.A.M.M.A directly (Anomaly + MO2 under Proton), bypassing the launcher")
 
 # Caractères réservés à l'intérieur d'une valeur `Exec=` entre guillemets.
 # Le backslash doit être échappé EN PREMIER, sinon les backslashes insérés par

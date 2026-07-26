@@ -230,5 +230,5 @@ def test_main_reports_unexpected_exception_instead_of_crashing(
 
     assert exit_code == 1
     out = capsys.readouterr().out
-    assert "Erreur" in out
-    assert "journal" in out.lower()
+    assert "Error" in out
+    assert "log" in out.lower()

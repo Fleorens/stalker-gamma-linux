@@ -51,7 +51,7 @@ class TestAssess:
         report = space.assess(tmp_path / "Games" / "stalker-gamma")
         assert report.verdict is space.SpaceVerdict.OK
         assert report.free_bytes == 300 * _GIB
-        assert report.free_label == "300 Gio libres"
+        assert report.free_label == "300 GB free"
 
     def test_volume_illisible(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         def failing_disk_usage(_path: str | Path) -> tuple[int, int, int]:
@@ -61,4 +61,4 @@ class TestAssess:
         report = space.assess(tmp_path)
         assert report.verdict is space.SpaceVerdict.UNKNOWN
         assert report.free_bytes is None
-        assert report.free_label == "espace libre inconnu"
+        assert report.free_label == "unknown free space"

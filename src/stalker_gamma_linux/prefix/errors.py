@@ -4,19 +4,25 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from stalker_gamma_linux.i18n import _
+
 # (piège, indice) constatés dans docs/INSTALL-MANUAL.md §6.2 et les guides sources.
 _KNOWN_WINETRICKS_HINTS: tuple[tuple[str, str], ...] = (
     (
         "sha256sum mismatch",
-        "Le fichier amont a changé ou le téléchargement est corrompu. Relance "
-        "(winetricks retélécharge) ; si l'erreur persiste, mets à jour Proton-GE "
-        "(winetricks y est embarqué). Les avertissements SHA sur vcrun2022 sont "
-        "connus et ignorables tant que le verb réussit (docs/INSTALL-MANUAL.md §6.2).",
+        _(
+            "The upstream file changed or the download is corrupted. Retry "
+            "(winetricks re-downloads); if the error persists, update Proton-GE "
+            "(winetricks is bundled with it). SHA warnings on vcrun2022 are "
+            "known and safe to ignore as long as the verb succeeds (docs/INSTALL-MANUAL.md §6.2)."
+        ),
     ),
     (
         "wineserver not found",
-        "Le Proton pointé par PROTONPATH semble incomplet. Vérifie l'installation "
-        "de Proton-GE (`stalker-gamma-linux prefix-doctor`).",
+        _(
+            "The Proton pointed to by PROTONPATH looks incomplete. Check the "
+            "Proton-GE installation (`stalker-gamma-linux prefix-doctor`)."
+        ),
     ),
 )
 
@@ -37,10 +43,12 @@ class UmuNotFoundError(PrefixError):
 
     def __init__(self) -> None:
         super().__init__(
-            "umu-run introuvable dans le PATH. Installe umu-launcher (voir "
-            "`stalker-gamma-linux doctor` pour la commande adaptée à ta distribution). "
-            "Voie de secours manuelle : protontricks sur une entrée Steam existante, "
-            "documentée dans docs/INSTALL-MANUAL.md §6.1-6.2."
+            _(
+                "umu-run not found in PATH. Install umu-launcher (see "
+                "`stalker-gamma-linux doctor` for the command for your distribution). "
+                "Manual fallback: protontricks on an existing Steam entry, "
+                "documented in docs/INSTALL-MANUAL.md §6.1-6.2."
+            )
         )
 
 
@@ -60,10 +68,12 @@ class ChecksumMismatchError(ProtonDownloadError):
         self.expected = expected
         self.actual = actual
         super().__init__(
-            f"Checksum SHA-512 invalide pour {release} : archive rejetée et supprimée.\n"
-            f"Attendu : {expected}\nObtenu  : {actual}\n"
-            "→ Téléchargement corrompu ou compromis. Relance ; si l'erreur persiste, "
-            "vérifie ta connexion et la release amont sur GitHub."
+            _(
+                "Invalid SHA-512 checksum for {release}: archive rejected and deleted.\n"
+                "Expected: {expected}\nGot:      {actual}\n"
+                "→ Corrupted or tampered download. Retry; if the error persists, "
+                "check your connection and the upstream release on GitHub."
+            ).format(release=release, expected=expected, actual=actual)
         )
 
 
@@ -72,7 +82,7 @@ class PrefixCancelledError(PrefixError):
 
     def __init__(self, what: str) -> None:
         self.what = what
-        super().__init__(f"{what} annulé.")
+        super().__init__(_("{what} cancelled.").format(what=what))
 
 
 class PrefixCommandError(PrefixError):
@@ -86,10 +96,10 @@ class PrefixCommandError(PrefixError):
         super().__init__(self._build_message())
 
     def _build_message(self) -> str:
-        return (
-            f"La commande `{self.command}` a échoué (code {self.returncode}).\n"
-            f"Journal complet : {self.log_path}\n"
-            f"Dernières lignes :\n{self.output_tail}"
+        return _(
+            "Command `{command}` failed (code {code}).\nFull log: {log}\nLast lines:\n{tail}"
+        ).format(
+            command=self.command, code=self.returncode, log=self.log_path, tail=self.output_tail
         )
 
 
@@ -101,18 +111,16 @@ class WinetricksVerbError(PrefixCommandError):
         super().__init__(f"winetricks -q {verb}", returncode, log_path, output_tail)
 
     def _build_message(self) -> str:
-        message = (
-            f"L'installation du verb winetricks `{self.verb}` a échoué "
-            f"(code {self.returncode}).\n"
-            f"Journal complet : {self.log_path}\n"
-            f"Dernières lignes :\n{self.output_tail}"
-        )
+        message = _(
+            "Installing the winetricks verb `{verb}` failed (code {code}).\n"
+            "Full log: {log}\nLast lines:\n{tail}"
+        ).format(verb=self.verb, code=self.returncode, log=self.log_path, tail=self.output_tail)
         hint = _actionable_hint(self.output_tail)
         if hint is not None:
             message += f"\n\n→ {hint}"
         else:
-            message += (
-                "\n\n→ Relance `stalker-gamma-linux prefix-doctor --repair` : les verbs "
-                "déjà installés ne sont pas rejoués, seul le manquant sera retenté."
+            message += "\n\n→ " + _(
+                "Retry `stalker-gamma-linux prefix-doctor --repair`: verbs already "
+                "installed are not replayed, only the missing one will be retried."
             )
         return message

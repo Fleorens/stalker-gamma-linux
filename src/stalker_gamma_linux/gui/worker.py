@@ -67,11 +67,11 @@ class QueueReporter:
         self._events.put(ReporterEvent("header", message))
 
     def step(self, index: str, message: str) -> None:
-        _logger.info("étape %s : %s", index, message)
+        _logger.info("step %s: %s", index, message)
         self._events.put(ReporterEvent("step", message, index=index))
 
     def skip(self, index: str, message: str) -> None:
-        _logger.debug("étape sautée %s : %s", index, message)
+        _logger.debug("skipped step %s: %s", index, message)
         self._events.put(ReporterEvent("skip", message, index=index))
 
     def progress(self, message: str) -> None:
@@ -89,7 +89,7 @@ class QueueReporter:
     def error(self, message: str, *, hint: str | None = None) -> None:
         _logger.error(message)
         if hint is not None:
-            _logger.info("suggestion : %s", hint)
+            _logger.info("hint: %s", hint)
         self._events.put(ReporterEvent("error", message, hint=hint))
 
 

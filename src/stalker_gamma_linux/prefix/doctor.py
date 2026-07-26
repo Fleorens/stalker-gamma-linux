@@ -9,6 +9,7 @@ from pathlib import Path
 from stalker_gamma_linux.environment import system
 from stalker_gamma_linux.environment.models import Requirement, Status
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
+from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.prefix import proton, provision, verbs
 from stalker_gamma_linux.prefix.errors import PrefixError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
@@ -16,9 +17,9 @@ from stalker_gamma_linux.prefix.paths import PrefixPaths
 _REPAIR_HINT = "stalker-gamma-linux prefix-doctor --repair"
 
 _STATUS_LABEL = {
-    Status.OK: "[ OK ]",
-    Status.MISSING: "[MANQUANT]",
-    Status.OUTDATED: "[ANCIEN]",
+    Status.OK: _("[ OK ]"),
+    Status.MISSING: _("[MISSING]"),
+    Status.OUTDATED: _("[OUTDATED]"),
 }
 
 # DLL que Proton remplace par les builds DXVK ; celles-ci contiennent la
@@ -37,14 +38,14 @@ class PrefixReport:
 
 def _check_umu() -> Requirement:
     if system.which("umu-run") is not None:
-        return Requirement(name="umu-launcher", status=Status.OK, detail="umu-run détecté")
+        return Requirement(name="umu-launcher", status=Status.OK, detail=_("umu-run detected"))
     return Requirement(
         name="umu-launcher",
         status=Status.MISSING,
-        detail="umu-run introuvable dans le PATH",
-        install_hint=(
-            "Installe umu-launcher (voir `stalker-gamma-linux doctor`) ; "
-            "fallback manuel : protontricks, docs/INSTALL-MANUAL.md §6.1-6.2"
+        detail=_("umu-run not found in PATH"),
+        install_hint=_(
+            "Install umu-launcher (see `stalker-gamma-linux doctor`); "
+            "manual fallback: protontricks, docs/INSTALL-MANUAL.md §6.1-6.2"
         ),
     )
 
@@ -57,29 +58,31 @@ def _check_proton(build: proton.ProtonBuild | None) -> Requirement:
     return Requirement(
         name="Proton",
         status=Status.MISSING,
-        detail=(
-            "aucun build Proton (ni GE dans compatibilitytools.d, "
-            "ni Proton Experimental de Steam)"
+        detail=_(
+            "no Proton build (neither GE in compatibilitytools.d, "
+            "nor Steam's Proton Experimental)"
         ),
-        install_hint=(
-            f"`{_REPAIR_HINT}` télécharge la dernière release GE-Proton (checksum vérifié)"
-        ),
+        install_hint=_(
+            "`{hint}` downloads the latest GE-Proton release (checksum verified)"
+        ).format(hint=_REPAIR_HINT),
     )
 
 
 def _check_prefix(paths: PrefixPaths) -> Requirement:
     if not provision.is_initialized(paths):
         return Requirement(
-            name="Préfixe",
+            name=_("Prefix"),
             status=Status.MISSING,
-            detail=f"non initialisé ({paths.prefix} sans system.reg)",
+            detail=_("not initialized ({path} has no system.reg)").format(path=paths.prefix),
             install_hint=_REPAIR_HINT,
         )
     version = system.read_text(paths.version_file)
-    detail = "initialisé"
+    detail = _("initialized")
     if version is not None and version.strip():
-        detail += f" (Proton du préfixe : {version.strip().splitlines()[0]})"
-    return Requirement(name="Préfixe", status=Status.OK, detail=detail)
+        detail += _(" (prefix Proton: {version})").format(
+            version=version.strip().splitlines()[0]
+        )
+    return Requirement(name=_("Prefix"), status=Status.OK, detail=detail)
 
 
 def _check_verbs(paths: PrefixPaths) -> Requirement:
@@ -87,12 +90,16 @@ def _check_verbs(paths: PrefixPaths) -> Requirement:
     total = len(verbs.REQUIRED_VERBS)
     if not missing:
         return Requirement(
-            name="Verbs winetricks", status=Status.OK, detail=f"{total}/{total} présents"
+            name=_("Winetricks verbs"),
+            status=Status.OK,
+            detail=_("{total}/{total} present").format(total=total),
         )
     return Requirement(
-        name="Verbs winetricks",
+        name=_("Winetricks verbs"),
         status=Status.MISSING,
-        detail=f"{total - len(missing)}/{total} présents — manquants : {', '.join(missing)}",
+        detail=_("{done}/{total} present — missing: {missing}").format(
+            done=total - len(missing), total=total, missing=", ".join(missing)
+        ),
         install_hint=_REPAIR_HINT,
     )
 
@@ -102,7 +109,7 @@ def _check_dxvk(paths: PrefixPaths) -> Requirement:
         return Requirement(
             name="DXVK",
             status=Status.MISSING,
-            detail="préfixe non initialisé",
+            detail=_("prefix not initialized"),
             install_hint=_REPAIR_HINT,
         )
     for dll in _DXVK_DLLS:
@@ -111,16 +118,20 @@ def _check_dxvk(paths: PrefixPaths) -> Requirement:
         except OSError:
             continue
         if b"DXVK" in data:
-            return Requirement(name="DXVK", status=Status.OK, detail=f"{dll} fournie par DXVK")
+            return Requirement(
+                name="DXVK", status=Status.OK, detail=_("{dll} provided by DXVK").format(dll=dll)
+            )
     return Requirement(
         name="DXVK",
         status=Status.MISSING,
-        detail=f"aucune DLL DXVK ({'/'.join(_DXVK_DLLS)}) détectée dans system32",
-        install_hint=(
-            "Proton embarque DXVK — ne jamais installer le verb winetricks `dxvk` "
-            f"(docs/INSTALL-MANUAL.md §6.2). Relance `{_REPAIR_HINT}` ; si le problème "
-            "persiste, vérifie la version de Proton."
+        detail=_("no DXVK DLL ({dlls}) detected in system32").format(
+            dlls="/".join(_DXVK_DLLS)
         ),
+        install_hint=_(
+            "Proton bundles DXVK — never install the winetricks verb `dxvk` "
+            "(docs/INSTALL-MANUAL.md §6.2). Retry `{hint}`; if the problem "
+            "persists, check the Proton version."
+        ).format(hint=_REPAIR_HINT),
     )
 
 
@@ -148,9 +159,9 @@ def format_prefix_report(report: PrefixReport) -> str:
             lines.append(f"           → {requirement.install_hint}")
     lines.append("")
     if report.is_healthy:
-        lines.append("Le préfixe est sain.")
+        lines.append(_("The prefix is healthy."))
     else:
-        lines.append("Le préfixe nécessite une réparation (--repair).")
+        lines.append(_("The prefix needs repairing (--repair)."))
     return "\n".join(lines)
 
 
@@ -174,7 +185,7 @@ def run_prefix_doctor(
             provision.ensure_prefix(paths, search_dirs=search_dirs, on_progress=print)
         except PrefixError as error:
             print(format_prefix_report(report))
-            print(f"\nRéparation échouée : {error}")
+            print(_("\nRepair failed: {error}").format(error=error))
             return 1
         report = build_prefix_report(paths, search_dirs)
 

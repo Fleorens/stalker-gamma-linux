@@ -26,6 +26,7 @@ from stalker_gamma_linux.environment.report import (
     build_report,
     format_report,
 )
+from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.output import console
 from stalker_gamma_linux.prefix.doctor import (
     PrefixReport,
@@ -68,19 +69,23 @@ def build_full_report(target: Path | None = None) -> DoctorReport:
 def run_doctor(target: Path | None = None) -> int:
     report = build_full_report(target)
 
-    console.print("[bold]=== Environnement ===[/bold]")
+    console.print(f"[bold]=== {_('Environment')} ===[/bold]")
     console.print(format_report(report.environment))
 
-    console.print("\n[bold]=== Préfixe Proton ===[/bold]")
+    console.print(f"\n[bold]=== {_('Proton prefix')} ===[/bold]")
     console.print(format_prefix_report(report.prefix))
 
-    console.print("\n[bold]=== Installation ===[/bold]")
+    console.print(f"\n[bold]=== {_('Installation')} ===[/bold]")
     console.print(state_module.format_state(report.install, report.target))
     if report.installed_on_disk:
         console.print(
-            "[green]Install GAMMA détectée sur le disque (Anomaly + Mod Organizer 2 "
-            "présents) — utilisable même si les étapes ci-dessus ne sont pas cochées "
-            "(install hors pipeline).[/green]"
+            "[green]"
+            + _(
+                "GAMMA install detected on disk (Anomaly + Mod Organizer 2 "
+                "present) — usable even if the steps above aren't checked "
+                "off (install outside the pipeline)."
+            )
+            + "[/green]"
         )
 
     return 0 if report.is_ready else 1

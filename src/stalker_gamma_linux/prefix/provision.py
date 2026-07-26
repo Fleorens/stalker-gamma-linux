@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from stalker_gamma_linux.environment import system
+from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.prefix import process, proton, verbs
 from stalker_gamma_linux.prefix.errors import PrefixCommandError, PrefixError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
@@ -54,14 +55,18 @@ def create_prefix(
         if is_initialized(paths):
             return
         raise PrefixError(
-            f"La création du préfixe {paths.prefix} a échoué : la commande a rendu "
-            f"un code non nul et le préfixe n'est pas initialisé (system.reg absent)."
-            f"\n{error}"
+            _(
+                "Creating prefix {path} failed: the command returned a non-zero "
+                "code and the prefix is not initialized (system.reg missing)."
+                "\n{error}"
+            ).format(path=paths.prefix, error=error)
         ) from error
     if not is_initialized(paths):
         raise PrefixError(
-            f"umu-run a terminé sans erreur mais le préfixe {paths.prefix} n'est "
-            f"toujours pas initialisé (system.reg absent).\nJournal : {log_path}"
+            _(
+                "umu-run finished without error but prefix {path} is still not "
+                "initialized (system.reg missing).\nLog: {log}"
+            ).format(path=paths.prefix, log=log_path)
         )
 
 

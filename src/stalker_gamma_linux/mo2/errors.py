@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from stalker_gamma_linux.i18n import _
+
 
 class Mo2Error(Exception):
     """Erreur de base pour tout ce qui concerne Mod Organizer 2."""
@@ -15,9 +17,11 @@ class Mo2NotInstalledError(Mo2Error):
     def __init__(self, executable: Path) -> None:
         self.executable = executable
         super().__init__(
-            f"Mod Organizer 2 introuvable : {executable} n'existe pas.\n"
-            "L'instance MO2 est construite par gamma-launcher pendant l'installation "
-            "du modpack. Lance d'abord l'installation (full-install) avant de jouer."
+            _(
+                "Mod Organizer 2 not found: {executable} does not exist.\n"
+                "The MO2 instance is built by gamma-launcher during the modpack "
+                "install. Run the install (full-install) first before playing."
+            ).format(executable=executable)
         )
 
 
@@ -31,8 +35,10 @@ class AnomalyNotFoundError(Mo2InstanceError):
     def __init__(self, anomaly_dir: Path) -> None:
         self.anomaly_dir = anomaly_dir
         super().__init__(
-            f"Dossier Anomaly invalide : {anomaly_dir} ne contient pas "
-            "AnomalyLauncher.exe.\n"
-            "Installe d'abord le jeu de base (anomaly-install) — c'est le chemin "
-            "que MO2 doit connaître comme `gamePath`."
+            _(
+                "Invalid Anomaly folder: {directory} does not contain "
+                "AnomalyLauncher.exe.\n"
+                "Install the base game first (anomaly-install) — it's the path "
+                "MO2 needs to know as `gamePath`."
+            ).format(directory=anomaly_dir)
         )

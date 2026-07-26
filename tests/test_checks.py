@@ -21,7 +21,7 @@ def test_check_steam_native(monkeypatch: pytest.MonkeyPatch) -> None:
     requirement = checks.check_steam(FAMILY)
 
     assert requirement.status is Status.OK
-    assert "natif" in requirement.detail
+    assert "Native" in requirement.detail
 
 
 def test_check_steam_flatpak(monkeypatch: pytest.MonkeyPatch) -> None:

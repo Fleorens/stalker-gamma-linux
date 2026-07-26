@@ -70,6 +70,6 @@ def test_format_state_lists_every_step(tmp_path: Path) -> None:
 
     assert str(target) in text
     assert "[ OK ]" in text
-    assert "[ A FAIRE ]" in text
+    assert "[ TODO ]" in text
     for label in state.STEP_LABELS.values():
         assert label in text

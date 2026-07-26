@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from stalker_gamma_linux.environment.models import EnvironmentReport
+from stalker_gamma_linux.i18n import _
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,10 +25,10 @@ class SystemSummary:
     @property
     def label(self) -> str:
         if self.is_ready:
-            return "Système prêt"
+            return _("System ready")
         if len(self.blocking) == 1:
-            return f"Prérequis manquant : {self.blocking[0]}"
-        return f"{len(self.blocking)} prérequis manquants"
+            return _("Missing prerequisite: {name}").format(name=self.blocking[0])
+        return _("{count} missing prerequisites").format(count=len(self.blocking))
 
 
 def summarize(report: EnvironmentReport) -> SystemSummary:

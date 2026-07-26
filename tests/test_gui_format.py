@@ -25,13 +25,13 @@ class TestParseStepIndex:
 
 class TestFormatGib:
     def test_grand_volume_sans_decimale(self) -> None:
-        assert format_gib(245 * 1024**3) == "245 Gio"
+        assert format_gib(245 * 1024**3) == "245 GB"
 
-    def test_petit_volume_avec_virgule(self) -> None:
-        assert format_gib(int(1.5 * 1024**3)) == "1,5 Gio"
+    def test_petit_volume_avec_decimale(self) -> None:
+        assert format_gib(int(1.5 * 1024**3)) == "1.5 GB"
 
     def test_zero(self) -> None:
-        assert format_gib(0) == "0,0 Gio"
+        assert format_gib(0) == "0.0 GB"
 
 
 class TestFormatDuration:

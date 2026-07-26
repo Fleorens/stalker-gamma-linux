@@ -195,7 +195,7 @@ def test_run_update_warns_on_unverifiable_archives_but_succeeds(
     assert code == 0
     warnings = [message for kind, message in reporter.events if kind == "warn"]
     assert len(warnings) == 1
-    assert "aucune corruption locale" in warnings[0]
+    assert "no local corruption" in warnings[0]
     assert "Could not find Filename in https://moddb/x" in warnings[0]
 
 
@@ -237,7 +237,7 @@ def test_run_install_uses_custom_reporter_instead_of_console(
     code = orchestrator.run_install(tmp_path, reporter=reporter)
 
     assert code == 0
-    assert ("header", f"Installation de S.T.A.L.K.E.R. G.A.M.M.A. dans {tmp_path}") in (
+    assert ("header", f"Installing S.T.A.L.K.E.R. G.A.M.M.A. in {tmp_path}") in (
         reporter.events
     )
     assert any(kind == "success" for kind, _ in reporter.events)
@@ -258,7 +258,7 @@ def test_run_install_stops_cleanly_when_cancel_event_is_set(
     assert code == orchestrator.CANCELLED_EXIT_CODE
     assert events == []
     assert not state.load_state(tmp_path).is_done("anomaly")
-    assert any(kind == "warn" and "annulée" in message for kind, message in reporter.events)
+    assert any(kind == "warn" and "cancelled" in message for kind, message in reporter.events)
 
 
 def test_run_install_cancels_mid_step_without_marking_it_done(
@@ -298,4 +298,4 @@ def test_run_update_stops_cleanly_on_engine_cancelled(
     code = orchestrator.run_update(tmp_path, reporter=reporter)
 
     assert code == orchestrator.CANCELLED_EXIT_CODE
-    assert any(kind == "warn" and "annulée" in message for kind, message in reporter.events)
+    assert any(kind == "warn" and "cancelled" in message for kind, message in reporter.events)

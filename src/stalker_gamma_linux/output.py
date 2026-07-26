@@ -13,6 +13,7 @@ from typing import Protocol
 
 from rich.console import Console
 
+from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.logging_setup import LOGGER_NAME
 
 console = Console()
@@ -45,12 +46,12 @@ def header(message: str) -> None:
 
 def step(index: str, message: str) -> None:
     console.print(f"[cyan]→ {index}[/cyan] {message}")
-    _logger.info("étape %s : %s", index, message)
+    _logger.info("step %s: %s", index, message)
 
 
 def skip(index: str, message: str) -> None:
-    console.print(f"[dim]↷ {index} {message} (déjà fait — reprise)[/dim]")
-    _logger.debug("étape sautée %s : %s", index, message)
+    console.print(f"[dim]↷ {index} {message} " + _("(already done — resuming)") + "[/dim]")
+    _logger.debug("skipped step %s: %s", index, message)
 
 
 def progress(message: str) -> None:
@@ -69,11 +70,11 @@ def warn(message: str) -> None:
 
 
 def error(message: str, *, hint: str | None = None) -> None:
-    console.print(f"[bold red]Erreur[/bold red] : {message}")
+    console.print(f"[bold red]{_('Error')}[/bold red]: {message}")
     _logger.error(message)
     if hint is not None:
         console.print(f"[yellow]→ {hint}[/yellow]")
-        _logger.info("suggestion : %s", hint)
+        _logger.info("hint: %s", hint)
 
 
 class ConsoleReporter:
