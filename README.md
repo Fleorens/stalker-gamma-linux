@@ -148,10 +148,11 @@ asset, reproducible at any time.
 
 ### Language
 
-The CLI and GUI are in **English by default** and follow your system locale
-(`LANGUAGE`/`LANG`) automatically — no setting to change. French is fully
-translated today; contributing another language is a normal gettext
-workflow, see "Internationalisation" in `docs/ARCHITECTURE.md`.
+The CLI and GUI are in **English by default**, regardless of your system
+locale. To switch language, set `LANGUAGE` explicitly, e.g.
+`LANGUAGE=fr stalker-gamma-linux doctor`. French is fully translated today;
+contributing another language is a normal gettext workflow, see
+"Internationalisation" in `docs/ARCHITECTURE.md`.
 
 ## Legal
 

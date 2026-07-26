@@ -1,12 +1,13 @@
-"""Internationalisation (gettext) : anglais par défaut, autres langues en traduction.
+"""Internationalisation (gettext) : anglais par défaut, autres langues en opt-in.
 
-Le texte source du code (msgid) est en anglais — c'est donc la langue de
-repli automatique dès qu'aucune traduction n'est chargée ou que la locale
-demandée n'a pas de fichier `.mo` correspondant (comportement standard de
-`gettext.translation(..., fallback=True)`). La locale effective suit les
-variables d'environnement POSIX usuelles (`LANGUAGE`, `LC_ALL`, `LC_MESSAGES`,
-`LANG`), sans configuration supplémentaire — comme n'importe quelle appli
-GTK/gettext.
+Le texte source du code (msgid) est en anglais, et c'est **toujours** la
+langue affichée par défaut : contrairement au comportement standard de
+`gettext.translation`, on ne suit PAS la locale système (`LANG`/`LC_ALL`/
+`LC_MESSAGES`) — sinon un poste en `fr_FR.UTF-8` afficherait du français sans
+que l'utilisateur l'ait demandé. Seule la variable `LANGUAGE` (override GNU
+explicite) change la langue, ex. `LANGUAGE=fr stalker-gamma-linux doctor`.
+Sans elle, `.mo` recherché pour `en` (qui n'existe pas, l'anglais étant déjà
+le texte source) → repli `NullTranslations` → `msgid` retourné tel quel.
 
 Traductions disponibles : voir `locale/<code>/LC_MESSAGES/stalker-gamma-linux.po`
 (compilées en `.mo` par `make compile-messages`, voir docs/ARCHITECTURE.md).
@@ -18,6 +19,7 @@ from __future__ import annotations
 
 import gettext
 import importlib.resources
+import os
 from collections.abc import Callable
 
 DOMAIN = "stalker-gamma-linux"
@@ -28,10 +30,16 @@ def _locale_dir() -> str:
     return str(importlib.resources.files("stalker_gamma_linux") / "locale")
 
 
+def _requested_languages() -> list[str]:
+    """`LANGUAGE` explicite si présent, sinon anglais — jamais `LANG`/`LC_ALL`."""
+    override = os.environ.get("LANGUAGE")
+    return override.split(":") if override else ["en"]
+
+
 def _load_translation() -> gettext.NullTranslations:
-    """`NullTranslations` (= identité) si aucun `.mo` ne correspond à la locale courante."""
+    """`NullTranslations` (= identité, donc anglais) si aucune langue demandée n'a de `.mo`."""
     return gettext.translation(
-        DOMAIN, localedir=_locale_dir(), languages=None, fallback=True
+        DOMAIN, localedir=_locale_dir(), languages=_requested_languages(), fallback=True
     )
 
 

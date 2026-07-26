@@ -542,15 +542,16 @@ d'origine sur Ubuntu (`multiverse`).
 
 Toutes les chaînes visibles par l'utilisateur (CLI, GUI, messages d'erreur des
 modules métier partagés) sont en **anglais dans le code source** (`msgid`
-gettext) et passent par `stalker_gamma_linux.i18n._()`. L'anglais est donc la
-langue de repli automatique : `gettext.translation(..., fallback=True)`
-retourne le `msgid` tel quel dès qu'aucune traduction n'est chargée ou que la
-locale demandée n'a pas de `.mo` correspondant — pas de configuration
-supplémentaire, comportement standard de toute appli GTK/gettext. La locale
-effective suit les variables d'environnement POSIX usuelles (`LANGUAGE`,
-`LC_ALL`, `LC_MESSAGES`, `LANG`), résolue **une fois** à l'import du module
-(modèle gettext classique : un changement de langue en cours de session
-nécessite un redémarrage, jamais un bug).
+gettext) et passent par `stalker_gamma_linux.i18n._()`. L'anglais est **la
+langue par défaut**, point — volontairement pas de suivi de la locale système
+(`LANG`/`LC_ALL`/`LC_MESSAGES`) : sinon un poste en `fr_FR.UTF-8` afficherait
+du français sans que l'utilisateur l'ait demandé, ce qui n'est pas le
+comportement voulu ici. Seule la variable GNU `LANGUAGE`, positionnée
+explicitement, change la langue (ex. `LANGUAGE=fr stalker-gamma-linux doctor`) ;
+`gettext.translation(..., fallback=True)` retourne le `msgid` (donc l'anglais)
+tel quel dès qu'aucune langue demandée n'a de `.mo` correspondant. Résolu
+**une fois** à l'import du module (modèle gettext classique : changer de
+langue en cours de session nécessite un redémarrage, jamais un bug).
 
 Traductions disponibles : `src/stalker_gamma_linux/locale/<code>/LC_MESSAGES/
 stalker-gamma-linux.po` (+ `.mo` compilé, embarqué au paquet via
