@@ -66,29 +66,6 @@ def test_detect_distro_falls_back_to_id_like(monkeypatch: pytest.MonkeyPatch) ->
     assert distro.family is DistroFamily.DEBIAN
 
 
-def test_detect_distro_prefers_host_os_release_in_flatpak(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    # En Flatpak, /etc/os-release = runtime GNOME (« unknown ») ; le vrai est
-    # sous /run/host/os-release. On doit lire celui-là.
-    from stalker_gamma_linux.environment import distro as distro_module
-
-    host_release = distro_module._FLATPAK_HOST_OS_RELEASE
-    monkeypatch.setattr(system, "path_exists", lambda p: p == host_release)
-    seen: list[Path] = []
-
-    def fake_read(path: Path) -> str:
-        seen.append(path)
-        return FEDORA_OS_RELEASE
-
-    monkeypatch.setattr(system, "read_text", fake_read)
-
-    distro = detect_distro()
-
-    assert distro.family is DistroFamily.FEDORA
-    assert seen == [host_release]
-
-
 def test_detect_distro_missing_os_release(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(system, "read_text", lambda path: None)
 

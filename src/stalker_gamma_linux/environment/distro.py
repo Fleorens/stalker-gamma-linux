@@ -11,10 +11,6 @@ from stalker_gamma_linux.environment import system
 from stalker_gamma_linux.i18n import _
 
 DEFAULT_OS_RELEASE = Path("/etc/os-release")
-# Dans un Flatpak, /etc/os-release est celui du runtime (GNOME) : flatpak monte
-# le vrai os-release de l'HÔTE ici. On le préfère pour nommer la bonne distrib
-# et proposer les bonnes commandes (dnf/pacman/apt) au lieu de « unknown ».
-_FLATPAK_HOST_OS_RELEASE = Path("/run/host/os-release")
 
 
 class DistroFamily(StrEnum):
@@ -69,8 +65,6 @@ def detect_family(values: Mapping[str, str]) -> DistroFamily:
 
 
 def read_os_release(path: Path = DEFAULT_OS_RELEASE) -> dict[str, str]:
-    if path == DEFAULT_OS_RELEASE and system.path_exists(_FLATPAK_HOST_OS_RELEASE):
-        path = _FLATPAK_HOST_OS_RELEASE
     content = system.read_text(path)
     if content is None:
         return {}

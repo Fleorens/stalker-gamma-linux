@@ -38,13 +38,18 @@ sous Proton, reprise après interruption, mise à jour incrémentale.
   déjà en place. Entrée `stalker-gamma-linux-gui` + `.desktop` + icône.
 
 ## Phase 3 — Distribution
-- **T09** ✅ Packaging : Flatpak (canal principal, GUI + CLI, sandboxé,
-  Steam Deck inclus) et AppImage (CLI portable). AUR retiré du périmètre
-  (décision Florian, 2026-07-23) — voir `docs/PACKAGING.md`.
+- **T09** Packaging Flatpak (canal principal, sandboxé, Steam Deck inclus) et
+  AppImage (CLI portable) implémenté (2026-07-23, AUR retiré du périmètre).
+  **Retiré du projet le 2026-07-26** : le dogfooding (voir T08) a montré que
+  le sandbox se battait en permanence contre la nature Wine/Proton de
+  l'outil (outils hôte invisibles, libunrar, stack 32-bit) alors que l'
+  install native (`install.sh`) utilise directement ce que l'utilisateur a
+  déjà. Seul le canal natif reste.
 - **T10** ✅ CI : `ci.yml` (lint/types/tests matrice 3.11-3.13 + build),
   `upstream-watch.yml` (cron quotidien, sous-ensemble non-graphique du
   pipeline en conteneur, issue automatique), `release.yml` (tag `v*` →
-  artefacts T09 + GitHub Release). Voir `docs/CI.md`.
+  vérifications puis GitHub Release, sans artefact de packaging depuis le
+  retrait de T09). Voir `docs/CI.md`.
 
 ## Hors scope (assumé)
 - Portage natif du moteur X-Ray Monolith (sans Proton) : projet d'une autre

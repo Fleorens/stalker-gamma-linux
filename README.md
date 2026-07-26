@@ -19,8 +19,7 @@ This project is the **Linux integration layer** that makes GAMMA a one-command
   mod flexibility (enable/disable/add mods), exactly like on Windows
 - Incremental updates that follow upstream GAMMA releases
 - Works on any Linux distribution — desktop (Fedora, Arch, Debian/Ubuntu, …) as well as Steam Deck
-- GUI on top (GTK4/libadwaita); packaged as a Flatpak (primary, GUI + CLI)
-  and an AppImage (portable CLI) — see [docs/PACKAGING.md](docs/PACKAGING.md)
+- GUI on top (GTK4/libadwaita), installed natively (no Flatpak/AppImage sandbox)
 
 ## How it works
 
@@ -34,9 +33,9 @@ everything Linux-specific. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 🚧 Phase 1 (MVP) implemented and validated on a real machine; the GTK4/
 libadwaita GUI (Phase 2) is implemented and tested on a real machine too;
-Flatpak + AppImage packaging (Phase 3) builds and runs locally; CI (lint,
-types, tests, packaging release, daily upstream-regression watch) is wired
-up — see [docs/ROADMAP.md](docs/ROADMAP.md), [docs/CI.md](docs/CI.md) and
+install is native only (`install.sh`, no Flatpak/AppImage); CI (lint, types,
+tests, release tagging, daily upstream-regression watch) is wired up — see
+[docs/ROADMAP.md](docs/ROADMAP.md), [docs/CI.md](docs/CI.md) and
 [tasks/](tasks/) for the work breakdown.
 
 ## Usage
@@ -60,8 +59,8 @@ without opening the window.
 
 Running **natively** (not sandboxed) is deliberate: this tool orchestrates your
 system's Wine/Proton, umu, libunrar, Steam and 32-bit stack — the native GUI
-uses them directly, with none of the bundling/sandbox workarounds a Flatpak
-needs for a Wine launcher.
+uses them directly, with none of the bundling/sandbox workarounds a Wine
+launcher would need in a container.
 
 **Prerequisites** (the GUI's Diagnostic tab shows them live):
 - **GTK4 + libadwaita + PyGObject** — for the GUI itself, the one thing the
@@ -84,12 +83,6 @@ needs for a Wine launcher.
   and Vulkan drivers are **optional**: the pipeline runs everything through
   umu (own runtime, Proton-GE fetched from GitHub) — Steam only matters for
   Steam Input / Gaming Mode on the Deck, Vulkan only to actually play.
-
-**Other channels.** **Flatpak** (`make package-flatpak`) targets a future
-Flathub one-click, but a sandbox around a Wine launcher needs the whole stack
-bundled (GTK, libunrar, 32-bit Wine extensions) — native above is the
-recommended path today. **AppImage** (`make package-appimage`) is CLI-only.
-Both are in [docs/PACKAGING.md](docs/PACKAGING.md).
 
 Once installed (or with the venv activated), the CLI is `stalker-gamma-linux`:
 

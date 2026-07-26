@@ -41,7 +41,12 @@ sans sudo ; rien dans les paquets ne contient de données du jeu.
 ## Statut
 
 ✅ Terminé et validé en réel le 2026-07-23 (build + `doctor` + rendu GUI pour
-le Flatpak, build + `doctor` pour l'AppImage). Détails complets — modules,
-permissions ligne par ligne, pièges rencontrés côté outillage amont, ce qui
-est délibérément non embarqué (libunrar) — dans `docs/PACKAGING.md` et
-`docs/ARCHITECTURE.md` (section Packaging).
+le Flatpak, build + `doctor` pour l'AppImage).
+
+**Retiré le 2026-07-26** : le dogfooding a montré que le sandbox Flatpak se
+battait en permanence contre la nature Wine/Proton de l'outil (outils hôte
+invisibles, libunrar à rebundler, stack 32-bit manquante), alors que
+l'install native (`install.sh`) utilise directement ce que l'utilisateur a
+déjà. Les deux canaux (`packaging/flatpak/`, `packaging/appimage/`,
+`docs/PACKAGING.md`) ont été supprimés ; voir `docs/ARCHITECTURE.md`
+(section « Packaging : Flatpak/AppImage retirés »).

@@ -6,7 +6,7 @@ Trois workflows GitHub Actions, chacun avec un rôle distinct :
 |---|---|---|
 | `ci.yml` | push sur `main`, pull request | lint (`ruff`), types (`mypy --strict`), tests (`pytest`) sur Python 3.11/3.12/3.13, build du paquet |
 | `upstream-watch.yml` | cron quotidien, `workflow_dispatch` | détecte une nouvelle révision de `Grokitach/Stalker_GAMMA` ou `Mord3rca/gamma-launcher` ; si oui, exécute un sous-ensemble non-graphique du pipeline dans un conteneur ; ouvre une issue si ça casse |
-| `release.yml` | tag `v*` | rejoue les vérifications, construit les artefacts de packaging (T09 : AppImage + bundle Flatpak), publie une GitHub Release avec notes générées |
+| `release.yml` | tag `v*` | rejoue les vérifications, publie une GitHub Release (notes générées) — plus d'artefact de packaging depuis le retrait de Flatpak/AppImage (2026-07-26) |
 
 Aucun secret requis : tout est public (dépôt, ModDB, GitHub releases), et les
 seules écritures (commit de l'état amont, création d'issue, publication de
@@ -117,40 +117,22 @@ d'échec réel, sans attendre une vraie release amont.
 
 Un tag `v*` : rejoue lint/types/tests (les tags ne passent pas forcément
 par une PR déjà vérifiée par `ci.yml`, qui ne se déclenche que sur `main`),
-puis construit en parallèle :
+puis publie la GitHub Release via `gh release create --generate-notes`
+(notes auto-générées par GitHub à partir des PRs/commits depuis le tag
+précédent) — pas de script de changelog maison, pas d'artefact à construire
+(le seul canal de distribution est `install.sh`, qui clone le repo).
 
-- **AppImage** (`make package-appimage`, CLI seul — voir `docs/PACKAGING.md`
-  pour pourquoi la GUI n'y est pas).
-- **Flatpak**, sous forme de **bundle installable en un fichier**
-  (`make package-flatpak-bundle`, nouvelle cible : `package-flatpak`
-  existant de T09 + `flatpak build-bundle --runtime-repo=…` — un
-  `.flatpak-repo` seul n'est pas distribuable tel quel, un utilisateur ne
-  peut pas faire `flatpak install` dessus directement). `--runtime-repo`
-  pointe vers Flathub pour que l'installateur sache où récupérer
-  `org.gnome.Platform//49` (pas embarqué dans le bundle, ~10 Mo). **Testé
-  pour de vrai** avant de committer, à partir du `.flatpak-repo` déjà
-  construit localement pendant T09.
-
-Publication via `gh release create --generate-notes` (notes auto-générées
-par GitHub à partir des PRs/commits depuis le tag précédent) — pas de
-script de changelog maison.
-
-**Testé pour de vrai sur un tag réellement poussé** (`v0.1.0`, 2026-07-23) :
-premier essai en échec — `flatpak-builder` invoque `eu-strip` (`elfutils`)
-pour extraire les symboles de debug de chaque module compilé (ex.
-l'extension C de `py7zr`), présent par défaut sur la machine Fedora de
-Florian mais absent des runners `ubuntu-latest` hébergés. Corrigé (`apt-get
-install elfutils` ajouté avant le build), tag recréé sur le commit corrigé,
-second run entièrement vert : `test` → `build-appimage` (46s) →
-`build-flatpak` (5m22s) → `publish`, release publiée avec les deux
-artefacts (`stalker-gamma-linux-x86_64.AppImage`,
-`org.stalkergammalinux.Gui.flatpak`) et notes auto-générées —
-https://github.com/Fleorens/stalker-gamma-linux/releases/tag/v0.1.0.
+**Historique (T10, 2026-07-23)** : ce workflow construisait aussi un
+AppImage et un bundle Flatpak et les attachait à la release
+(`stalker-gamma-linux-x86_64.AppImage`, `org.stalkergammalinux.Gui.flatpak`
+— tag `v0.1.0`, https://github.com/Fleorens/stalker-gamma-linux/releases/tag/v0.1.0).
+Ces deux jobs (`build-appimage`, `build-flatpak`) ont été retirés le
+2026-07-26 avec le reste du packaging Flatpak/AppImage (voir
+`docs/ARCHITECTURE.md` « Packaging : Flatpak/AppImage retirés »).
 
 ## Ce qui n'est pas testé en conditions CI réelles
 
-- Steam Deck / SteamOS réel pour la partie packaging : voir les gaps déjà
-  documentés dans `docs/PACKAGING.md` (mêmes limites, T10 n'y change rien).
+- Steam Deck / SteamOS réel : aucun accès à une vraie machine SteamOS.
   Les trois workflows (`ci.yml`, `upstream-watch.yml` via
   `workflow_dispatch --force`, `release.yml` sur un vrai tag) ont, eux,
   tous tourné avec succès sur GitHub pendant le développement de T10.

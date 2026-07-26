@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-26 10:35+0200\n"
+"POT-Creation-Date: 2026-07-26 11:02+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -307,10 +307,6 @@ msgid "7z detected"
 msgstr ""
 
 msgid "neither 7z nor 7zz found in PATH"
-msgstr ""
-
-#, python-brace-format
-msgid "libunrar provided ({path})"
 msgstr ""
 
 msgid "libunrar detected"

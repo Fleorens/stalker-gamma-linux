@@ -37,85 +37,9 @@ jobs:
       - run: mypy src
       - run: pytest -q
 
-  build-appimage:
-    name: Build AppImage (T09)
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: System build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential
-
-      - name: Cache p7zip source build + umu-launcher zipapp
-        uses: actions/cache@v4
-        with:
-          path: packaging/appimage/.cache
-          key: appimage-cache-${{ hashFiles('packaging/appimage/build.sh') }}
-
-      - name: make package-appimage
-        run: make package-appimage
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: appimage
-          path: packaging/appimage/dist/*.AppImage
-          retention-days: 14
-
-  build-flatpak:
-    name: Build Flatpak bundle (T09)
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install flatpak + flatpak-builder
-        run: |
-          sudo apt-get update
-          # elfutils (`eu-strip`) : flatpak-builder l'invoque pour extraire les
-          # symboles de debug de chaque module compilé (ex. l'extension C de
-          # `py7zr`) — absent des runners hébergés par défaut, contrairement à
-          # une machine de dev Fedora classique où c'est déjà installé (piège
-          # trouvé en testant release.yml pour de vrai, T10).
-          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder elfutils
-          flatpak remote-add --if-not-exists --user flathub \
-            https://flathub.org/repo/flathub.flatpakrepo
-
-      # Immuable une fois peuplé (org.gnome.Sdk//49 ne bouge pas) : la clé
-      # statique fait que seule la première release le télécharge vraiment.
-      - name: Cache GNOME Sdk/Platform 49
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/share/flatpak
-          key: flatpak-runtimes-gnome49
-
-      - name: Cache modules flatpak-builder (p7zip, umu-launcher, deps Python)
-        uses: actions/cache@v4
-        with:
-          path: packaging/flatpak/.flatpak-builder
-          key: >-
-            flatpak-builder-${{ hashFiles('packaging/flatpak/*.yml',
-            'packaging/flatpak/python3-requirements.json') }}
-          restore-keys: |
-            flatpak-builder-
-
-      - name: Installer le SDK/runtime GNOME 49
-        run: flatpak install --user -y flathub org.gnome.Sdk//49 org.gnome.Platform//49
-
-      - name: make package-flatpak-bundle
-        run: make package-flatpak-bundle
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: flatpak
-          path: packaging/flatpak/dist/*.flatpak
-          retention-days: 14
-
   publish:
     name: Publier la GitHub Release
-    needs: [build-appimage, build-flatpak]
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -124,17 +48,10 @@ jobs:
         with:
           fetch-depth: 0 # historique complet requis par --generate-notes
 
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: "*"
-          path: release-artifacts
-          merge-multiple: true
-
       - name: Créer la GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${{ github.ref_name }}" \
-            release-artifacts/*.AppImage release-artifacts/*.flatpak \
             --title "${{ github.ref_name }}" \
             --generate-notes

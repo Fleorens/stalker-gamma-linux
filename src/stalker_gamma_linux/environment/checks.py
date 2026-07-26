@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 
@@ -24,11 +23,11 @@ _VERSION_RE = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?")
 
 
 def _flatpak_app_installed(app_id: str) -> bool:
-    # host_* : depuis un Flatpak, on interroge le `flatpak` de l'hôte (le sandbox
-    # n'a pas la CLI flatpak ni la vue sur les apps installées côté système).
-    if system.host_which("flatpak") is None:
+    # L'utilisateur peut avoir Steam/protontricks installés en Flatpak plutôt
+    # qu'en paquet natif — repli de détection indépendant de notre packaging.
+    if system.which("flatpak") is None:
         return False
-    result = system.host_run(["flatpak", "info", app_id])
+    result = system.run(["flatpak", "info", app_id])
     return result.returncode == 0
 
 
@@ -40,7 +39,7 @@ def _parse_version(text: str) -> tuple[int, ...] | None:
 
 
 def check_steam(family: DistroFamily) -> Requirement:
-    if system.host_which("steam") is not None:
+    if system.which("steam") is not None:
         return Requirement(name="Steam", status=Status.OK, detail=_("Native Steam detected"))
     if _flatpak_app_installed("com.valvesoftware.Steam"):
         return Requirement(name="Steam", status=Status.OK, detail=_("Steam (Flatpak) detected"))
@@ -73,7 +72,7 @@ def check_umu(family: DistroFamily) -> Requirement:
 
 
 def check_protontricks(family: DistroFamily) -> Requirement:
-    path = system.host_which("protontricks")
+    path = system.which("protontricks")
     if path is None:
         if _flatpak_app_installed("com.github.Matoking.protontricks"):
             return Requirement(
@@ -94,7 +93,7 @@ def check_protontricks(family: DistroFamily) -> Requirement:
             key="protontricks",
         )
 
-    result = system.host_run(["protontricks", "--version"])
+    result = system.run(["protontricks", "--version"])
     version = _parse_version(result.stdout or result.stderr)
     if version is None:
         return Requirement(
@@ -134,19 +133,6 @@ def check_7z(family: DistroFamily) -> Requirement:
 
 
 def check_libunrar(family: DistroFamily) -> Requirement:
-    # Contrairement à steam/vulkaninfo (outils *hôte*), libunrar est chargée par
-    # gamma-launcher (paquet `unrar`, ctypes) DANS le contexte d'exécution — le
-    # bac à sable Flatpak, pas l'hôte. On vérifie donc localement (`system.run`,
-    # pas `host_run`) : sinon on afficherait « OK » (hôte) pendant que l'engine
-    # plante faute de libunrar dans le sandbox. UNRAR_LIB_PATH (posé par le
-    # Flatpak vers la lib bundlée) prime sur le cache ldconfig.
-    lib_path = os.environ.get("UNRAR_LIB_PATH")
-    if lib_path and system.path_exists(Path(lib_path)):
-        return Requirement(
-            name="libunrar",
-            status=Status.OK,
-            detail=_("libunrar provided ({path})").format(path=lib_path),
-        )
     result = system.run(["ldconfig", "-p"])
     if "libunrar" in result.stdout:
         return Requirement(name="libunrar", status=Status.OK, detail=_("libunrar detected"))
@@ -160,10 +146,10 @@ def check_libunrar(family: DistroFamily) -> Requirement:
 
 
 def check_vulkan(family: DistroFamily) -> Requirement:
-    tool = system.host_which("vulkaninfo")
+    tool = system.which("vulkaninfo")
     has_device = False
     if tool is not None:
-        result = system.host_run(["vulkaninfo", "--summary"])
+        result = system.run(["vulkaninfo", "--summary"])
         has_device = result.returncode == 0 and "deviceName" in result.stdout
     if has_device:
         return Requirement(

@@ -3,10 +3,10 @@
 # lance la GUI d'installation — « the S.T.A.L.K.E.R. G.A.M.M.A. installation
 # experience », en une commande, sur ta machine (pas dans un bac à sable).
 #
-# Pourquoi natif et pas Flatpak : l'outil orchestre Wine/Proton, umu, libunrar,
-# Steam, la stack 32-bit… tout ce que ta distribution a déjà. Le Flatpak doit
-# ré-embarquer/contourner chacun de ces éléments ; en natif la GUI les utilise
-# directement. (Le Flatpak reste destiné à une future publication Flathub.)
+# Pourquoi natif et pas un bac à sable (Flatpak/AppImage) : l'outil orchestre
+# Wine/Proton, umu, libunrar, Steam, la stack 32-bit… tout ce que ta
+# distribution a déjà. Un sandbox devrait ré-embarquer/contourner chacun de
+# ces éléments ; en natif la GUI les utilise directement.
 #
 # Curl-able :
 #   curl -fsSL https://raw.githubusercontent.com/Fleorens/stalker-gamma-linux/main/install.sh | bash

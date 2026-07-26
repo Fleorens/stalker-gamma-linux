@@ -64,3 +64,9 @@ https://github.com/Fleorens/stalker-gamma-linux/releases/tag/v0.1.0.
 
 Détails complets (pièges rencontrés, ce qui a été testé pour de vrai et
 comment) dans `docs/CI.md`.
+
+**2026-07-26** : les jobs `build-appimage`/`build-flatpak` de `release.yml`
+(et la cible Makefile `package-flatpak-bundle`) ont été retirés avec le
+reste du packaging Flatpak/AppImage (voir T09). `release.yml` rejoue
+désormais juste les vérifications puis publie la GitHub Release, sans
+artefact.
