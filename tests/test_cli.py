@@ -22,7 +22,7 @@ def test_build_parser_install_shortcut_flag() -> None:
 def test_main_dispatches_to_install(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[Path | None, bool]] = []
 
-    def fake_run_install(target: Path | None, *, shortcut: bool) -> int:
+    def fake_run_install(target: Path | None, *, shortcut: bool, force: bool = False) -> int:
         calls.append((target, shortcut))
         return 0
 
@@ -40,7 +40,7 @@ def test_main_ctrl_c_retourne_le_code_dannulation(monkeypatch: pytest.MonkeyPatc
     traceback au lieu du message de reprise.
     """
 
-    def interrupted(target: Path | None, *, shortcut: bool) -> int:
+    def interrupted(target: Path | None, *, shortcut: bool, force: bool = False) -> int:
         raise KeyboardInterrupt
 
     monkeypatch.setattr(cli, "run_install", interrupted)

@@ -172,6 +172,9 @@ def check_vulkan(family: DistroFamily) -> Requirement:
         detail=detail,
         install_hint=INSTALL_COMMANDS["vulkan"].for_family(family),
         key="vulkan",
+        # Le GPU ne sert qu'à *jouer* : sans pilote, l'installation (téléchargement
+        # + extraction) se déroule parfaitement. Le signaler, oui ; bloquer, non.
+        needed_to_install=False,
     )
 
 

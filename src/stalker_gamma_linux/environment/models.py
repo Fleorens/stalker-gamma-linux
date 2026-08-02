@@ -41,6 +41,14 @@ class Requirement:
     # de regrouper les remèdes en un seul plan d'installation (`environment.plan`).
     # `None` quand il n'y a pas de paquet système derrière (ex. espace disque).
     key: str | None = None
+    # Faux pour ce qui n'est nécessaire qu'à l'exécution du jeu, pas à son
+    # installation : un GPU Vulkan absent doit apparaître dans le diagnostic
+    # sans empêcher de télécharger 146 Gio de mods sur une machine sans pilote.
+    needed_to_install: bool = True
+
+    @property
+    def blocks_install(self) -> bool:
+        return self.needed_to_install and self.status.is_blocking
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,3 +59,13 @@ class EnvironmentReport:
     @property
     def is_ready(self) -> bool:
         return not any(requirement.status.is_blocking for requirement in self.requirements)
+
+    @property
+    def install_blockers(self) -> tuple[Requirement, ...]:
+        """Prérequis manquants qui empêchent réellement l'installation d'aboutir.
+
+        Distinct d'`is_ready`, qui reste le verdict « tout est bon » affiché par
+        `doctor` : on ne refuse de démarrer que sur ce qui condamne l'installation
+        (7z, libunrar, umu, espace disque), pas sur ce qui ne servira qu'à jouer.
+        """
+        return tuple(requirement for requirement in self.requirements if requirement.blocks_install)

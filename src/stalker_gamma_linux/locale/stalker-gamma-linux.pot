@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-02 22:44+0200\n"
+"POT-Creation-Date: 2026-08-02 22:47+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,6 +35,9 @@ msgstr ""
 msgid ""
 "Installs Anomaly + the G.A.M.M.A modpack under --target (~{total} GiB on "
 "disk, {minimum} GiB free required)"
+msgstr ""
+
+msgid "Starts even if prerequisites are missing (the install will likely fail)"
 msgstr ""
 
 msgid ""
@@ -138,6 +141,14 @@ msgstr ""
 
 #, python-brace-format
 msgid "Installing S.T.A.L.K.E.R. G.A.M.M.A. in {root}"
+msgstr ""
+
+msgid "Missing prerequisites — the install cannot succeed:\n"
+msgstr ""
+
+msgid ""
+"Fix the items above, then rerun. To start anyway (at your own risk): "
+"`stalker-gamma-linux install --force`."
 msgstr ""
 
 msgid "Missing prerequisites — steps depending on them may fail:\n"

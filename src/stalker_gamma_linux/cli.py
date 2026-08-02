@@ -55,6 +55,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     install_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
     install_parser.add_argument(
+        "--force",
+        action="store_true",
+        help=_("Starts even if prerequisites are missing (the install will likely fail)"),
+    )
+    install_parser.add_argument(
         "--shortcut",
         action="store_true",
         help=_("Also creates the desktop shortcut (.desktop + icon) at the end of the install"),
@@ -168,7 +173,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "install":
-        return run_install(args.target, shortcut=args.shortcut)
+        return run_install(args.target, shortcut=args.shortcut, force=args.force)
     if args.command == "update":
         return run_update(args.target)
     if args.command == "doctor":

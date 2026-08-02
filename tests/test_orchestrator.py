@@ -7,6 +7,12 @@ import pytest
 from stalker_gamma_linux import engine, orchestrator, state
 from stalker_gamma_linux.engine.errors import EngineCancelledError, EngineExecutionError
 from stalker_gamma_linux.engine.paths import InstallPaths
+from stalker_gamma_linux.environment.distro import Distro, DistroFamily
+from stalker_gamma_linux.environment.models import (
+    EnvironmentReport,
+    Requirement,
+    Status,
+)
 from stalker_gamma_linux.mo2 import instance
 from stalker_gamma_linux.prefix import provision
 from stalker_gamma_linux.prefix.proton import ProtonBuild
@@ -37,7 +43,26 @@ def _patch_prefix_and_mo2(monkeypatch: pytest.MonkeyPatch, events: list[str]) ->
     )
 
 
+def _patch_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Environnement système sain, indépendant de la machine qui exécute les tests.
+
+    `run_install` refuse désormais de démarrer si un prérequis bloquant manque
+    (7z, libunrar, umu, espace disque). Sans ce stub, la suite passerait ou
+    échouerait selon l'espace libre du disque du développeur — ce qu'elle faisait
+    déjà, silencieusement, avant que le blocage ne rende la dépendance visible.
+    """
+    monkeypatch.setattr(
+        orchestrator,
+        "build_report",
+        lambda target: EnvironmentReport(
+            distro=Distro(family=DistroFamily.FEDORA, pretty_name="Fedora Linux 44"),
+            requirements=(Requirement(name="7z", status=Status.OK, detail="7z detected"),),
+        ),
+    )
+
+
 def _patch_all(monkeypatch: pytest.MonkeyPatch, events: list[str]) -> None:
+    _patch_environment(monkeypatch)
     _patch_engine(monkeypatch, events)
     _patch_prefix_and_mo2(monkeypatch, events)
 
@@ -295,3 +320,80 @@ def test_run_update_stops_cleanly_on_engine_cancelled(
 
     assert code == orchestrator.CANCELLED_EXIT_CODE
     assert any(kind == "warn" and "cancelled" in message for kind, message in reporter.events)
+
+
+def _report_with(*requirements: Requirement) -> EnvironmentReport:
+    return EnvironmentReport(
+        distro=Distro(family=DistroFamily.FEDORA, pretty_name="Fedora Linux 44"),
+        requirements=requirements,
+    )
+
+
+class TestPrerequisMBloquants:
+    """`install` doit refuser de partir plutôt que mourir 3 h plus tard."""
+
+    def _run(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        report: EnvironmentReport,
+        tmp_path: Path,
+        **kwargs: Any,
+    ) -> tuple[int, list[str]]:
+        events: list[str] = []
+        _patch_engine(monkeypatch, events)
+        _patch_prefix_and_mo2(monkeypatch, events)
+        monkeypatch.setattr(orchestrator, "build_report", lambda target: report)
+        code = orchestrator.run_install(tmp_path, **kwargs)
+        return code, events
+
+    def test_espace_disque_insuffisant_arrete_avant_tout_telechargement(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        report = _report_with(
+            Requirement(name="Disk space", status=Status.MISSING, detail="10 GiB free")
+        )
+
+        code, events = self._run(monkeypatch, report, tmp_path)
+
+        assert code == 1
+        assert events == []  # rien n'a été lancé
+
+    def test_force_passe_outre(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        report = _report_with(
+            Requirement(name="Disk space", status=Status.MISSING, detail="10 GiB free")
+        )
+
+        code, events = self._run(monkeypatch, report, tmp_path, force=True)
+
+        assert code == 0
+        assert "install_anomaly" in events
+
+    def test_gpu_vulkan_absent_ne_bloque_pas(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Le GPU ne sert qu'à jouer : installer sans pilote doit rester possible."""
+        report = _report_with(
+            Requirement(
+                name="Vulkan GPU",
+                status=Status.MISSING,
+                detail="no Vulkan device",
+                needed_to_install=False,
+            )
+        )
+
+        code, events = self._run(monkeypatch, report, tmp_path)
+
+        assert code == 0
+        assert "install_anomaly" in events
+
+    def test_prerequis_facultatif_ne_bloque_pas(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        report = _report_with(
+            Requirement(name="Steam", status=Status.OPTIONAL, detail="absent"),
+            Requirement(name="Vulkan GPU", status=Status.UNAVAILABLE, detail="VM"),
+        )
+
+        code, _events = self._run(monkeypatch, report, tmp_path)
+
+        assert code == 0

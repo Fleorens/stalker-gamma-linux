@@ -63,6 +63,7 @@ def run_install(
     reporter: output.Reporter = output.console_reporter,
     cancel_event: threading.Event | None = None,
     proton_release: str | None = None,
+    force: bool = False,
 ) -> int:
     """Installe Anomaly + le modpack GAMMA sous `target`, prêt à jouer.
 
@@ -75,7 +76,9 @@ def run_install(
     déjà affiché par l'erreur d'origine), `CANCELLED_EXIT_CODE` si `cancel_event`
     (GUI) a été levé pendant une étape — l'étape en cours n'est pas marquée
     faite, une relance la rejoue. `proton_release` (optionnel, préférence GUI) :
-    voir `prefix.proton.ensure_proton`.
+    voir `prefix.proton.ensure_proton`. `force` : démarre malgré des prérequis
+    manquants (voir `EnvironmentReport.install_blockers`) — sinon on retourne 1
+    sans rien télécharger.
     """
     root = target if target is not None else DEFAULT_INSTALL_TARGET
     install = InstallPaths.under(root)
@@ -85,6 +88,20 @@ def run_install(
     reporter.header(_("Installing S.T.A.L.K.E.R. G.A.M.M.A. in {root}").format(root=root))
 
     env_report = build_report(root)
+    blockers = env_report.install_blockers
+    if blockers and not force:
+        # Historiquement on se contentait d'avertir puis on démarrait quand même :
+        # une install de ~146 Gio partait avec 10 Gio libres et mourait des heures
+        # plus tard en plein téléchargement. La GUI, elle, bloquait déjà. On
+        # échoue maintenant tout de suite, avec le plan d'installation à suivre.
+        reporter.error(
+            _("Missing prerequisites — the install cannot succeed:\n") + format_report(env_report),
+            hint=_(
+                "Fix the items above, then rerun. To start anyway (at your own "
+                "risk): `stalker-gamma-linux install --force`."
+            ),
+        )
+        return 1
     if not env_report.is_ready:
         reporter.warn(
             _("Missing prerequisites — steps depending on them may fail:\n")

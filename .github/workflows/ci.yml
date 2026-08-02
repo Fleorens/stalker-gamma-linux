@@ -19,7 +19,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        # 3.14 : ce que livrent Fedora 44 et Arch aujourd'hui — donc ce que fait
+        # tourner une grande partie des utilisateurs, et la machine de dev. Son
+        # absence signifiait que « CI verte » et « ça marche chez moi » ne
+        # parlaient pas de la même chose.
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
 
