@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from stalker_gamma_linux import sizing
 from stalker_gamma_linux.environment import checks, system
 from stalker_gamma_linux.environment.distro import DistroFamily
 from stalker_gamma_linux.environment.models import Status
@@ -219,7 +220,7 @@ def test_check_disk_space_enough(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         system,
         "disk_usage",
-        lambda path: system.DiskUsage(total=500 * checks.GB, used=0, free=200 * checks.GB),
+        lambda path: system.DiskUsage(total=500 * sizing.GIB, used=0, free=200 * sizing.GIB),
     )
 
     requirement = checks.check_disk_space(Path("/games/stalker-gamma"))
@@ -232,7 +233,7 @@ def test_check_disk_space_not_enough(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         system,
         "disk_usage",
-        lambda path: system.DiskUsage(total=500 * checks.GB, used=0, free=10 * checks.GB),
+        lambda path: system.DiskUsage(total=500 * sizing.GIB, used=0, free=10 * sizing.GIB),
     )
 
     requirement = checks.check_disk_space(Path("/games/stalker-gamma"))
@@ -248,7 +249,7 @@ def test_check_disk_space_walks_up_to_existing_ancestor(monkeypatch: pytest.Monk
 
     def fake_disk_usage(path: Path) -> system.DiskUsage:
         probed.append(path)
-        return system.DiskUsage(total=500 * checks.GB, used=0, free=200 * checks.GB)
+        return system.DiskUsage(total=500 * sizing.GIB, used=0, free=200 * sizing.GIB)
 
     monkeypatch.setattr(system, "disk_usage", fake_disk_usage)
 

@@ -20,6 +20,7 @@ import argparse
 import json
 import os
 import urllib.request
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -60,13 +61,25 @@ def load_state(state_file: Path) -> dict[str, Any]:
 
 
 def write_output(name: str, value: str) -> None:
+    """Écrit une sortie de step dans `$GITHUB_OUTPUT`, au format délimité.
+
+    `value` dérive de données amont non maîtrisées (`tag_name` d'une release
+    tierce) : au format `nom=valeur` sur une ligne, une valeur contenant un
+    retour à la ligne permettrait d'injecter des sorties de step arbitraires.
+    Le format `nom<<DELIM` est le seul sûr pour une valeur quelconque — le
+    délimiteur est aléatoire pour qu'il ne puisse pas être deviné et refermé
+    depuis la valeur elle-même (recommandation GitHub).
+    """
     output_path = os.environ.get("GITHUB_OUTPUT")
-    line = f"{name}={value}\n"
+    delimiter = f"ghadelim_{uuid.uuid4().hex}"
+    if delimiter in value:  # pragma: no cover - collision cryptographiquement improbable
+        raise RuntimeError(f"délimiteur présent dans la valeur de {name!r}")
+    block = f"{name}<<{delimiter}\n{value}\n{delimiter}\n"
     if output_path is None:
-        print(line, end="")
+        print(block, end="")
         return
     with open(output_path, "a") as handle:
-        handle.write(line)
+        handle.write(block)
 
 
 def main() -> int:

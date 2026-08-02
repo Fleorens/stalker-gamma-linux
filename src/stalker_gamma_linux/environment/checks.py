@@ -5,16 +5,12 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from stalker_gamma_linux import sizing
 from stalker_gamma_linux.environment import system
 from stalker_gamma_linux.environment.commands import INSTALL_COMMANDS
 from stalker_gamma_linux.environment.distro import DistroFamily
 from stalker_gamma_linux.environment.models import Requirement, Status
 from stalker_gamma_linux.i18n import _
-
-GB = 1024**3
-REQUIRED_DOWNLOAD_GB = 27
-REQUIRED_INSTALL_GB = 76
-REQUIRED_TOTAL_GB = REQUIRED_DOWNLOAD_GB + REQUIRED_INSTALL_GB
 
 # ⚠ À VALIDER : seuil indicatif (support Flatpak/shortcuts non-Steam robuste).
 MIN_PROTONTRICKS_VERSION = (1, 10)
@@ -169,11 +165,7 @@ def check_vulkan(family: DistroFamily) -> Requirement:
             ),
         )
 
-    detail = (
-        _("vulkaninfo not found in PATH")
-        if tool is None
-        else _("no Vulkan device detected")
-    )
+    detail = _("vulkaninfo not found in PATH") if tool is None else _("no Vulkan device detected")
     return Requirement(
         name=_("Vulkan GPU"),
         status=Status.MISSING,
@@ -222,20 +214,26 @@ def _nearest_existing_ancestor(path: Path) -> Path:
 
 
 def check_disk_space(target: Path) -> Requirement:
+    """Espace libre sur le volume qui hébergera `target`, contre le seuil bloquant.
+
+    Même seuil que la GUI (`sizing.MINIMUM_FREE_GIB`, via `gui.space`) : les deux
+    doivent rendre le même verdict sur la même machine.
+    """
     probe_path = _nearest_existing_ancestor(target)
     usage = system.disk_usage(probe_path)
-    free_gb = usage.free / GB
+    free_gib = usage.free / sizing.GIB
     detail = _(
-        "{free:.1f} GB free on {path} (needs ≈ {total} GB: {download} download "
-        "+ {install} install)"
+        "{free:.1f} GiB free on {path} (needs ≈ {minimum} GiB: {anomaly} base game "
+        "+ {mods} modpack + {cache} download cache, plus extraction margin)"
     ).format(
-        free=free_gb,
+        free=free_gib,
         path=probe_path,
-        total=REQUIRED_TOTAL_GB,
-        download=REQUIRED_DOWNLOAD_GB,
-        install=REQUIRED_INSTALL_GB,
+        minimum=sizing.MINIMUM_FREE_GIB,
+        anomaly=sizing.ANOMALY_GIB,
+        mods=sizing.MODPACK_GIB,
+        cache=sizing.CACHE_GIB,
     )
-    if free_gb >= REQUIRED_TOTAL_GB:
+    if free_gib >= sizing.MINIMUM_FREE_GIB:
         return Requirement(name=_("Disk space"), status=Status.OK, detail=detail)
     return Requirement(
         name=_("Disk space"),

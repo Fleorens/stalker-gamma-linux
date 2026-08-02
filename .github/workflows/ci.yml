@@ -40,8 +40,11 @@ jobs:
       - name: Install project (dev extra)
         run: pip install -e ".[dev]"
 
-      - name: ruff
+      - name: ruff (lint)
         run: ruff check .
+
+      - name: ruff (format)
+        run: ruff format --check .
 
       - name: mypy
         run: mypy src

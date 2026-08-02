@@ -22,11 +22,16 @@ def parse_step_index(index: str) -> tuple[int, int] | None:
 
 
 def format_gib(n_bytes: int) -> str:
-    """« 245 GB », « 1.5 GB » — une décimale sous 10 GB."""
+    """« 245 GiB », « 1.5 GiB » — une décimale sous 10 GiB.
+
+    L'unité affichée est bien le Gio (2³⁰ octets), ce que divise `_GIB` et ce que
+    renvoie `shutil.disk_usage` : l'ancien libellé « GB » laissait croire à des
+    gigaoctets décimaux et ne se comparait pas aux seuils de `sizing`.
+    """
     gib = n_bytes / _GIB
     if gib >= 10:
-        return f"{gib:.0f} GB"
-    return f"{gib:.1f} GB"
+        return f"{gib:.0f} GiB"
+    return f"{gib:.1f} GiB"
 
 
 def format_duration(seconds: float) -> str:

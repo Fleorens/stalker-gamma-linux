@@ -90,9 +90,11 @@ jobs:
           /opt/venv/bin/pip install --quiet -e .
 
       - name: doctor + modlist + téléchargement/installation à blanc du sous-ensemble
+        env:
+          GAMMA_SHA: ${{ needs.check-upstream.outputs.gamma_sha }}
         run: |
           /opt/venv/bin/python scripts/upstream_smoke_test.py \
-            --ref "${{ needs.check-upstream.outputs.gamma_sha }}" \
+            --ref "$GAMMA_SHA" \
             --mod-count 2 \
             --cache-dir "$GITHUB_WORKSPACE/.smoke-cache/downloads" \
             --workdir /tmp/smoke-work
@@ -113,15 +115,21 @@ jobs:
           name: new-upstream-state
           path: /tmp
 
+      # `SUMMARY` contient le `tag_name` d'une release **tierce**
+      # (Mord3rca/gamma-launcher) : interpolé en `${{ }}` directement dans le
+      # script, un nom de tag contenant des métacaractères shell s'exécuterait
+      # dans un job qui a `contents: write` + `issues: write`. On le passe donc
+      # par l'environnement, où il reste une donnée et jamais du code.
       - name: Ouvrir/mettre à jour une issue de régression
         if: needs.integration-check.result == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
+          SUMMARY: ${{ needs.check-upstream.outputs.summary }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           BODY="La vérification d'intégration amont (upstream-watch) a échoué.
 
-          ${{ needs.check-upstream.outputs.summary }}
+          $SUMMARY
 
           Détails : $RUN_URL"
 
@@ -137,8 +145,13 @@ jobs:
               --label upstream-regression --body "$BODY"
           fi
 
+      # Même précaution que ci-dessus : `SUMMARY` (donnée amont) passe par
+      # l'environnement, jamais par `${{ }}` dans le corps du script.
       - name: Avancer l'état connu (intégration réussie)
         if: needs.integration-check.result == 'success'
+        env:
+          SUMMARY: ${{ needs.check-upstream.outputs.summary }}
+          TARGET_BRANCH: ${{ github.ref_name }}
         run: |
           cp /tmp/new-upstream-state.json .github/upstream-state.json
           if git diff --quiet -- .github/upstream-state.json; then
@@ -148,8 +161,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .github/upstream-state.json
-          git commit -m "chore: update upstream-state.json
-
-          ${{ needs.check-upstream.outputs.summary }}"
-          git pull --rebase origin "${{ github.ref_name }}"
-          git push origin "HEAD:${{ github.ref_name }}"
+          git commit -m "chore: update upstream-state.json" -m "$SUMMARY"
+          git pull --rebase origin "$TARGET_BRANCH"
+          git push origin "HEAD:$TARGET_BRANCH"

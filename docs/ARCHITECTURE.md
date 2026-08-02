@@ -344,7 +344,9 @@ supplémentaires, chacun avec sa suite de tests :
   (`shutil.disk_usage` sur le premier ancêtre existant), verdict
   OK / juste / insuffisant / inconnu. Le dialog de pré-installation bloque
   sous `MINIMUM_FREE_BYTES` (160 Gio) et avertit sous
-  `RECOMMENDED_FREE_BYTES` (250 Gio, recommandation amont).
+  `RECOMMENDED_FREE_BYTES` (250 Gio, recommandation amont). Ces deux seuils
+  viennent de `sizing.py` (voir « Dimensionnement disque » ci-dessous) — pas
+  de constante locale.
 - **`summary.py`** : compresse l'`EnvironmentReport` (7 prérequis) en une
   puce « Système prêt / N prérequis manquants » pour l'accueil — la collecte
   tourne dans un thread au démarrage et à chaque retour de tâche.
@@ -441,6 +443,28 @@ de ce groupe (`gui` en extra séparé) — `stalker-gamma-linux-gui`
 (`gui/launch.py`) vérifie GTK4/libadwaita avant tout `import gi` et affiche
 un message actionnable (par distribution) si absent, au lieu d'un
 `ModuleNotFoundError` brut.
+
+## Dimensionnement disque (`sizing.py`)
+
+Le volume qu'exige une installation est une donnée **unique**, dans
+`src/stalker_gamma_linux/sizing.py` : découpage (17 Gio de jeu de base +
+83 Gio de modpack + 46 Gio de cache = 146 Gio, mesuré dans
+docs/INSTALL-MANUAL.md §1), seuil bloquant (160 Gio, le total plus la marge
+d'extraction) et recommandation amont (250 Gio).
+
+Pourquoi un module dédié plutôt que des constantes locales : les deux
+consommateurs — la ligne « Espace disque » de `doctor`
+(`environment/checks.py`) et le dialog de pré-installation de la GUI
+(`gui/space.py`) — avaient divergé. `checks.py` reprenait le chiffre amont
+« 27 Go téléchargés / 76 Go installés », que notre propre manuel invalide
+(on **conserve** le cache pour les mises à jour incrémentales), tandis que la
+GUI bloquait sous 160 Gio. Résultat : à 120 Gio libres, `doctor` affichait
+« [ OK ] Espace disque » pendant que la GUI refusait de lancer
+l'installation. `tests/test_sizing.py` verrouille cet accord seuil par seuil.
+
+Unité : tout est en **Gio** (2³⁰ octets), ce que renvoie `shutil.disk_usage`
+et ce qu'affichent la CLI comme la GUI — `gui/format.format_gib` libellait
+« GB » des valeurs qui étaient déjà des Gio.
 
 ## Packaging : Flatpak/AppImage retirés (2026-07-26)
 

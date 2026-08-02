@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-07-26 11:02+0200\n"
+"POT-Creation-Date: 2026-08-02 21:29+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -28,9 +28,10 @@ msgid ""
 "written under ~/.local/state/stalker-gamma-linux/)"
 msgstr ""
 
+#, python-brace-format
 msgid ""
-"Installs Anomaly + the G.A.M.M.A modpack under --target (downloads ~146 "
-"GB)"
+"Installs Anomaly + the G.A.M.M.A modpack under --target (~{total} GiB on "
+"disk, {minimum} GiB free required)"
 msgstr ""
 
 msgid ""
@@ -76,6 +77,12 @@ msgstr ""
 msgid ""
 "Installs umu-launcher (official zipapp ~420 KiB) into ~/.local/bin — no "
 "sudo, the only prerequisite with no Fedora/Debian package"
+msgstr ""
+
+msgid ""
+"\n"
+"Interrupted. Steps already validated are kept — rerun the same command to"
+" resume."
 msgstr ""
 
 msgid "unexpected error — see the log for details."
@@ -340,8 +347,8 @@ msgstr ""
 
 #, python-brace-format
 msgid ""
-"{free:.1f} GB free on {path} (needs ≈ {total} GB: {download} download + "
-"{install} install)"
+"{free:.1f} GiB free on {path} (needs ≈ {minimum} GiB: {anomaly} base game"
+" + {mods} modpack + {cache} download cache, plus extraction margin)"
 msgstr ""
 
 msgid "Disk space"
@@ -533,9 +540,10 @@ msgid ""
 "extracted mods)."
 msgstr ""
 
+#, python-brace-format
 msgid ""
-"About 40 GB to download, ~150 GB for the full install. Can be interrupted"
-" at any time: the install resumes where it left off."
+"About {cache} GiB to download, {total} GiB for the full install. Can be "
+"interrupted at any time: the install resumes where it left off."
 msgstr ""
 
 msgid "Choose the install directory"

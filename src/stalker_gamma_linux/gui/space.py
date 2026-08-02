@@ -1,9 +1,8 @@
 """Espace disque disponible pour une cible d'installation — indépendant de GTK.
 
-Une installation GAMMA complète pèse lourd : Anomaly (~12 Gio) + cache
-d'archives (~40 Gio) + mods extraits (~100 Gio), plus la marge de travail
-pendant l'extraction. Les seuils ci-dessous suivent la recommandation amont
-(Grokitach) d'environ 250 Go libres pour une installation sereine.
+Les seuils viennent de `sizing` (source unique, partagée avec la ligne « Espace
+disque » de `doctor` via `environment.checks`) : la GUI et la CLI doivent rendre
+le même verdict sur la même machine.
 """
 
 from __future__ import annotations
@@ -15,9 +14,17 @@ from pathlib import Path
 
 from stalker_gamma_linux.gui.format import format_gib
 from stalker_gamma_linux.i18n import _
+from stalker_gamma_linux.sizing import MINIMUM_FREE_BYTES, RECOMMENDED_FREE_BYTES
 
-MINIMUM_FREE_BYTES = 160 * 1024**3
-RECOMMENDED_FREE_BYTES = 250 * 1024**3
+__all__ = [
+    "MINIMUM_FREE_BYTES",
+    "RECOMMENDED_FREE_BYTES",
+    "SpaceReport",
+    "SpaceVerdict",
+    "assess",
+    "nearest_existing_parent",
+    "verdict_for",
+]
 
 
 class SpaceVerdict(Enum):

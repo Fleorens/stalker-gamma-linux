@@ -7,13 +7,13 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 
-from stalker_gamma_linux import logging_setup, output
+from stalker_gamma_linux import logging_setup, output, sizing
 from stalker_gamma_linux.desktop import run_shortcut
 from stalker_gamma_linux.doctor import run_doctor
 from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.mo2 import run_mo2, run_play
 from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
-from stalker_gamma_linux.orchestrator import run_install, run_update
+from stalker_gamma_linux.orchestrator import CANCELLED_EXIT_CODE, run_install, run_update
 from stalker_gamma_linux.prefix import run_prefix_doctor
 from stalker_gamma_linux.prefix.umu import run_install_umu
 
@@ -40,7 +40,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     install_parser = subparsers.add_parser(
         "install",
-        help=_("Installs Anomaly + the G.A.M.M.A modpack under --target (downloads ~146 GB)"),
+        help=_(
+            "Installs Anomaly + the G.A.M.M.A modpack under --target "
+            "(~{total} GiB on disk, {minimum} GiB free required)"
+        ).format(total=sizing.TOTAL_INSTALL_GIB, minimum=sizing.MINIMUM_FREE_GIB),
     )
     install_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
     install_parser.add_argument(
@@ -151,6 +154,17 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         return _dispatch(args)
+    except KeyboardInterrupt:
+        # Ctrl-C est un usage **documenté** (README : interrompre puis relancer,
+        # les étapes validées sont sautées). Sans ce handler, l'utilisateur qui
+        # le fait au milieu d'un `full-install` reçoit une traceback brute :
+        # `KeyboardInterrupt` est une `BaseException`, donc jamais attrapée
+        # ci-dessous. Même code de sortie et même message que l'annulation GUI.
+        _logger.info("`%s` interrupted by the user (Ctrl-C)", args.command)
+        output.warn(
+            _("\nInterrupted. Steps already validated are kept — rerun the same command to resume.")
+        )
+        return CANCELLED_EXIT_CODE
     except Exception:
         _logger.exception("unexpected error during `%s`", args.command)
         output.error(

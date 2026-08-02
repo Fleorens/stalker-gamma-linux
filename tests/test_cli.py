@@ -32,6 +32,22 @@ def test_main_dispatches_to_install(monkeypatch: pytest.MonkeyPatch) -> None:
     assert calls == [(Path("/mnt/disk/GAMMA"), True)]
 
 
+def test_main_ctrl_c_retourne_le_code_dannulation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ctrl-C est un usage documenté : jamais de traceback brute pour l'utilisateur.
+
+    `KeyboardInterrupt` étant une `BaseException`, le `except Exception` général
+    ne l'attrape pas — sans handler dédié, interrompre un `install` affichait une
+    traceback au lieu du message de reprise.
+    """
+
+    def interrupted(target: Path | None, *, shortcut: bool) -> int:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli, "run_install", interrupted)
+
+    assert cli.main(["install"]) == cli.CANCELLED_EXIT_CODE
+
+
 def test_build_parser_update_default_target() -> None:
     args = cli.build_parser().parse_args(["update"])
 

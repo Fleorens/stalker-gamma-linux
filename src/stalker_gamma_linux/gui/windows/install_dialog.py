@@ -1,7 +1,7 @@
 """Dialog de pré-installation : cible, espace disque, raccourci — puis GO.
 
 C'est la porte d'entrée de l'« install experience » : on ne lance plus une
-installation de ~250 Go sur un simple clic aveugle. Le dialog montre où ça va
+installation de ~146 Gio sur un simple clic aveugle. Le dialog montre où ça va
 s'installer, combien d'espace est libre sur ce volume (verdict coloré), et
 laisse changer de disque avant de confirmer. La cible et l'option raccourci
 sont persistées dans les préférences : annuler ne change rien.
@@ -19,6 +19,7 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
+from stalker_gamma_linux import sizing  # noqa: E402
 from stalker_gamma_linux.gui import prefs, space  # noqa: E402
 from stalker_gamma_linux.gui.format import format_gib  # noqa: E402
 from stalker_gamma_linux.i18n import _  # noqa: E402
@@ -156,10 +157,10 @@ class InstallDialog(Adw.Dialog):
         else:
             self._space_note.set_label(
                 _(
-                    "About 40 GB to download, ~150 GB for the full install. "
+                    "About {cache} GiB to download, {total} GiB for the full install. "
                     "Can be interrupted at any time: the install resumes where "
                     "it left off."
-                )
+                ).format(cache=sizing.CACHE_GIB, total=sizing.TOTAL_INSTALL_GIB)
             )
 
     # -- actions -----------------------------------------------------------
