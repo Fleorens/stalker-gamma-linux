@@ -50,9 +50,7 @@ def test_mark_done_rejects_unknown_step(tmp_path: Path) -> None:
         state.mark_done(tmp_path / "install", "not-a-step")
 
 
-def test_load_state_tolerates_corrupt_file(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_load_state_tolerates_corrupt_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     state.state_file().parent.mkdir(parents=True, exist_ok=True)
     state.state_file().write_text("not valid toml [[[", encoding="utf-8")

@@ -155,8 +155,7 @@ def download_proton_ge(
             if not (extracted / "proton").exists():
                 raise ProtonDownloadError(
                     _(
-                        "Unexpected archive {release}: `proton` executable "
-                        "missing after extraction"
+                        "Unexpected archive {release}: `proton` executable missing after extraction"
                     ).format(release=release)
                 )
             if target.exists():

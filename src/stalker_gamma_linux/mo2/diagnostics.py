@@ -119,18 +119,20 @@ def diagnose_usvfs(mo2: Mo2Paths, *, profile: str = GAMMA_PROFILE) -> UsvfsDiagn
 
     if log is None:
         return UsvfsDiagnosis(
-            active=False, checked_log=None, enabled_mod_count=enabled,
+            active=False,
+            checked_log=None,
+            enabled_mod_count=enabled,
             message=_no_log_message(enabled),
         )
 
     text = system.read_text(log) or ""
     if usvfs_active_in(text):
         return UsvfsDiagnosis(
-            active=True, checked_log=log, enabled_mod_count=enabled,
+            active=True,
+            checked_log=log,
+            enabled_mod_count=enabled,
             message=_active_message(log, enabled),
         )
 
     message = _dead_no_mods_message() if enabled == 0 else _dead_message(log, enabled)
-    return UsvfsDiagnosis(
-        active=False, checked_log=log, enabled_mod_count=enabled, message=message
-    )
+    return UsvfsDiagnosis(active=False, checked_log=log, enabled_mod_count=enabled, message=message)

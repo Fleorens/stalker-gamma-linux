@@ -37,9 +37,7 @@ def _patch_download(monkeypatch: pytest.MonkeyPatch, archive_bytes: bytes) -> li
 
 
 class TestInstallUmu:
-    def test_pose_umu_run_executable(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_pose_umu_run_executable(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         urls = _patch_download(monkeypatch, _make_zipapp_tar(tmp_path))
         install_dir = tmp_path / "bin"
 
@@ -73,9 +71,7 @@ class TestInstallUmu:
         with pytest.raises(UmuDownloadError, match="umu/umu-run"):
             umu.install_umu(RELEASE, tmp_path / "bin")
 
-    def test_archive_corrompue_leve(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_archive_corrompue_leve(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         _patch_download(monkeypatch, b"pas un tar du tout")
 
         with pytest.raises(UmuDownloadError, match="Corrupted"):
@@ -112,9 +108,7 @@ class TestResolveLatestRelease:
         assert any("falling back" in message for message in messages)
 
     def test_tag_inattendu_replie_aussi(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(
-            umu, "read_remote_text", lambda url: '{"tag_name": "v-nightly-broken"}'
-        )
+        monkeypatch.setattr(umu, "read_remote_text", lambda url: '{"tag_name": "v-nightly-broken"}')
 
         assert umu.resolve_latest_release() == umu.FALLBACK_UMU_RELEASE
 

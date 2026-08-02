@@ -35,9 +35,7 @@ def _statuses(report: doctor.PrefixReport) -> dict[str, Status]:
     return {requirement.name: requirement.status for requirement in report.requirements}
 
 
-def test_report_all_missing_on_empty_state(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_report_all_missing_on_empty_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(system, "which", lambda cmd: None)
     paths = PrefixPaths.under(tmp_path / "install")
 

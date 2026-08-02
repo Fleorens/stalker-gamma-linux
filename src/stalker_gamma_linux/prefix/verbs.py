@@ -37,9 +37,7 @@ def installed_verbs(paths: PrefixPaths) -> frozenset[str]:
     return frozenset(line.strip() for line in content.splitlines() if line.strip())
 
 
-def missing_verbs(
-    paths: PrefixPaths, required: Sequence[str] = REQUIRED_VERBS
-) -> tuple[str, ...]:
+def missing_verbs(paths: PrefixPaths, required: Sequence[str] = REQUIRED_VERBS) -> tuple[str, ...]:
     """Verbs de `required` absents du préfixe, dans l'ordre de `required`."""
     installed = installed_verbs(paths)
     return tuple(verb for verb in required if verb not in installed)

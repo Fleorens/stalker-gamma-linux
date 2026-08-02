@@ -62,9 +62,11 @@ def test_save_preferences_creates_config_dir(
 def test_with_helpers_return_new_instances() -> None:
     base = prefs.Preferences()
 
-    updated = base.with_install_path(Path("/mnt/games")).with_proton_release(
-        "GE-Proton10-8"
-    ).with_create_steam_shortcut(False)
+    updated = (
+        base.with_install_path(Path("/mnt/games"))
+        .with_proton_release("GE-Proton10-8")
+        .with_create_steam_shortcut(False)
+    )
 
     assert base == prefs.Preferences()
     assert updated.install_path == Path("/mnt/games")

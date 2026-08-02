@@ -37,9 +37,7 @@ def test_main_window_state_primary_action_label(tmp_path: Path) -> None:
     installed = viewmodel.MainWindowState(
         target=tmp_path,
         status=viewmodel.InstallStatus.INSTALLED,
-        install=state.InstallState(
-            anomaly=True, gamma=True, reshade=True, prefix=True, mo2=True
-        ),
+        install=state.InstallState(anomaly=True, gamma=True, reshade=True, prefix=True, mo2=True),
     )
 
     assert not_installed.primary_action_label == "Install"

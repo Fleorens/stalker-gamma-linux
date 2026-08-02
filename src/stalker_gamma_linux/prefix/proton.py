@@ -41,7 +41,12 @@ def default_search_dirs() -> tuple[Path, ...]:
         home / ".local" / "share" / "Steam" / "compatibilitytools.d",
         home / ".steam" / "root" / "compatibilitytools.d",
         home / ".steam" / "steam" / "compatibilitytools.d",
-        home / ".var" / "app" / "com.valvesoftware.Steam" / "data" / "Steam"
+        home
+        / ".var"
+        / "app"
+        / "com.valvesoftware.Steam"
+        / "data"
+        / "Steam"
         / "compatibilitytools.d",
     )
 
@@ -53,8 +58,14 @@ def default_steam_common_dirs() -> tuple[Path, ...]:
         home / ".local" / "share" / "Steam" / "steamapps" / "common",
         home / ".steam" / "root" / "steamapps" / "common",
         home / ".steam" / "steam" / "steamapps" / "common",
-        home / ".var" / "app" / "com.valvesoftware.Steam" / "data" / "Steam"
-        / "steamapps" / "common",
+        home
+        / ".var"
+        / "app"
+        / "com.valvesoftware.Steam"
+        / "data"
+        / "Steam"
+        / "steamapps"
+        / "common",
     )
 
 

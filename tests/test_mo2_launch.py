@@ -50,9 +50,7 @@ def test_launch_mo2_runs_executable_without_args(
     assert recorder.calls[0]["log_label"] == "mo2"
 
 
-def test_launch_game_passes_moshortcut(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_launch_game_passes_moshortcut(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mo2, prefix = _installed_instance(tmp_path)
     recorder = _Recorder()
     monkeypatch.setattr(process, "run_in_prefix", recorder)
@@ -64,9 +62,7 @@ def test_launch_game_passes_moshortcut(
     assert recorder.calls[0]["log_label"] == "mo2-game"
 
 
-def test_launch_game_custom_executable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_launch_game_custom_executable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mo2, prefix = _installed_instance(tmp_path)
     recorder = _Recorder()
     monkeypatch.setattr(process, "run_in_prefix", recorder)

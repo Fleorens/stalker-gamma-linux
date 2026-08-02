@@ -28,9 +28,7 @@ class TestSummarize:
         assert result.is_ready
 
     def test_un_seul_manquant_est_nomme(self) -> None:
-        result = summarize(
-            _report(_req("Steam", Status.OK), _req("umu-launcher", Status.MISSING))
-        )
+        result = summarize(_report(_req("Steam", Status.OK), _req("umu-launcher", Status.MISSING)))
         assert not result.is_ready
         assert result.label == "Missing prerequisite: umu-launcher"
 

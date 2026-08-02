@@ -121,9 +121,7 @@ def generate() -> Image.Image:
     # Grain argentique fin.
     image += (rng.random((HEIGHT, WIDTH, 1)) - 0.5) * 0.028
 
-    result = Image.fromarray(
-        (np.clip(image, 0.0, 1.0) * 255).astype(np.uint8), "RGB"
-    )
+    result = Image.fromarray((np.clip(image, 0.0, 1.0) * 255).astype(np.uint8), "RGB")
 
     particles = _particles(rng)
     glow_tint = Image.new("RGB", (WIDTH, HEIGHT), (168, 220, 120))

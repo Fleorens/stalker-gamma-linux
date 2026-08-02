@@ -123,9 +123,7 @@ def test_download_wraps_network_errors(tmp_path: Path, monkeypatch: pytest.Monke
 
 
 def test_resolve_latest_ge_release_parses_github_api(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        download, "read_remote_text", lambda url: '{"tag_name": "GE-Proton12-3"}'
-    )
+    monkeypatch.setattr(download, "read_remote_text", lambda url: '{"tag_name": "GE-Proton12-3"}')
 
     assert download.resolve_latest_ge_release() == "GE-Proton12-3"
 

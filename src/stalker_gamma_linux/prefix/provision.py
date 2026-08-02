@@ -92,7 +92,5 @@ def ensure_prefix(
         search_dirs, on_progress=on_progress, cancel_event=cancel_event, release=proton_release
     )
     create_prefix(paths, build.path, on_progress=on_progress, cancel_event=cancel_event)
-    verbs.apply_missing_verbs(
-        paths, build.path, on_progress=on_progress, cancel_event=cancel_event
-    )
+    verbs.apply_missing_verbs(paths, build.path, on_progress=on_progress, cancel_event=cancel_event)
     return build

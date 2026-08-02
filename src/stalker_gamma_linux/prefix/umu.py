@@ -137,7 +137,7 @@ def run_install_umu() -> int:
         output.warn(
             _(
                 "umu-run is installed ({target}) but ~/.local/bin is not in "
-                "your PATH. Add it (e.g. `export PATH=\"$HOME/.local/bin:$PATH\"` "
+                'your PATH. Add it (e.g. `export PATH="$HOME/.local/bin:$PATH"` '
                 "in ~/.bashrc) then open a new terminal."
             ).format(target=target)
         )

@@ -124,9 +124,7 @@ class ProgressPage(Adw.NavigationPage):
         self._on_finished = on_finished
         self._finished = False
         self._started_at = time.monotonic()
-        self._timeline = (
-            phases.Timeline.from_labels(tuple(phase_labels)) if phase_labels else None
-        )
+        self._timeline = phases.Timeline.from_labels(tuple(phase_labels)) if phase_labels else None
         self._phase_rows: list[_PhaseRow] = []
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
@@ -172,9 +170,7 @@ class ProgressPage(Adw.NavigationPage):
         toolbar_view.set_content(scroller)
         toolbar_view.add_css_class("over-artwork")
 
-        super().__init__(
-            title=title, child=wrap_with_background(toolbar_view), can_pop=False
-        )
+        super().__init__(title=title, child=wrap_with_background(toolbar_view), can_pop=False)
 
         self._render_timeline()
         self._task.start()
@@ -215,9 +211,7 @@ class ProgressPage(Adw.NavigationPage):
             left_margin=12,
             right_margin=12,
         )
-        scroller = Gtk.ScrolledWindow(
-            child=self._log_view, min_content_height=140, vexpand=True
-        )
+        scroller = Gtk.ScrolledWindow(child=self._log_view, min_content_height=140, vexpand=True)
         scroller.add_css_class("console")
         return scroller
 
@@ -270,9 +264,7 @@ class ProgressPage(Adw.NavigationPage):
             self._render_timeline()
         if event.kind in ("step", "skip"):
             self._status_label.set_label(event.message)
-            self._append_log(
-                f"[{event.index}] {event.message}" if event.index else event.message
-            )
+            self._append_log(f"[{event.index}] {event.message}" if event.index else event.message)
         elif event.kind == "error":
             self._append_log(_("Error: {message}").format(message=event.message))
             if event.hint is not None:

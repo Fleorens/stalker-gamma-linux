@@ -103,9 +103,7 @@ _REAL_EXECS = (
 
 
 def test_rebase_rewrites_forward_slash_executable_paths() -> None:
-    result = ini.rebase_windows_path(
-        _REAL_EXECS, r"Z:\old\GAMMA\gamma\anomaly", r"Z:\new\anomaly"
-    )
+    result = ini.rebase_windows_path(_REAL_EXECS, r"Z:\old\GAMMA\gamma\anomaly", r"Z:\new\anomaly")
 
     assert "3\\binary=Z:/new/anomaly/bin/AnomalyDX11.exe" in result
     assert "3\\workingDirectory=Z:/new/anomaly/bin" in result
@@ -115,18 +113,14 @@ def test_rebase_rewrites_forward_slash_executable_paths() -> None:
 
 
 def test_rebase_rewrites_escaped_backslash_arguments() -> None:
-    result = ini.rebase_windows_path(
-        _REAL_EXECS, r"Z:\old\GAMMA\gamma\anomaly", r"Z:\new\anomaly"
-    )
+    result = ini.rebase_windows_path(_REAL_EXECS, r"Z:\old\GAMMA\gamma\anomaly", r"Z:\new\anomaly")
 
     assert '10\\arguments=\\"Z:\\\\new\\\\anomaly\\"' in result
 
 
 def test_rebase_leaves_sibling_paths_untouched() -> None:
     # explorer++ vit sous .../gamma/gamma, PAS sous .../gamma/anomaly : intact.
-    result = ini.rebase_windows_path(
-        _REAL_EXECS, r"Z:\old\GAMMA\gamma\anomaly", r"Z:\new\anomaly"
-    )
+    result = ini.rebase_windows_path(_REAL_EXECS, r"Z:\old\GAMMA\gamma\anomaly", r"Z:\new\anomaly")
 
     assert "10\\binary=Z:/old/GAMMA/gamma/gamma/explorer++/Explorer++.exe" in result
 

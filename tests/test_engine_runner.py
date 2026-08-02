@@ -132,9 +132,7 @@ def test_update_gamma_is_an_alias_for_install_gamma(
     assert calls == ["full-install"]
 
 
-def test_verify_runs_check_md5_only(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_verify_runs_check_md5_only(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     calls: list[tuple[str, list[str]]] = []
     monkeypatch.setattr(
         runner, "run", lambda subcommand, args, **kw: calls.append((subcommand, args))
@@ -251,9 +249,7 @@ class TestVerifyClassification:
         assert seen == lines
 
 
-def test_remove_reshade_invokes_subcommand(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_remove_reshade_invokes_subcommand(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     calls: list[tuple[str, list[str]]] = []
     monkeypatch.setattr(
         runner, "run", lambda subcommand, args, **kw: calls.append((subcommand, args))

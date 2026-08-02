@@ -51,9 +51,7 @@ def _fake_run_creating_prefix(calls: list[str]) -> Any:
     return fake_run
 
 
-def test_create_prefix_runs_umu_sentinel(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_create_prefix_runs_umu_sentinel(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     paths = PrefixPaths.under(tmp_path)
     calls: list[str] = []
     monkeypatch.setattr(process, "run_in_prefix", _fake_run_creating_prefix(calls))

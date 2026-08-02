@@ -23,9 +23,7 @@ APPLICATION_ID = "org.stalkergammalinux.Gui"
 
 class StalkerGammaApplication(Adw.Application):
     def __init__(self) -> None:
-        super().__init__(
-            application_id=APPLICATION_ID, flags=Gio.ApplicationFlags.DEFAULT_FLAGS
-        )
+        super().__init__(application_id=APPLICATION_ID, flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
         self._window: MainWindow | None = None
 
     def do_startup(self) -> None:

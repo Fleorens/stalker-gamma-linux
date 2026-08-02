@@ -32,9 +32,7 @@ from stalker_gamma_linux.i18n import _  # noqa: E402
 
 
 class DoctorPage(Adw.NavigationPage):
-    def __init__(
-        self, *, target: Path | None, show_toast: Callable[[str], None]
-    ) -> None:
+    def __init__(self, *, target: Path | None, show_toast: Callable[[str], None]) -> None:
         self._target = target
         self._show_toast = show_toast
         self._groups: list[Adw.PreferencesGroup] = []
@@ -164,9 +162,7 @@ class DoctorPage(Adw.NavigationPage):
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _on_umu_install_done(
-        self, button: Gtk.Button, error: str | None, target: str = ""
-    ) -> bool:
+    def _on_umu_install_done(self, button: Gtk.Button, error: str | None, target: str = "") -> bool:
         if error is not None:
             button.set_sensitive(True)
             self._show_toast(_("Failed: {error}").format(error=error))

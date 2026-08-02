@@ -52,15 +52,12 @@ def _check_umu() -> Requirement:
 
 def _check_proton(build: proton.ProtonBuild | None) -> Requirement:
     if build is not None:
-        return Requirement(
-            name="Proton", status=Status.OK, detail=f"{build.name} ({build.path})"
-        )
+        return Requirement(name="Proton", status=Status.OK, detail=f"{build.name} ({build.path})")
     return Requirement(
         name="Proton",
         status=Status.MISSING,
         detail=_(
-            "no Proton build (neither GE in compatibilitytools.d, "
-            "nor Steam's Proton Experimental)"
+            "no Proton build (neither GE in compatibilitytools.d, nor Steam's Proton Experimental)"
         ),
         install_hint=_(
             "`{hint}` downloads the latest GE-Proton release (checksum verified)"
@@ -79,9 +76,7 @@ def _check_prefix(paths: PrefixPaths) -> Requirement:
     version = system.read_text(paths.version_file)
     detail = _("initialized")
     if version is not None and version.strip():
-        detail += _(" (prefix Proton: {version})").format(
-            version=version.strip().splitlines()[0]
-        )
+        detail += _(" (prefix Proton: {version})").format(version=version.strip().splitlines()[0])
     return Requirement(name=_("Prefix"), status=Status.OK, detail=detail)
 
 
@@ -124,9 +119,7 @@ def _check_dxvk(paths: PrefixPaths) -> Requirement:
     return Requirement(
         name="DXVK",
         status=Status.MISSING,
-        detail=_("no DXVK DLL ({dlls}) detected in system32").format(
-            dlls="/".join(_DXVK_DLLS)
-        ),
+        detail=_("no DXVK DLL ({dlls}) detected in system32").format(dlls="/".join(_DXVK_DLLS)),
         install_hint=_(
             "Proton bundles DXVK — never install the winetricks verb `dxvk` "
             "(docs/INSTALL-MANUAL.md §6.2). Retry `{hint}`; if the problem "

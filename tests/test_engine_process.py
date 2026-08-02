@@ -58,9 +58,7 @@ class _CancellableFakeProcess:
         return -15
 
 
-def test_run_raises_when_binary_missing(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_raises_when_binary_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(system, "which", lambda cmd: None)
     # Repli sur sys.executable : on pointe vers un dossier SANS gamma-launcher,
     # sinon le vrai binaire du venv de test serait trouvé.
@@ -132,9 +130,7 @@ def test_run_disables_gamma_launcher_persistent_config(monkeypatch: pytest.Monke
     assert captured_env["GAMMA_LAUNCHER_NO_CONFIG"] == "1"
 
 
-def test_run_redirects_tmpdir_when_given(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_run_redirects_tmpdir_when_given(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/gamma-launcher")
     captured_env: dict[str, str] = {}
 

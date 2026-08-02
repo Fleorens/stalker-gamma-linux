@@ -69,9 +69,7 @@ def test_install_shortcut_refreshes_caches_when_tools_available(
     ]
 
 
-def test_install_shortcut_wraps_os_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_install_shortcut_wraps_os_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _no_cache_tools(monkeypatch)
     # Un fichier à la place du dossier attendu fait échouer le `mkdir` sous-jacent.
     data_home = tmp_path / "data"

@@ -17,7 +17,7 @@ def _patch_engine(monkeypatch: pytest.MonkeyPatch, events: list[str]) -> None:
         monkeypatch.setattr(
             engine,
             name,
-            (lambda label: (lambda *a, **k: events.append(label)))(name),
+            (lambda label: lambda *a, **k: events.append(label))(name),
         )
 
 
@@ -145,15 +145,13 @@ def test_run_install_creates_shortcut_only_when_requested(
     assert state.load_state(tmp_path).is_done("shortcut")
 
 
-def test_run_update_runs_pipeline_in_order(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_update_runs_pipeline_in_order(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     events: list[str] = []
     for name in ("update_gamma", "remove_reshade", "purge_shader_cache", "verify"):
         monkeypatch.setattr(
             engine,
             name,
-            (lambda label: (lambda *a, **k: events.append(label)))(name),
+            (lambda label: lambda *a, **k: events.append(label))(name),
         )
 
     code = orchestrator.run_update(tmp_path)
@@ -237,9 +235,7 @@ def test_run_install_uses_custom_reporter_instead_of_console(
     code = orchestrator.run_install(tmp_path, reporter=reporter)
 
     assert code == 0
-    assert ("header", f"Installing S.T.A.L.K.E.R. G.A.M.M.A. in {tmp_path}") in (
-        reporter.events
-    )
+    assert ("header", f"Installing S.T.A.L.K.E.R. G.A.M.M.A. in {tmp_path}") in (reporter.events)
     assert any(kind == "success" for kind, _ in reporter.events)
     assert any(kind == "step" for kind, _ in reporter.events)
 

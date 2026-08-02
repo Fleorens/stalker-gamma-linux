@@ -81,9 +81,7 @@ def test_apply_missing_verbs_applies_only_missing_in_order(
     assert verbs.missing_verbs(paths) == ()
 
 
-def test_apply_missing_verbs_is_idempotent(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_apply_missing_verbs_is_idempotent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     paths = _paths(tmp_path)
     calls: list[str] = []
     monkeypatch.setattr(process, "run_in_prefix", _fake_run_recording(calls))

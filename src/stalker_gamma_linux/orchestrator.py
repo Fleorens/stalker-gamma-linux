@@ -43,8 +43,7 @@ from stalker_gamma_linux.prefix.errors import PrefixCancelledError, PrefixError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 
 _RESUME_HINT_TEMPLATE = _(
-    "Retry `stalker-gamma-linux install --target {root}`: "
-    "resuming skips steps already validated."
+    "Retry `stalker-gamma-linux install --target {root}`: resuming skips steps already validated."
 )
 
 # Convention POSIX (128 + SIGINT) : réutilisée pour toute annulation propre,
@@ -111,9 +110,7 @@ def run_install(
 
     def remove_reshade_and_purge() -> None:
         engine.remove_reshade(install, on_progress=reporter.progress, cancel_event=cancel_event)
-        engine.purge_shader_cache(
-            install, on_progress=reporter.progress, cancel_event=cancel_event
-        )
+        engine.purge_shader_cache(install, on_progress=reporter.progress, cancel_event=cancel_event)
 
     def ensure_prefix() -> None:
         provision.ensure_prefix(
@@ -184,9 +181,7 @@ def run_update(
         engine.update_gamma(install, on_progress=reporter.progress, cancel_event=cancel_event)
         reporter.step("2/3", _("Removing ReShade + purging the shader cache…"))
         engine.remove_reshade(install, on_progress=reporter.progress, cancel_event=cancel_event)
-        engine.purge_shader_cache(
-            install, on_progress=reporter.progress, cancel_event=cancel_event
-        )
+        engine.purge_shader_cache(install, on_progress=reporter.progress, cancel_event=cancel_event)
         reporter.step("3/3", _("Verification (MD5 of mod archives)…"))
         unverifiable = engine.verify(
             install, on_progress=reporter.progress, cancel_event=cancel_event

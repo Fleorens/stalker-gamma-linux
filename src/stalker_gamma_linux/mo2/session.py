@@ -101,9 +101,7 @@ def run_play(
             return _run_flat(root, install, prefix, build, progress)
         instance.configure_instance(mo2, resolve_anomaly(mo2, install))
         progress(
-            _("Launching Anomaly via MO2 (« {executable} », USVFS)…").format(
-                executable=executable
-            )
+            _("Launching Anomaly via MO2 (« {executable} », USVFS)…").format(executable=executable)
         )
         launch.launch_game(mo2, prefix, build.path, executable=executable, on_progress=progress)
     except (PrefixError, EngineError, Mo2Error) as error:

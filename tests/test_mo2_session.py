@@ -150,9 +150,7 @@ def test_run_play_reports_prefix_error(tmp_path: Path, monkeypatch: pytest.Monke
     assert session.run_play(tmp_path) == 1
 
 
-def test_run_mo2_configures_and_launches(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_mo2_configures_and_launches(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     events: list[str] = []
     monkeypatch.setattr(instance, "configure_instance", _recorder(events, "configure"))
     monkeypatch.setattr(launch, "launch_mo2", _recorder(events, "launch", Path("/l")))
@@ -163,9 +161,7 @@ def test_run_mo2_configures_and_launches(
     assert events == ["configure", "launch"]
 
 
-def test_run_mo2_tolerates_missing_anomaly(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_mo2_tolerates_missing_anomaly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     events: list[str] = []
 
     def raise_anomaly(*a: Any, **k: Any) -> None:
