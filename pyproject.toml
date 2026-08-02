@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stalker-gamma-linux"
-version = "0.1.0"
+version = "0.2.0"
 description = "Linux integration layer for installing S.T.A.L.K.E.R. G.A.M.M.A."
 readme = "README.md"
 license = { file = "LICENSE" }
