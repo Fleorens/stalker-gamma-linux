@@ -16,7 +16,7 @@ from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
 from stalker_gamma_linux.orchestrator import CANCELLED_EXIT_CODE, run_install, run_update
 from stalker_gamma_linux.prefix import run_prefix_doctor
 from stalker_gamma_linux.prefix.umu import run_install_umu
-from stalker_gamma_linux.report_bundle import run_report
+from stalker_gamma_linux.report_bundle import run_report, version_line
 from stalker_gamma_linux.uninstall import run_uninstall
 
 _logger = logging.getLogger(logging_setup.LOGGER_NAME)
@@ -28,6 +28,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="stalker-gamma-linux",
         description=_("Linux installer and integration for S.T.A.L.K.E.R. G.A.M.M.A."),
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=version_line(),
+        help=_("Shows the installed version (and the exact revision, if known)"),
     )
     parser.add_argument(
         "--verbose",

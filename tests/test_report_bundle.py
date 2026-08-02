@@ -113,3 +113,35 @@ class TestRunReport:
 
         assert report_bundle.run_report(tmp_path, None) == 0
         assert "=== Report ===" in capsys.readouterr().out
+
+
+class TestVersionLine:
+    """Identifier précisément le code qui tourne — l'enjeu du triage d'issues."""
+
+    def test_sans_revision_enregistree(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+
+        line = report_bundle.version_line()
+
+        assert report_bundle.DISTRIBUTION_NAME in line
+        assert "(" not in line  # aucun suffixe de révision
+
+    def test_avec_revision_enregistree(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+        revision_dir = tmp_path / report_bundle.DISTRIBUTION_NAME
+        revision_dir.mkdir(parents=True)
+        (revision_dir / "installed-revision.txt").write_text("a1b2c3d\n")
+
+        assert "a1b2c3d" in report_bundle.version_line()
+
+    def test_fichier_vide_ignore(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+        revision_dir = tmp_path / report_bundle.DISTRIBUTION_NAME
+        revision_dir.mkdir(parents=True)
+        (revision_dir / "installed-revision.txt").write_text("\n")
+
+        assert report_bundle.installed_revision() is None

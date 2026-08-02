@@ -17,6 +17,7 @@ quelqu'un de coller un fichier sur GitHub.
 
 from __future__ import annotations
 
+import os
 import platform
 import sys
 from importlib.metadata import PackageNotFoundError, version
@@ -43,6 +44,37 @@ def package_version() -> str:
         return version(DISTRIBUTION_NAME)
     except PackageNotFoundError:  # exécution depuis les sources, sans `pip install`
         return _("unknown (not installed as a package)")
+
+
+def installed_revision() -> str | None:
+    """Révision git réellement installée, telle qu'`install.sh` l'a enregistrée.
+
+    Le numéro de version seul ne suffit pas à identifier le code qui tourne :
+    entre deux releases, tous les utilisateurs de `main` rapportent la même
+    version alors qu'ils exécutent des commits différents. On ne peut pas non
+    plus dériver la version du tag (setuptools-scm) : `install.sh` clone en
+    `--depth 1`, sans tags, ce qui produirait une version fantaisiste et
+    *inférieure* au dernier tag réel. `install.sh` note donc le SHA au moment
+    du `pip install`, et on le lit ici. Absent = installé autrement (paquet
+    distro, `pip install` direct) : ce n'est pas une erreur.
+    """
+    try:
+        return _revision_file().read_text(encoding="utf-8").strip() or None
+    except OSError:
+        return None
+
+
+def _revision_file() -> Path:
+    data_home = os.environ.get("XDG_DATA_HOME")
+    base = Path(data_home) if data_home else Path.home() / ".local" / "share"
+    return base / DISTRIBUTION_NAME / "installed-revision.txt"
+
+
+def version_line() -> str:
+    """« stalker-gamma-linux 0.1.0 (rév. a1b2c3d) » — l'identité exacte du binaire."""
+    revision = installed_revision()
+    suffix = f" ({_('rev.')} {revision})" if revision else ""
+    return f"{DISTRIBUTION_NAME} {package_version()}{suffix}"
 
 
 def anonymize(text: str, home: Path | None = None) -> str:
@@ -76,7 +108,7 @@ def build_bundle(report: DoctorReport, *, log_tail: str | None = None) -> str:
     """Assemble le rapport complet en texte brut, prêt à coller dans une issue."""
     header = "\n".join(
         [
-            f"{DISTRIBUTION_NAME} {package_version()}",
+            version_line(),
             f"Python {sys.version.split()[0]} — {platform.platform()}",
             f"Target: {report.target}",
         ]

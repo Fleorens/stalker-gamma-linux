@@ -132,6 +132,14 @@ log "Venv (--system-site-packages) sous $VENV_DIR…"
 "$VENV_DIR/bin/pip" install --quiet --upgrade pip
 "$VENV_DIR/bin/pip" install --quiet "$SRC_DIR"
 
+# Révision réellement installée : le numéro de version seul ne distingue pas
+# deux utilisateurs de `main` entre deux releases. On la note ici plutôt que de
+# la dériver du tag (setuptools-scm) — le clone est `--depth 1`, donc sans tags,
+# et produirait une version fantaisiste. Lue par `--version` et `doctor --report`.
+if git -C "$SRC_DIR" rev-parse --short HEAD >/dev/null 2>&1; then
+    git -C "$SRC_DIR" rev-parse --short HEAD > "$APP_DATA_DIR/installed-revision.txt"
+fi
+
 # `gamma-launcher` (dépendance) s'installe dans $VENV_DIR/bin ; ce venv n'est
 # jamais activé → on l'ajoute au PATH pour que la GUI le trouve.
 export PATH="$VENV_DIR/bin:$PATH"

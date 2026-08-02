@@ -123,7 +123,9 @@ stalker-gamma-linux doctor --report              # write a report to attach to a
 save icon in the GUI's Diagnostic view). It writes a single file with your
 prerequisites, prefix state, installed Proton builds and the end of the log,
 with paths anonymized to `~` — attach that to the issue and skip the
-back-and-forth.
+back-and-forth. `stalker-gamma-linux --version` alone prints the version plus
+the exact revision installed, which is what pins down *which* code you're on
+between releases.
 
 Every command has `--help`. `install` is resumable: interrupt it (Ctrl-C) and
 rerun the same command — steps already completed (tracked in

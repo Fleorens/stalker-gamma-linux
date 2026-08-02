@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-02 22:41+0200\n"
+"POT-Creation-Date: 2026-08-02 22:44+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,6 +21,9 @@ msgid "Target install directory (default: ~/Games/stalker-gamma)"
 msgstr ""
 
 msgid "Linux installer and integration for S.T.A.L.K.E.R. G.A.M.M.A."
+msgstr ""
+
+msgid "Shows the installed version (and the exact revision, if known)"
 msgstr ""
 
 msgid ""
@@ -192,6 +195,9 @@ msgid "Error"
 msgstr ""
 
 msgid "unknown (not installed as a package)"
+msgstr ""
+
+msgid "rev."
 msgstr ""
 
 #, python-brace-format
