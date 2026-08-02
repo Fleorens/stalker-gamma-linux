@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 import tarfile
 from pathlib import Path
@@ -5,7 +7,11 @@ from pathlib import Path
 import pytest
 
 from stalker_gamma_linux.prefix import download
-from stalker_gamma_linux.prefix.errors import ChecksumMismatchError, ProtonDownloadError
+from stalker_gamma_linux.prefix.errors import (
+    ChecksumMismatchError,
+    ProtonDownloadError,
+    TruncatedDownloadError,
+)
 
 RELEASE = "GE-Proton10-34"
 
@@ -184,3 +190,65 @@ def test_download_rejects_archive_without_proton_executable(
         download.download_proton_ge(RELEASE, install_dir)
 
     assert not (install_dir / RELEASE).exists()
+
+
+class _FakeResponse:
+    """Réponse HTTP minimale : `Content-Length` annoncé vs octets réellement servis."""
+
+    def __init__(self, payload: bytes, announced_length: str | None) -> None:
+        self._payload = payload
+        self._offset = 0
+        self.headers = {} if announced_length is None else {"Content-Length": announced_length}
+
+    def read(self, size: int) -> bytes:
+        chunk = self._payload[self._offset : self._offset + size]
+        self._offset += len(chunk)
+        return chunk
+
+    def __enter__(self) -> _FakeResponse:
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        return None
+
+
+def _patch_urlopen(monkeypatch: pytest.MonkeyPatch, response: _FakeResponse) -> None:
+    monkeypatch.setattr(download.urllib.request, "urlopen", lambda url, timeout=None: response)
+
+
+class TestDownloadToTruncation:
+    """Une connexion coupée termine la boucle de lecture sans lever : il faut le détecter."""
+
+    def test_transfert_tronque_rejete(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _patch_urlopen(monkeypatch, _FakeResponse(b"moitie", announced_length="9999"))
+        dest = tmp_path / "archive.tar"
+
+        with pytest.raises(TruncatedDownloadError) as excinfo:
+            download.download_to("https://example.invalid/archive.tar", dest)
+
+        assert excinfo.value.expected == 9999
+        assert excinfo.value.received == len(b"moitie")
+
+    def test_transfert_complet_accepte(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        payload = b"contenu complet"
+        _patch_urlopen(monkeypatch, _FakeResponse(payload, announced_length=str(len(payload))))
+        dest = tmp_path / "archive.tar"
+
+        download.download_to("https://example.invalid/archive.tar", dest)
+
+        assert dest.read_bytes() == payload
+
+    def test_sans_content_length_on_ne_peut_rien_conclure(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        payload = b"reponse en chunked"
+        _patch_urlopen(monkeypatch, _FakeResponse(payload, announced_length=None))
+        dest = tmp_path / "archive.tar"
+
+        download.download_to("https://example.invalid/archive.tar", dest)
+
+        assert dest.read_bytes() == payload

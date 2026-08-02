@@ -1,8 +1,10 @@
+import logging
 from pathlib import Path
 
 import pytest
 
 from stalker_gamma_linux import state
+from stalker_gamma_linux.logging_setup import LOGGER_NAME
 
 
 def test_load_state_defaults_to_nothing_done(tmp_path: Path) -> None:
@@ -71,3 +73,52 @@ def test_format_state_lists_every_step(tmp_path: Path) -> None:
     assert "[ TODO ]" in text
     for label in state.STEP_LABELS.values():
         assert label in text
+
+
+class TestCorruptStateFile:
+    """Un état illisible ne doit pas disparaître en silence (re-vérification MD5 inexpliquée)."""
+
+    def _corrupt(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        path = state.state_file()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("ceci n'est pas du TOML [[[", encoding="utf-8")
+        return path
+
+    def test_repart_dun_etat_vide(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        self._corrupt(monkeypatch, tmp_path)
+
+        assert state.load_state(tmp_path / "install") == state.InstallState()
+
+    def test_le_fichier_est_mis_en_quarantaine(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        path = self._corrupt(monkeypatch, tmp_path)
+        original = path.read_text(encoding="utf-8")
+
+        state.load_state(tmp_path / "install")
+
+        quarantined = path.with_suffix(f"{path.suffix}.corrupt")
+        assert quarantined.read_text(encoding="utf-8") == original
+        assert not path.exists()
+
+    def test_lavertissement_est_journalise(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        self._corrupt(monkeypatch, tmp_path)
+
+        with caplog.at_level(logging.WARNING, logger=LOGGER_NAME):
+            state.load_state(tmp_path / "install")
+
+        assert any("unreadable" in record.message for record in caplog.records)
+
+    def test_marquer_une_etape_apres_corruption_repart_proprement(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._corrupt(monkeypatch, tmp_path)
+        target = tmp_path / "install"
+
+        updated = state.mark_done(target, "anomaly")
+
+        assert updated.is_done("anomaly")
+        assert state.load_state(target).is_done("anomaly")

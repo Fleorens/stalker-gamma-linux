@@ -18,6 +18,7 @@ from stalker_gamma_linux.prefix.errors import (
     ChecksumMismatchError,
     PrefixCancelledError,
     ProtonDownloadError,
+    TruncatedDownloadError,
 )
 
 ProgressCallback = Callable[[str], None]
@@ -55,15 +56,27 @@ def download_to(url: str, dest: Path, *, cancel_event: threading.Event | None = 
 
     Équivalent de `shutil.copyfileobj`, mais interruptible : un blocage réseau
     lent ne doit jamais empêcher l'annulation propre depuis la GUI.
+
+    La taille reçue est confrontée au `Content-Length` annoncé quand le serveur
+    en fournit un : une connexion coupée en plein transfert termine la boucle
+    de lecture **sans erreur**, et laissait donc passer un fichier tronqué. Pour
+    Proton-GE le SHA-512 le rattrapait ; pour le zipapp umu, que l'amont ne
+    publie avec aucune somme de contrôle, rien ne le rattrapait.
     """
     with (
         urllib.request.urlopen(url, timeout=_FETCH_TIMEOUT_SECONDS) as response,
         dest.open("wb") as output,
     ):
+        expected = response.headers.get("Content-Length")
+        received = 0
         while chunk := response.read(_DOWNLOAD_CHUNK_BYTES):
             if cancel_event is not None and cancel_event.is_set():
                 raise PrefixCancelledError(_("downloading {url}").format(url=url))
             output.write(chunk)
+            received += len(chunk)
+
+    if expected is not None and expected.isdigit() and received != int(expected):
+        raise TruncatedDownloadError(url, int(expected), received)
 
 
 def _sha512(path: Path) -> str:

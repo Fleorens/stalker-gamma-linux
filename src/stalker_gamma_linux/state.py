@@ -13,6 +13,7 @@ vérité de santé de l'installation (`prefix-doctor`/`doctor` le sont) : si une
 
 from __future__ import annotations
 
+import logging
 import os
 import tomllib
 from dataclasses import dataclass, replace
@@ -22,6 +23,9 @@ from pathlib import Path
 import tomli_w
 
 from stalker_gamma_linux.i18n import _
+from stalker_gamma_linux.logging_setup import LOGGER_NAME
+
+_logger = logging.getLogger(LOGGER_NAME)
 
 STEPS: tuple[str, ...] = ("anomaly", "gamma", "reshade", "prefix", "mo2", "shortcut")
 
@@ -68,14 +72,43 @@ def _target_key(target: Path) -> str:
     return str(target.resolve())
 
 
+def _quarantine_corrupt_state(error: tomllib.TOMLDecodeError) -> None:
+    """Met de côté un `install-state.toml` illisible au lieu de l'écraser en silence.
+
+    Repartir d'un état vide est le bon comportement fonctionnel (une étape
+    perdue est seulement rejouée), mais le prochain `mark_done` réécrit le
+    fichier : sans ce déplacement, la progression de **toutes** les cibles
+    disparaissait sans trace, et l'utilisateur subissait une re-vérification MD5
+    complète du modpack sans savoir pourquoi.
+    """
+    path = state_file()
+    quarantined = path.with_suffix(f"{path.suffix}.corrupt")
+    try:
+        path.replace(quarantined)
+    except OSError as move_error:
+        _logger.warning("could not quarantine corrupt state file %s: %s", path, move_error)
+        return
+    _logger.warning(
+        "state file %s was unreadable (%s); moved to %s and starting from an empty state — "
+        "already-installed steps will simply be replayed",
+        path,
+        error,
+        quarantined,
+    )
+
+
 def _load_raw() -> dict[str, dict[str, object]]:
     try:
         text = state_file().read_text(encoding="utf-8")
-    except OSError:
+    except FileNotFoundError:
+        return {}  # première exécution : absence normale, rien à signaler
+    except OSError as error:
+        _logger.warning("could not read state file %s: %s", state_file(), error)
         return {}
     try:
         data = tomllib.loads(text)
-    except tomllib.TOMLDecodeError:
+    except tomllib.TOMLDecodeError as error:
+        _quarantine_corrupt_state(error)
         return {}
     installs = data.get("installs", {})
     return installs if isinstance(installs, dict) else {}

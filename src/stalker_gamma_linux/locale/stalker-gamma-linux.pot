@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-02 21:29+0200\n"
+"POT-Creation-Date: 2026-08-02 21:39+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -861,6 +861,14 @@ msgstr ""
 
 #, python-brace-format
 msgid ""
+"Truncated download: {received} bytes received out of the {expected} "
+"announced by the server ({url}).\n"
+"→ Connection cut mid-transfer. Retry; if it keeps happening, check your "
+"connection or a proxy sitting in the way."
+msgstr ""
+
+#, python-brace-format
+msgid ""
 "Invalid SHA-512 checksum for {release}: archive rejected and deleted.\n"
 "Expected: {expected}\n"
 "Got:      {actual}\n"
@@ -905,6 +913,22 @@ msgid ""
 "umu-run finished without error but prefix {path} is still not initialized"
 " (system.reg missing).\n"
 "Log: {log}"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Unexpected umu-launcher archive {release}: `{member}` is not an "
+"executable zipapp (missing shebang)."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Corrupted umu-launcher zipapp {release}: unreadable ZIP directory "
+"({error}). The download is probably incomplete — retry."
+msgstr ""
+
+#, python-brace-format
+msgid "Unexpected umu-launcher zipapp {release}: no `__main__.py` entry point."
 msgstr ""
 
 #, python-brace-format

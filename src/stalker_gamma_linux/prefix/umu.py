@@ -7,6 +7,23 @@ L'amont publie en revanche un **zipapp autonome** (~420 Kio, un seul fichier
 dans `~/.local/bin`, exactement ce que la doc amont demande de faire à la
 main. Même pattern que `prefix.download` (Proton-GE) : dernière release via
 l'API GitHub avec repli épinglé, téléchargement interruptible, pose atomique.
+
+**Intégrité — pourquoi pas de SHA-512 ici alors que Proton-GE en a un.**
+L'amont ne publie aucune somme de contrôle : ses releases ne contiennent que
+les `.deb`/`.rpm` et le zipapp, sans fichier `.sha512sum` (vérifié sur la
+release 1.4.4). Il n'y a donc rien contre quoi comparer, et l'absence de
+vérification n'est pas un oubli mais une contrainte amont. Ce qu'on fait à la
+place, parce que c'est ce qui casse réellement en pratique :
+
+- `download_to` recoupe la taille reçue avec le `Content-Length` annoncé —
+  une connexion coupée en plein transfert ne passe plus pour un succès ;
+- `_require_valid_zipapp` exige un `#!` suivi d'une archive ZIP lisible
+  contenant `__main__.py`, au lieu du simple « le fichier n'est pas vide ».
+
+Reste la confiance en HTTPS/GitHub pour l'authenticité, comme pour n'importe
+quel `curl | sh` d'installation amont. Si l'amont se met à publier des sommes
+(ou des attestations d'artefacts), ce module doit les vérifier — même
+traitement que Proton-GE.
 """
 
 from __future__ import annotations
@@ -16,6 +33,7 @@ import re
 import tarfile
 import tempfile
 import threading
+import zipfile
 from pathlib import Path
 
 from stalker_gamma_linux.i18n import _
@@ -42,6 +60,44 @@ _MEMBER_NAME = "umu/umu-run"
 def default_install_dir() -> Path:
     """`~/.local/bin` : sur le PATH par défaut des distributions courantes."""
     return Path.home() / ".local" / "bin"
+
+
+def _require_valid_zipapp(path: Path, release: str) -> str:
+    """Vérifie que `path` est un zipapp exécutable, et retourne son point d'entrée.
+
+    Faute de somme de contrôle amont (cf. docstring du module), c'est notre seul
+    contrôle d'intégrité de contenu : un zipapp est une archive ZIP précédée
+    d'un `#!`, donc un fichier tronqué ou corrompu n'a pas de répertoire central
+    ZIP lisible et ne contient pas `__main__.py`. Bien plus solide que
+    « le fichier existe et n'est pas vide » — et ça évite de poser dans
+    `~/.local/bin` un `umu-run` cassé qui échouerait plus tard, loin d'ici.
+    """
+    with path.open("rb") as stream:
+        shebang = stream.read(2)
+    if shebang != b"#!":
+        raise UmuDownloadError(
+            _(
+                "Unexpected umu-launcher archive {release}: `{member}` is not an "
+                "executable zipapp (missing shebang)."
+            ).format(release=release, member=_MEMBER_NAME)
+        )
+    try:
+        with zipfile.ZipFile(path) as zipapp:
+            names = zipapp.namelist()
+    except zipfile.BadZipFile as error:
+        raise UmuDownloadError(
+            _(
+                "Corrupted umu-launcher zipapp {release}: unreadable ZIP directory "
+                "({error}). The download is probably incomplete — retry."
+            ).format(release=release, error=error)
+        ) from error
+    if "__main__.py" not in names:
+        raise UmuDownloadError(
+            _("Unexpected umu-launcher zipapp {release}: no `__main__.py` entry point.").format(
+                release=release
+            )
+        )
+    return _MEMBER_NAME
 
 
 def resolve_latest_release(*, on_progress: ProgressCallback | None = None) -> str:
@@ -102,6 +158,7 @@ def install_umu(
                         "`{member}` missing or empty after extraction"
                     ).format(release=release, member=_MEMBER_NAME)
                 )
+            _require_valid_zipapp(extracted, release)
             extracted.chmod(0o755)
             extracted.replace(target)
     except tarfile.TarError as error:

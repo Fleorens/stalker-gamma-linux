@@ -1,5 +1,12 @@
 # T09 — Packaging : Flatpak, AppImage
 
+> **⚠ Tâche retirée du projet le 2026-07-26.** Les deux canaux ont été livrés
+> le 2026-07-23 puis supprimés : le sandbox se battait en permanence contre la
+> nature Wine/Proton de l'outil. Seul le canal natif (`install.sh`) reste. Voir
+> docs/ARCHITECTURE.md « Packaging : Flatpak/AppImage retirés » et docs/CI.md.
+> Cette fiche est conservée comme archive de la décision — elle ne décrit plus
+> l'état du dépôt (il n'y a plus de répertoire `packaging/`).
+
 **Modèle recommandé : Sonnet 5.**
 **Dépendances : T07 (T08 pour le Flatpak GUI).**
 

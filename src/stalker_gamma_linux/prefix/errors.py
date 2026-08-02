@@ -56,6 +56,23 @@ class UmuDownloadError(PrefixError):
     """Le téléchargement/la pose du zipapp umu-launcher a échoué (`prefix.umu`)."""
 
 
+class TruncatedDownloadError(PrefixError):
+    """Le transfert s'est terminé avant le `Content-Length` annoncé par le serveur."""
+
+    def __init__(self, url: str, expected: int, received: int) -> None:
+        self.url = url
+        self.expected = expected
+        self.received = received
+        super().__init__(
+            _(
+                "Truncated download: {received} bytes received out of the {expected} "
+                "announced by the server ({url}).\n"
+                "→ Connection cut mid-transfer. Retry; if it keeps happening, "
+                "check your connection or a proxy sitting in the way."
+            ).format(url=url, expected=expected, received=received)
+        )
+
+
 class ProtonDownloadError(PrefixError):
     """Le téléchargement ou l'extraction de Proton-GE a échoué."""
 
