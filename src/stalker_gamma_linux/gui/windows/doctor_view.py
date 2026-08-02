@@ -29,6 +29,7 @@ from stalker_gamma_linux.environment.plan import (  # noqa: E402
 from stalker_gamma_linux.gui.summary import summarize  # noqa: E402
 from stalker_gamma_linux.gui.windows.background import wrap_with_background  # noqa: E402
 from stalker_gamma_linux.i18n import _  # noqa: E402
+from stalker_gamma_linux.report_bundle import build_bundle  # noqa: E402
 
 
 class DoctorPage(Adw.NavigationPage):
@@ -57,8 +58,17 @@ class DoctorPage(Adw.NavigationPage):
             icon_name="view-refresh-symbolic", tooltip_text=_("Refresh")
         )
         self._refresh_button.connect("clicked", lambda _b: self._start_refresh())
+        # C'est ici que l'utilisateur constate qu'un prérequis cloche : c'est
+        # donc ici que doit se trouver le bouton qui produit le rapport à
+        # joindre à une issue, pas seulement dans la CLI.
+        self._report_button = Gtk.Button(
+            icon_name="document-save-symbolic",
+            tooltip_text=_("Save a diagnostic report to attach to an issue"),
+        )
+        self._report_button.connect("clicked", lambda _b: self._save_report())
         header_bar = Adw.HeaderBar()
         header_bar.pack_end(self._refresh_button)
+        header_bar.pack_end(self._report_button)
 
         toolbar_view = Adw.ToolbarView()
         toolbar_view.add_top_bar(header_bar)
@@ -234,6 +244,23 @@ class DoctorPage(Adw.NavigationPage):
             return
         display.get_clipboard().set(text)
         self._show_toast(_("Command copied to clipboard"))
+
+    def _save_report(self) -> None:
+        """Écrit le rapport de diagnostic dans le home, et annonce son chemin.
+
+        Pas de sélecteur de fichier : l'utilisateur qui clique ici a un problème
+        et veut un fichier à joindre, pas une boîte de dialogue de plus. Le
+        chemin est affiché dans le toast — et le rapport est anonymisé.
+        """
+        destination = Path.home() / "stalker-gamma-linux-report.txt"
+        try:
+            destination.write_text(
+                build_bundle(doctor.build_full_report(self._target)), encoding="utf-8"
+            )
+        except OSError as error:
+            self._show_toast(_("Could not write the report: {error}").format(error=error))
+            return
+        self._show_toast(_("Report saved to {path}").format(path=destination))
 
 
 def _status_icon(status: Status) -> Gtk.Image:

@@ -115,7 +115,15 @@ stalker-gamma-linux mo2                          # open Mod Organizer 2 itself (
 stalker-gamma-linux update                       # update the modpack, re-verify, remove ReShade again if needed
 stalker-gamma-linux shortcut                     # (re)create the .desktop menu entry
 stalker-gamma-linux prefix-doctor --repair        # repair the shared Proton prefix in place
+stalker-gamma-linux uninstall                    # remove shortcuts/settings/logs (keeps the game)
+stalker-gamma-linux doctor --report              # write a report to attach to an issue
 ```
+
+**Reporting a problem?** Run `stalker-gamma-linux doctor --report` (or click the
+save icon in the GUI's Diagnostic view). It writes a single file with your
+prerequisites, prefix state, installed Proton builds and the end of the log,
+with paths anonymized to `~` — attach that to the issue and skip the
+back-and-forth.
 
 Every command has `--help`. `install` is resumable: interrupt it (Ctrl-C) and
 rerun the same command — steps already completed (tracked in

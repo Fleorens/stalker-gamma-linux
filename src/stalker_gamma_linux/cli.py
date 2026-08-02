@@ -16,6 +16,7 @@ from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
 from stalker_gamma_linux.orchestrator import CANCELLED_EXIT_CODE, run_install, run_update
 from stalker_gamma_linux.prefix import run_prefix_doctor
 from stalker_gamma_linux.prefix.umu import run_install_umu
+from stalker_gamma_linux.report_bundle import run_report
 from stalker_gamma_linux.uninstall import run_uninstall
 
 _logger = logging.getLogger(logging_setup.LOGGER_NAME)
@@ -64,6 +65,19 @@ def build_parser() -> argparse.ArgumentParser:
         help=_("Full report: system prerequisites + prefix status + install status"),
     )
     doctor_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
+    doctor_parser.add_argument(
+        "--report",
+        nargs="?",
+        const=Path("stalker-gamma-linux-report.txt"),
+        type=Path,
+        default=None,
+        metavar="FILE",
+        help=_(
+            "Writes a full diagnostic report to attach to an issue "
+            "(prerequisites + prefix + end of log, paths anonymized). "
+            "Without a filename: stalker-gamma-linux-report.txt. Use `-` for stdout"
+        ),
+    )
 
     prefix_doctor_parser = subparsers.add_parser(
         "prefix-doctor",
@@ -152,6 +166,10 @@ def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "update":
         return run_update(args.target)
     if args.command == "doctor":
+        if args.report is not None:
+            # `-` = sortie standard, pour un `| xclip` ou une redirection.
+            destination = None if str(args.report) == "-" else args.report
+            return run_report(args.target, destination)
         return run_doctor(args.target)
     if args.command == "prefix-doctor":
         return run_prefix_doctor(args.target, repair=args.repair)

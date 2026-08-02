@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-02 22:38+0200\n"
+"POT-Creation-Date: 2026-08-02 22:41+0200\n"
 "PO-Revision-Date: 2026-07-26 10:23+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -57,6 +57,15 @@ msgid "Full report: system prerequisites + prefix status + install status"
 msgstr ""
 "Rapport complet : prérequis système + état du préfixe + état de "
 "l'installation"
+
+msgid ""
+"Writes a full diagnostic report to attach to an issue (prerequisites + "
+"prefix + end of log, paths anonymized). Without a filename: stalker-"
+"gamma-linux-report.txt. Use `-` for stdout"
+msgstr ""
+"Écrit un rapport de diagnostic complet à joindre à une issue (prérequis + "
+"préfixe + fin du journal, chemins anonymisés). Sans nom de fichier : "
+"stalker-gamma-linux-report.txt. `-` pour la sortie standard"
 
 msgid "Checks the shared Proton prefix status (Proton, verbs, DXVK)"
 msgstr "Vérifie l'état du préfixe Proton partagé (Proton, verbs, DXVK)"
@@ -232,6 +241,52 @@ msgstr "(déjà fait — reprise)"
 msgid "Error"
 msgstr "Erreur"
 
+msgid "unknown (not installed as a package)"
+msgstr "inconnue (pas installé en tant que paquet)"
+
+#, python-brace-format
+msgid "(no log file at {path})"
+msgstr "(aucun fichier de journal dans {path})"
+
+msgid "(log file is empty)"
+msgstr "(le fichier de journal est vide)"
+
+msgid "(no Proton build found)"
+msgstr "(aucun build Proton trouvé)"
+
+msgid "Report"
+msgstr "Rapport"
+
+msgid "Proton builds installed"
+msgstr "Builds Proton installés"
+
+msgid "GAMMA detected on disk"
+msgstr "GAMMA détecté sur le disque"
+
+msgid "yes"
+msgstr "oui"
+
+msgid "no"
+msgstr "non"
+
+#, python-brace-format
+msgid "Log (last {count} lines)"
+msgstr "Journal ({count} dernières lignes)"
+
+#, python-brace-format
+msgid "Could not write the report to {path}: {error}"
+msgstr "Impossible d'écrire le rapport dans {path} : {error}"
+
+#, python-brace-format
+msgid ""
+"Diagnostic report written to {path}\n"
+"Attach it to your issue: it contains the prerequisites, the prefix state "
+"and the end of the log. Paths are anonymized (~)."
+msgstr ""
+"Rapport de diagnostic écrit dans {path}\n"
+"Joins-le à ton issue : il contient les prérequis, l'état du préfixe et la "
+"fin du journal. Les chemins sont anonymisés (~)."
+
 msgid "Anomaly (base game)"
 msgstr "Anomaly (jeu de base)"
 
@@ -320,8 +375,8 @@ msgid ""
 "  rm -rf ~/.local/share/stalker-gamma-linux"
 msgstr ""
 "\n"
-"L'environnement Python lui-même (~/.local/share/stalker-gamma-linux/venv) "
-"est toujours là — cette commande tourne depuis lui. Retire-le avec :\n"
+"L'environnement Python lui-même (~/.local/share/stalker-gamma-linux/venv)"
+" est toujours là — cette commande tourne depuis lui. Retire-le avec :\n"
 "  rm -rf ~/.local/share/stalker-gamma-linux"
 
 msgid "Play GAMMA (direct)"
@@ -588,6 +643,9 @@ msgstr "Installer"
 msgid "Refresh"
 msgstr "Réactualiser"
 
+msgid "Save a diagnostic report to attach to an issue"
+msgstr "Enregistrer un rapport de diagnostic à joindre à une issue"
+
 msgid "Diagnostic"
 msgstr "Diagnostic"
 
@@ -635,6 +693,14 @@ msgstr "Copier la commande"
 
 msgid "Command copied to clipboard"
 msgstr "Commande copiée dans le presse-papiers"
+
+#, python-brace-format
+msgid "Could not write the report: {error}"
+msgstr "Impossible d'écrire le rapport : {error}"
+
+#, python-brace-format
+msgid "Report saved to {path}"
+msgstr "Rapport enregistré dans {path}"
 
 msgid "Analyzing system…"
 msgstr "Analyse du système…"
