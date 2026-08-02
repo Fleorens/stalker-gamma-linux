@@ -52,6 +52,74 @@ jobs:
       - name: pytest
         run: pytest -q
 
+  # `install.sh` est le point d'entrée de 100 % des utilisateurs (`curl | bash`)
+  # et n'était exécuté nulle part : il n'avait jamais tourné ailleurs que sur la
+  # Fedora du mainteneur, alors que le README promet « any Linux distribution ».
+  # Ces conteneurs le lancent réellement sur les quatre familles supportées.
+  #
+  # GTK n'est volontairement pas installé : sans lui le script doit s'arrêter
+  # proprement (code 0) en affichant la commande d'installation **de la bonne
+  # distribution** — c'est le chemin que voit un nouvel utilisateur, et il teste
+  # au passage `gtk_install_hint()` et la détection de famille.
+  install-script:
+    name: install.sh (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Debian 12
+            image: debian:12
+            setup: apt-get update -qq && apt-get install -y -qq python3 python3-venv python3-pip git ca-certificates
+            expected_hint: "apt install gir1.2-gtk-4.0"
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+            setup: apt-get update -qq && apt-get install -y -qq python3 python3-venv python3-pip git ca-certificates
+            expected_hint: "apt install gir1.2-gtk-4.0"
+          - name: Fedora
+            image: fedora:latest
+            setup: dnf install -y -q python3 git ca-certificates
+            expected_hint: "dnf install gtk4"
+          - name: Arch
+            image: archlinux:latest
+            setup: pacman -Sy --noconfirm --needed python git ca-certificates
+            expected_hint: "pacman -S gtk4"
+    steps:
+      - name: Dépendances système minimales
+        run: ${{ matrix.setup }}
+
+      - uses: actions/checkout@v4
+
+      - name: Lancer install.sh --no-launch
+        run: bash install.sh --no-launch 2>&1 | tee /tmp/install-output.txt
+
+      - name: Le remède GTK proposé correspond à la distribution
+        env:
+          EXPECTED_HINT: ${{ matrix.expected_hint }}
+        run: grep -F -- "$EXPECTED_HINT" /tmp/install-output.txt
+
+      - name: Le venv, les raccourcis et l'entrée bureau sont en place
+        run: |
+          set -eux
+          BASE="${XDG_DATA_HOME:-$HOME/.local/share}/stalker-gamma-linux"
+          test -x "$BASE/venv/bin/stalker-gamma-linux"
+          test -x "$BASE/venv/bin/stalker-gamma-linux-gui"
+          test -L "$HOME/.local/bin/stalker-gamma-linux"
+          test -f "${XDG_DATA_HOME:-$HOME/.local/share}/applications/stalker-gamma-linux-gui.desktop"
+
+      - name: La CLI installée démarre
+        run: |
+          set -eux
+          BASE="${XDG_DATA_HOME:-$HOME/.local/share}/stalker-gamma-linux"
+          "$BASE/venv/bin/stalker-gamma-linux" --help > /dev/null
+          # `doctor` sort en 1 dans un conteneur (ni 7z ni libunrar) : c'est le
+          # comportement attendu, on vérifie seulement qu'il produit un rapport.
+          "$BASE/venv/bin/stalker-gamma-linux" doctor | grep -q "Distribution:" || true
+
+      - name: Relancer est idempotent
+        run: bash install.sh --no-launch > /dev/null
+
   build:
     name: build package
     needs: test

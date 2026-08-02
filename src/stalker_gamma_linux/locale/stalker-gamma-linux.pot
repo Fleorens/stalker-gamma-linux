@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-02 22:01+0200\n"
+"POT-Creation-Date: 2026-08-02 22:33+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -729,6 +729,18 @@ msgstr ""
 msgid "expected an absolute Linux path, got: {path!r}"
 msgstr ""
 
+msgid "absolute path"
+msgstr ""
+
+msgid "path escaping the destination directory"
+msgstr ""
+
+msgid "link pointing outside the destination directory"
+msgstr ""
+
+msgid "special file (device, FIFO, …)"
+msgstr ""
+
 msgid ""
 "Install umu-launcher (see `stalker-gamma-linux doctor`); manual fallback:"
 " protontricks, docs/INSTALL-MANUAL.md §6.1-6.2"
@@ -857,6 +869,13 @@ msgid ""
 " doctor` for the command for your distribution). Manual fallback: "
 "protontricks on an existing Steam entry, documented in docs/INSTALL-"
 "MANUAL.md §6.1-6.2."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Archive rejected: entry `{member}` is unsafe ({reason}).\n"
+"→ This archive tries to write outside the target directory. Nothing was "
+"extracted. Report the issue if it comes from an official release."
 msgstr ""
 
 #, python-brace-format

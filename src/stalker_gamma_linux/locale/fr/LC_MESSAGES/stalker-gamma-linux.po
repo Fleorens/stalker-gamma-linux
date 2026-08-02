@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-02 22:01+0200\n"
+"POT-Creation-Date: 2026-08-02 22:33+0200\n"
 "PO-Revision-Date: 2026-07-26 10:23+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -872,6 +872,18 @@ msgstr "Lancement de l'installation flat…"
 msgid "expected an absolute Linux path, got: {path!r}"
 msgstr "chemin Linux absolu attendu, reçu : {path!r}"
 
+msgid "absolute path"
+msgstr "chemin absolu"
+
+msgid "path escaping the destination directory"
+msgstr "chemin sortant du répertoire de destination"
+
+msgid "link pointing outside the destination directory"
+msgstr "lien pointant hors du répertoire de destination"
+
+msgid "special file (device, FIFO, …)"
+msgstr "fichier spécial (périphérique, FIFO, …)"
+
 msgid ""
 "Install umu-launcher (see `stalker-gamma-linux doctor`); manual fallback:"
 " protontricks, docs/INSTALL-MANUAL.md §6.1-6.2"
@@ -1021,6 +1033,16 @@ msgstr ""
 "gamma-linux doctor` pour la commande adaptée à ta distribution). Voie de "
 "secours manuelle : protontricks sur une entrée Steam existante, "
 "documentée dans docs/INSTALL-MANUAL.md §6.1-6.2."
+
+#, python-brace-format
+msgid ""
+"Archive rejected: entry `{member}` is unsafe ({reason}).\n"
+"→ This archive tries to write outside the target directory. Nothing was "
+"extracted. Report the issue if it comes from an official release."
+msgstr ""
+"Archive rejetée : l'entrée `{member}` est dangereuse ({reason}).\n"
+"→ Cette archive tente d'écrire hors du répertoire cible. Rien n'a été "
+"extrait. Signale le problème si elle provient d'une release officielle."
 
 #, python-brace-format
 msgid ""

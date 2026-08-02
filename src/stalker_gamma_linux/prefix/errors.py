@@ -56,6 +56,22 @@ class UmuDownloadError(PrefixError):
     """Le téléchargement/la pose du zipapp umu-launcher a échoué (`prefix.umu`)."""
 
 
+class UnsafeArchiveError(PrefixError):
+    """Une archive téléchargée contient un membre qui sortirait du répertoire cible."""
+
+    def __init__(self, member: str, reason: str) -> None:
+        self.member = member
+        self.reason = reason
+        super().__init__(
+            _(
+                "Archive rejected: entry `{member}` is unsafe ({reason}).\n"
+                "→ This archive tries to write outside the target directory. "
+                "Nothing was extracted. Report the issue if it comes from an "
+                "official release."
+            ).format(member=member, reason=reason)
+        )
+
+
 class TruncatedDownloadError(PrefixError):
     """Le transfert s'est terminé avant le `Content-Length` annoncé par le serveur."""
 

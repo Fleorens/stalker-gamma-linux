@@ -37,6 +37,7 @@ import zipfile
 from pathlib import Path
 
 from stalker_gamma_linux.i18n import _
+from stalker_gamma_linux.prefix.archive import safe_extractall
 from stalker_gamma_linux.prefix.download import (
     ProgressCallback,
     download_to,
@@ -149,7 +150,7 @@ def install_umu(
             progress(_("Downloading umu-launcher {release}…").format(release=release))
             download_to(archive_url, archive, cancel_event=cancel_event)
             with tarfile.open(archive) as tar:
-                tar.extractall(Path(tmp), filter="data")
+                safe_extractall(tar, Path(tmp))
             extracted = Path(tmp) / _MEMBER_NAME
             if not extracted.is_file() or extracted.stat().st_size == 0:
                 raise UmuDownloadError(
