@@ -252,3 +252,32 @@ class TestDownloadToTruncation:
         download.download_to("https://example.invalid/archive.tar", dest)
 
         assert dest.read_bytes() == payload
+
+
+class TestChecksumValidation:
+    """La somme de référence doit être un vrai digest, sinon on accuse la mauvaise pièce."""
+
+    @pytest.mark.parametrize(
+        ("contenu", "cas"),
+        [
+            ("z" * 128, "128 caractères non hexadécimaux"),
+            ("<html>page d'erreur</html>", "page HTML au lieu du fichier"),
+            ("", "réponse vide"),
+            ("a" * 127, "digest trop court"),
+        ],
+    )
+    def test_somme_illisible_designe_le_fichier_de_reference(
+        self, contenu: str, cas: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(download, "read_remote_text", lambda url: contenu)
+
+        with pytest.raises(ProtonDownloadError, match="checksum file"):
+            download._remote_checksum(RELEASE)
+
+    def test_digest_valide_accepte_et_normalise(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        digest = "AB" * 64  # majuscules : sha512sum les accepte, hexdigest() les sort en minuscules
+        monkeypatch.setattr(
+            download, "read_remote_text", lambda url: f"{digest}  {RELEASE}.tar.gz\n"
+        )
+
+        assert download._remote_checksum(RELEASE) == digest.lower()

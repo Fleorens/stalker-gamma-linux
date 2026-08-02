@@ -38,6 +38,7 @@ _FETCH_TIMEOUT_SECONDS = 30
 _HASH_CHUNK_BYTES = 1024 * 1024
 _DOWNLOAD_CHUNK_BYTES = 1024 * 1024
 _SHA512_HEX_LENGTH = 128
+_SHA512_HEX_RE = re.compile(rf"^[0-9a-fA-F]{{{_SHA512_HEX_LENGTH}}}$")
 
 
 def _default_install_dir() -> Path:
@@ -88,13 +89,21 @@ def _sha512(path: Path) -> str:
 
 
 def _remote_checksum(release: str) -> str:
+    """Somme SHA-512 publiée pour `release`, validée comme un vrai digest hexadécimal.
+
+    Contrôler la seule longueur laissait passer n'importe quels 128 caractères
+    (une page d'erreur HTML tronquée, par exemple) : la comparaison échouait
+    ensuite en `ChecksumMismatchError`, qui accuse l'archive téléchargée alors
+    que c'est la somme de référence qui est illisible. Le message doit désigner
+    le vrai coupable.
+    """
     url = f"{_RELEASE_BASE_URL}/{release}/{release}.sha512sum"
     tokens = read_remote_text(url).split()
-    if not tokens or len(tokens[0]) != _SHA512_HEX_LENGTH:
+    if not tokens or not _SHA512_HEX_RE.match(tokens[0]):
         raise ProtonDownloadError(
             _("Unreadable checksum file for {release} ({url})").format(release=release, url=url)
         )
-    return tokens[0]
+    return tokens[0].lower()
 
 
 def resolve_latest_ge_release(*, on_progress: ProgressCallback | None = None) -> str:

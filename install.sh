@@ -76,12 +76,26 @@ else
     command -v git >/dev/null 2>&1 || die "git introuvable (nécessaire pour récupérer le dépôt)."
     SRC_DIR="$APP_DATA_DIR/src"
     if [ -d "$SRC_DIR/.git" ]; then
+        # `pull --ff-only` échouait dès que l'amont avait été rebasé ou
+        # force-pushé : l'historique tronqué d'un clone --depth 1 n'a alors
+        # aucun ancêtre commun, et `set -e` arrêtait net le script en laissant
+        # l'utilisateur bloqué sans remède. Ce miroir appartient à l'outil et
+        # ne contient jamais de commit local : on se réaligne sur l'amont sans
+        # état d'âme, et on re-clone proprement si même ça échoue.
         log "Mise à jour du dépôt sous $SRC_DIR…"
-        git -C "$SRC_DIR" pull --ff-only
+        BRANCH="$(git -C "$SRC_DIR" symbolic-ref --short HEAD 2>/dev/null || echo main)"
+        if ! { git -C "$SRC_DIR" fetch --depth 1 origin "$BRANCH" >/dev/null 2>&1 &&
+               git -C "$SRC_DIR" reset --hard FETCH_HEAD >/dev/null 2>&1; }; then
+            warn "Mise à jour impossible — re-clonage propre du dépôt…"
+            rm -rf "$SRC_DIR"
+            git clone --depth 1 "$REPO_URL" "$SRC_DIR" \
+                || die "Clonage de $REPO_URL impossible (réseau ? dépôt inaccessible ?)."
+        fi
     else
         log "Clonage de $REPO_URL sous $SRC_DIR…"
         mkdir -p "$APP_DATA_DIR"
-        git clone --depth 1 "$REPO_URL" "$SRC_DIR"
+        git clone --depth 1 "$REPO_URL" "$SRC_DIR" \
+            || die "Clonage de $REPO_URL impossible (réseau ? dépôt inaccessible ?)."
     fi
 fi
 
