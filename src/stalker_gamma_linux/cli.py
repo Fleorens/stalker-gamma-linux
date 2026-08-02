@@ -16,6 +16,7 @@ from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
 from stalker_gamma_linux.orchestrator import CANCELLED_EXIT_CODE, run_install, run_update
 from stalker_gamma_linux.prefix import run_prefix_doctor
 from stalker_gamma_linux.prefix.umu import run_install_umu
+from stalker_gamma_linux.uninstall import run_uninstall
 
 _logger = logging.getLogger(logging_setup.LOGGER_NAME)
 
@@ -111,6 +112,29 @@ def build_parser() -> argparse.ArgumentParser:
     )
     shortcut_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
 
+    uninstall_parser = subparsers.add_parser(
+        "uninstall",
+        help=_("Removes shortcuts, settings, state and logs (keeps the game by default)"),
+    )
+    uninstall_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
+    uninstall_parser.add_argument(
+        "--game-data",
+        action="store_true",
+        help=_(
+            "Also deletes the install directory (Anomaly, mods, cache, Proton "
+            "prefix): ~{total} GiB and your saves. Irreversible"
+        ).format(total=sizing.TOTAL_INSTALL_GIB),
+    )
+    uninstall_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=_("Shows exactly what would be removed, without deleting anything"),
+    )
+    # Contrat interne avec `install.sh --uninstall`, qui retire le venv lui-même
+    # juste après nous : sans ça on lui conseillerait de supprimer à la main un
+    # répertoire déjà parti. Masqué de l'aide, ce n'est pas un choix utilisateur.
+    uninstall_parser.add_argument("--no-venv-hint", action="store_true", help=argparse.SUPPRESS)
+
     subparsers.add_parser(
         "install-umu",
         help=_(
@@ -144,6 +168,13 @@ def _dispatch(args: argparse.Namespace) -> int:
         return run_shortcut(args.target)
     if args.command == "install-umu":
         return run_install_umu()
+    if args.command == "uninstall":
+        return run_uninstall(
+            args.target,
+            game_data=args.game_data,
+            dry_run=args.dry_run,
+            venv_hint=not args.no_venv_hint,
+        )
     raise AssertionError(f"unknown command: {args.command}")
 
 

@@ -59,6 +59,24 @@ install target, download/install, then Play. Already have a checkout?
 `./install.sh` does the same without cloning; `--no-launch` sets everything up
 without opening the window.
 
+### Uninstall
+
+```sh
+~/.local/share/stalker-gamma-linux/src/install.sh --uninstall   # or ./install.sh --uninstall from a checkout
+```
+
+Removes the venv, both commands, the menu entry, the icon, your settings and
+the logs. **Your game install is never touched** — the script tells you where
+it is so you can delete it yourself. To remove it too, in one step:
+
+```sh
+stalker-gamma-linux uninstall --game-data    # irreversible: Anomaly, mods, cache, prefix and saves
+stalker-gamma-linux uninstall --dry-run      # shows exactly what would go, deletes nothing
+```
+
+`umu-run` is deliberately left in place: it is a general-purpose launcher that
+other games may rely on.
+
 Running **natively** (not sandboxed) is deliberate: this tool orchestrates your
 system's Wine/Proton, umu, libunrar, Steam and 32-bit stack — the native GUI
 uses them directly, with none of the bundling/sandbox workarounds a Wine

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-02 22:33+0200\n"
+"POT-Creation-Date: 2026-08-02 22:38+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -72,6 +72,18 @@ msgid "Doesn't run the USVFS diagnostic after launch"
 msgstr ""
 
 msgid "Creates/updates the desktop shortcut (.desktop + icon, application menu)"
+msgstr ""
+
+msgid "Removes shortcuts, settings, state and logs (keeps the game by default)"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Also deletes the install directory (Anomaly, mods, cache, Proton prefix):"
+" ~{total} GiB and your saves. Irreversible"
+msgstr ""
+
+msgid "Shows exactly what would be removed, without deleting anything"
 msgstr ""
 
 msgid ""
@@ -203,6 +215,59 @@ msgid "[ OK ]"
 msgstr ""
 
 msgid "[ TODO ]"
+msgstr ""
+
+msgid "desktop entry (« Play GAMMA (direct) »)"
+msgstr ""
+
+msgid "desktop entry (« GAMMA Linux Launcher »)"
+msgstr ""
+
+msgid "application icon"
+msgstr ""
+
+msgid "launcher icon"
+msgstr ""
+
+msgid "`stalker-gamma-linux` command"
+msgstr ""
+
+msgid "`stalker-gamma-linux-gui` command"
+msgstr ""
+
+msgid "settings and install state"
+msgstr ""
+
+msgid "logs"
+msgstr ""
+
+msgid "game data (Anomaly, mods, cache, Proton prefix)"
+msgstr ""
+
+msgid "The following will be removed:"
+msgstr ""
+
+msgid "Nothing to remove — already clean."
+msgstr ""
+
+msgid "Removed:"
+msgstr ""
+
+msgid "Dry run — nothing will be deleted."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"\n"
+"Game data was kept: {root}\n"
+"Remove it with `--game-data`, or delete that directory by hand."
+msgstr ""
+
+msgid ""
+"\n"
+"The Python environment itself (~/.local/share/stalker-gamma-linux/venv) "
+"is still there — this command runs from it. Remove it with:\n"
+"  rm -rf ~/.local/share/stalker-gamma-linux"
 msgstr ""
 
 msgid "Play GAMMA (direct)"

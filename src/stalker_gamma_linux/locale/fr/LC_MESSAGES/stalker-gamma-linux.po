@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-02 22:33+0200\n"
+"POT-Creation-Date: 2026-08-02 22:38+0200\n"
 "PO-Revision-Date: 2026-07-26 10:23+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -88,6 +88,22 @@ msgstr "N'exécute pas le diagnostic USVFS après le lancement"
 
 msgid "Creates/updates the desktop shortcut (.desktop + icon, application menu)"
 msgstr "Crée/actualise le raccourci bureau (.desktop + icône, menu applications)"
+
+msgid "Removes shortcuts, settings, state and logs (keeps the game by default)"
+msgstr ""
+"Retire les raccourcis, réglages, état et journaux (conserve le jeu par "
+"défaut)"
+
+#, python-brace-format
+msgid ""
+"Also deletes the install directory (Anomaly, mods, cache, Proton prefix):"
+" ~{total} GiB and your saves. Irreversible"
+msgstr ""
+"Supprime aussi le répertoire d'installation (Anomaly, mods, cache, "
+"préfixe Proton) : ~{total} Gio et tes sauvegardes. Irréversible"
+
+msgid "Shows exactly what would be removed, without deleting anything"
+msgstr "Affiche exactement ce qui serait retiré, sans rien supprimer"
 
 msgid ""
 "Installs umu-launcher (official zipapp ~420 KiB) into ~/.local/bin — no "
@@ -247,6 +263,66 @@ msgstr "[ OK ]"
 
 msgid "[ TODO ]"
 msgstr "[ A FAIRE ]"
+
+msgid "desktop entry (« Play GAMMA (direct) »)"
+msgstr "entrée bureau (« Jouer à GAMMA (direct) »)"
+
+msgid "desktop entry (« GAMMA Linux Launcher »)"
+msgstr "entrée bureau (« Lanceur GAMMA (Linux) »)"
+
+msgid "application icon"
+msgstr "icône de l'application"
+
+msgid "launcher icon"
+msgstr "icône du launcher"
+
+msgid "`stalker-gamma-linux` command"
+msgstr "commande `stalker-gamma-linux`"
+
+msgid "`stalker-gamma-linux-gui` command"
+msgstr "commande `stalker-gamma-linux-gui`"
+
+msgid "settings and install state"
+msgstr "réglages et état d'installation"
+
+msgid "logs"
+msgstr "journaux"
+
+msgid "game data (Anomaly, mods, cache, Proton prefix)"
+msgstr "données de jeu (Anomaly, mods, cache, préfixe Proton)"
+
+msgid "The following will be removed:"
+msgstr "Les éléments suivants vont être retirés :"
+
+msgid "Nothing to remove — already clean."
+msgstr "Rien à retirer — déjà propre."
+
+msgid "Removed:"
+msgstr "Retiré :"
+
+msgid "Dry run — nothing will be deleted."
+msgstr "Simulation — rien ne sera supprimé."
+
+#, python-brace-format
+msgid ""
+"\n"
+"Game data was kept: {root}\n"
+"Remove it with `--game-data`, or delete that directory by hand."
+msgstr ""
+"\n"
+"Les données de jeu ont été conservées : {root}\n"
+"Supprime-les avec `--game-data`, ou efface ce répertoire à la main."
+
+msgid ""
+"\n"
+"The Python environment itself (~/.local/share/stalker-gamma-linux/venv) "
+"is still there — this command runs from it. Remove it with:\n"
+"  rm -rf ~/.local/share/stalker-gamma-linux"
+msgstr ""
+"\n"
+"L'environnement Python lui-même (~/.local/share/stalker-gamma-linux/venv) "
+"est toujours là — cette commande tourne depuis lui. Retire-le avec :\n"
+"  rm -rf ~/.local/share/stalker-gamma-linux"
 
 msgid "Play GAMMA (direct)"
 msgstr "Jouer à GAMMA (direct)"

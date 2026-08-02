@@ -28,16 +28,40 @@ warn() { printf '\033[1;33m%s\033[0m\n' "$*"; }
 die() { printf '\033[1;31mErreur :\033[0m %s\n' "$*" >&2; exit 1; }
 
 NO_LAUNCH=0
+UNINSTALL=0
 for arg in "$@"; do
     case "$arg" in
         --no-launch) NO_LAUNCH=1 ;;
+        --uninstall) UNINSTALL=1 ;;
         -h | --help)
-            printf 'Usage : install.sh [--no-launch]\n'
+            printf 'Usage : install.sh [--no-launch] [--uninstall]\n'
             printf '  monte le venv + le raccourci, puis lance la GUI (sauf --no-launch).\n'
+            printf '  --uninstall retire tout ce que ce script a posé (le jeu est conservé).\n'
             exit 0
             ;;
     esac
 done
+
+# Désinstallation : on délègue d'abord à la CLI (raccourcis, réglages, état,
+# journaux — elle sait exactement ce qu'elle a écrit), puis on retire le venv,
+# que la CLI ne peut pas supprimer puisqu'elle tourne depuis lui. Les données de
+# jeu ne sont jamais touchées ici : `stalker-gamma-linux uninstall --game-data`
+# est le seul chemin qui les efface, et il faut le demander explicitement.
+if [ "$UNINSTALL" -eq 1 ]; then
+    if [ -x "$VENV_DIR/bin/stalker-gamma-linux" ]; then
+        "$VENV_DIR/bin/stalker-gamma-linux" uninstall --no-venv-hint || \
+            warn "Le nettoyage par la CLI a échoué — on retire quand même le venv."
+    else
+        warn "Aucune installation détectée sous $VENV_DIR — nettoyage des raccourcis seulement."
+        rm -f "$LOCAL_BIN/stalker-gamma-linux" "$LOCAL_BIN/stalker-gamma-linux-gui"
+        rm -f "$APPLICATIONS_DIR/stalker-gamma-linux-gui.desktop"
+    fi
+    rm -rf "$APP_DATA_DIR"
+    command -v update-desktop-database >/dev/null 2>&1 && \
+        update-desktop-database "$APPLICATIONS_DIR" >/dev/null 2>&1 || true
+    log "Désinstallation terminée. Les données de jeu, elles, sont intactes."
+    exit 0
+fi
 
 # Commande d'installation du stack GTK selon la distribution (le seul prérequis
 # système de la GUI native ; PyGObject n'a pas de roue pip, il vient du paquet
