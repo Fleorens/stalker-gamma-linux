@@ -54,7 +54,8 @@ class HeroBox(Gtk.Box):
         self._subtitle.add_css_class("hero-subtitle")
         self.append(self._subtitle)
 
-        self._chip_spinner = Adw.Spinner()
+        # Voir `doctor_view` : `Adw.Spinner` exige libadwaita 1.6, Ubuntu 24.04 a 1.5.
+        self._chip_spinner = Gtk.Spinner(spinning=True)
         self._chip_label = Gtk.Label(label=_("Analyzing system…"))
         chip_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         chip_content.append(self._chip_spinner)

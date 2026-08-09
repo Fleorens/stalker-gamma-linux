@@ -38,7 +38,11 @@ class DoctorPage(Adw.NavigationPage):
         self._show_toast = show_toast
         self._groups: list[Adw.PreferencesGroup] = []
 
-        self._spinner = Adw.Spinner()
+        # `Gtk.Spinner` et non `Adw.Spinner` : ce dernier n'existe qu'à partir de
+        # libadwaita 1.6, alors qu'Ubuntu 24.04 livre 1.5. Le rendu est un peu
+        # moins joli, mais la vue Diagnostic — celle qu'on ouvre justement quand
+        # quelque chose ne va pas — cessait purement et simplement de s'ouvrir.
+        self._spinner = Gtk.Spinner(spinning=True)
         self._spinner.set_size_request(48, 48)
         spinner_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,

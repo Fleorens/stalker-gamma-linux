@@ -15,6 +15,12 @@ from stalker_gamma_linux.i18n import _
 # ⚠ À VALIDER : seuil indicatif (support Flatpak/shortcuts non-Steam robuste).
 MIN_PROTONTRICKS_VERSION = (1, 10)
 
+# La GUI s'appuie sur `Adw.Dialog`, `Adw.AlertDialog` et `Adw.AboutDialog`,
+# tous apparus en libadwaita 1.5. Constaté en CI : Debian 12 livre 1.2 et la
+# fenêtre échouait sur une `AttributeError` brute. Ubuntu 24.04 a 1.5 — d'où le
+# remplacement d'`Adw.Spinner` (1.6) par `Gtk.Spinner` dans les vues.
+MIN_LIBADWAITA_VERSION = (1, 5)
+
 _VERSION_RE = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?")
 
 
@@ -200,6 +206,31 @@ def check_gtk_gui(family: DistroFamily) -> Requirement:
             detail=_("GTK4/libadwaita (PyGObject) unavailable: {error}").format(error=error),
             install_hint=INSTALL_COMMANDS["gtk-gui"].for_family(family),
             key="gtk-gui",
+            needed_to_install=False,
+        )
+
+    found = (Adw.get_major_version(), Adw.get_minor_version())
+    if found < MIN_LIBADWAITA_VERSION:
+        # Debian 12 livre libadwaita 1.2 : `Adw.Dialog`, `Adw.NavigationView` et
+        # `Adw.ToolbarView` n'y existent pas, et la fenêtre mourait sur une
+        # `AttributeError` illisible. Mieux vaut le dire franchement — la CLI,
+        # elle, fonctionne parfaitement sur ces distributions.
+        return Requirement(
+            name="GTK GUI",
+            status=Status.OUTDATED,
+            detail=_(
+                "libadwaita {found} detected, {minimum}+ required by the GUI "
+                "(the CLI works regardless)"
+            ).format(
+                found=".".join(str(part) for part in found),
+                minimum=".".join(str(part) for part in MIN_LIBADWAITA_VERSION),
+            ),
+            install_hint=_(
+                "Your distribution is too old for the graphical launcher. Use the "
+                "CLI (`stalker-gamma-linux install`), or upgrade to a release "
+                "shipping libadwaita 1.5+ (Debian 13, Ubuntu 24.04+, Fedora, Arch)."
+            ),
+            needed_to_install=False,
         )
     return Requirement(
         name="GTK GUI", status=Status.OK, detail=_("GTK4 + libadwaita detected (PyGObject)")

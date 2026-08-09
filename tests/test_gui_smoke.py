@@ -25,6 +25,17 @@ pytest.importorskip("gi", reason="PyGObject absent")
 # et `gui/launch.py` fait déjà ce choix par défaut pour la même raison.
 os.environ.setdefault("GSK_RENDERER", "cairo")
 
+# Deux gardes, dans cet ordre, et les deux sont nécessaires.
+#
+# 1. La variable d'environnement : sur un runner CI sans serveur X du tout,
+#    `Gtk.init_check()` ne renvoie pas False — il **segfault** (constaté sur les
+#    quatre jobs `test` de la matrice). Il faut donc ne jamais l'appeler là-bas.
+# 2. `init_check` ensuite : la présence d'une variable ne garantit pas que
+#    l'affichage réponde, et c'est le seul test valable pour tous les backends
+#    (X11, Wayland, broadway).
+if not any(os.environ.get(name) for name in ("DISPLAY", "WAYLAND_DISPLAY", "BROADWAY_DISPLAY")):
+    pytest.skip("aucun affichage disponible", allow_module_level=True)
+
 import gi  # noqa: E402
 
 gi.require_version("Gtk", "4.0")
@@ -32,11 +43,8 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gtk  # noqa: E402
 
-# `init_check` plutôt que de flairer DISPLAY/WAYLAND_DISPLAY : c'est la seule
-# vérification qui vaut pour tous les backends (X11, Wayland, broadway) et qui
-# ne plante pas quand il n'y en a aucun.
 if not Gtk.init_check():
-    pytest.skip("aucun affichage GTK utilisable", allow_module_level=True)
+    pytest.skip("affichage présent mais GTK ne s'initialise pas", allow_module_level=True)
 
 from stalker_gamma_linux.gui import prefs, theme  # noqa: E402
 from stalker_gamma_linux.gui.worker import BackgroundTask  # noqa: E402

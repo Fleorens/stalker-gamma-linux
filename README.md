@@ -83,9 +83,11 @@ uses them directly, with none of the bundling/sandbox workarounds a Wine
 launcher would need in a container.
 
 **Prerequisites** (the GUI's Diagnostic tab shows them live):
-- **GTK4 + libadwaita + PyGObject** — for the GUI itself, the one thing the
+- **GTK4 + libadwaita 1.5+ + PyGObject** — for the GUI itself, the one thing the
   script can't set up without `sudo` (PyGObject has no pip wheel; it comes from
-  your distro). Fedora: `sudo dnf install gtk4 libadwaita python3-gobject` ·
+  your distro). **Debian 12 ships libadwaita 1.2 and cannot run the graphical
+  launcher** — the CLI works fine there; the GUI needs Debian 13, Ubuntu 24.04+,
+  Fedora or Arch. `doctor` tells you which case you're in. Fedora: `sudo dnf install gtk4 libadwaita python3-gobject` ·
   Debian/Ubuntu: `sudo apt install gir1.2-gtk-4.0 gir1.2-adw-1 python3-gi` ·
   Arch: `sudo pacman -S gtk4 libadwaita python-gobject`. If they're missing the
   script prints the exact command for your distro.

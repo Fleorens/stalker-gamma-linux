@@ -63,7 +63,8 @@ class _PhaseRow(Gtk.Box):
 
     def __init__(self, label: str) -> None:
         super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        self._spinner = Adw.Spinner()
+        # Voir `doctor_view` : `Adw.Spinner` exige libadwaita 1.6, Ubuntu 24.04 a 1.5.
+        self._spinner = Gtk.Spinner(spinning=True)
         self._icon = Gtk.Image()
         self._stack = Gtk.Stack()
         self._stack.add_named(self._icon, "icon")
