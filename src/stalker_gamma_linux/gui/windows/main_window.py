@@ -226,6 +226,7 @@ class MainWindow(Adw.ApplicationWindow):
                 parent_window=self,
                 preferences=self._preferences,
                 on_confirmed=self._on_install_confirmed,
+                on_show_diagnostic=self._push_doctor,
             ).present(self)
 
     def _on_install_confirmed(self, updated: prefs.Preferences) -> None:

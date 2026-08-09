@@ -88,6 +88,23 @@ window.background {{ background-color: #10130c; }}
   color: #f66151;
 }}
 
+/* Bandeau d'échec de la vue progression : la seule chose à lire quand une
+   installation s'arrête. Assez présent pour couper la lecture du journal,
+   sans virer à l'alerte système. */
+.error-banner {{
+  background-color: alpha(#e01b24, 0.14);
+  border: 1px solid alpha(#e01b24, 0.45);
+  border-radius: 12px;
+}}
+.error-banner-title {{
+  font-weight: 700;
+  color: #f66151;
+}}
+.error-banner-hint {{
+  color: {FOREGROUND};
+  opacity: 0.85;
+}}
+
 /* Bouton principal JOUER / INSTALLER : le seul élément volontairement criard. */
 .action-play {{
   background-image: linear-gradient(160deg, #9ad14b 0%, {ACCENT_DIM} 100%);

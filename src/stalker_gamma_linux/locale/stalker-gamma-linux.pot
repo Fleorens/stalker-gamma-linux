@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-02 22:47+0200\n"
+"POT-Creation-Date: 2026-08-09 22:48+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -659,6 +659,15 @@ msgstr ""
 msgid "Free space on this volume"
 msgstr ""
 
+msgid "System prerequisites"
+msgstr ""
+
+msgid "Checking…"
+msgstr ""
+
+msgid "Opens the diagnostic, with the command to run for your distribution"
+msgstr ""
+
 msgid "« Play directly » shortcut"
 msgstr ""
 
@@ -686,6 +695,12 @@ msgstr ""
 msgid ""
 "About {cache} GiB to download, {total} GiB for the full install. Can be "
 "interrupted at any time: the install resumes where it left off."
+msgstr ""
+
+msgid "Install them before starting — the install cannot succeed without them."
+msgstr ""
+
+msgid "All present"
 msgstr ""
 
 msgid "Choose the install directory"
@@ -778,14 +793,23 @@ msgstr ""
 msgid "Unexpected error: {error}"
 msgstr ""
 
+msgid "Please attach a diagnostic report to your issue."
+msgstr ""
+
 #, python-brace-format
 msgid "Error: {message}"
+msgstr ""
+
+msgid "Copy"
+msgstr ""
+
+msgid "Copied"
 msgstr ""
 
 msgid "Cancelled — will resume where it left off."
 msgstr ""
 
-msgid "Failed — see details in the console below."
+msgid "Failed."
 msgstr ""
 
 #, python-brace-format

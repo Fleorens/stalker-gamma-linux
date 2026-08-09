@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-02 22:47+0200\n"
+"POT-Creation-Date: 2026-08-09 22:48+0200\n"
 "PO-Revision-Date: 2026-07-26 10:23+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -769,6 +769,15 @@ msgstr "Choisir un autre répertoire"
 msgid "Free space on this volume"
 msgstr "Espace libre sur ce volume"
 
+msgid "System prerequisites"
+msgstr "Prérequis système"
+
+msgid "Checking…"
+msgstr "Vérification…"
+
+msgid "Opens the diagnostic, with the command to run for your distribution"
+msgstr "Ouvre le diagnostic, avec la commande à lancer pour ta distribution"
+
 msgid "« Play directly » shortcut"
 msgstr "Raccourci « jouer en direct »"
 
@@ -806,6 +815,12 @@ msgstr ""
 "Téléchargement d'environ {cache} Gio, installation complète d'environ "
 "{total} Gio. Interruption possible à tout moment : l'installation reprend"
 " où elle s'était arrêtée."
+
+msgid "Install them before starting — the install cannot succeed without them."
+msgstr "Installe-les avant de démarrer — l'installation ne peut pas aboutir sans eux."
+
+msgid "All present"
+msgstr "Tous présents"
 
 msgid "Choose the install directory"
 msgstr "Choisir le répertoire d'installation"
@@ -905,15 +920,24 @@ msgstr "Annulation en cours…"
 msgid "Unexpected error: {error}"
 msgstr "Erreur inattendue : {error}"
 
+msgid "Please attach a diagnostic report to your issue."
+msgstr "Enregistrer un rapport de diagnostic à joindre à une issue"
+
 #, python-brace-format
 msgid "Error: {message}"
 msgstr "Erreur : {message}"
 
+msgid "Copy"
+msgstr "Copier"
+
+msgid "Copied"
+msgstr "Copié"
+
 msgid "Cancelled — will resume where it left off."
 msgstr "Annulé — reprendra où c'était arrêté."
 
-msgid "Failed — see details in the console below."
-msgstr "Échec — détail dans la console ci-dessous."
+msgid "Failed."
+msgstr "Échec."
 
 #, python-brace-format
 msgid ""
@@ -1363,4 +1387,7 @@ msgstr "umu-run opérationnel : {target}"
 #~ "{free:.1f} Go libres sur {path} (requis"
 #~ " ≈ {total} Go : {download} "
 #~ "téléchargement + {install} installation)"
+
+#~ msgid "Failed — see details in the console below."
+#~ msgstr "Échec — détail dans la console ci-dessous."
 

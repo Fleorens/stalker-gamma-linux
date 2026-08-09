@@ -9,6 +9,7 @@ sont persistées dans les préférences : annuler ne change rien.
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable
 from pathlib import Path
 
@@ -20,6 +21,8 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from stalker_gamma_linux import sizing  # noqa: E402
+from stalker_gamma_linux.environment.models import Requirement  # noqa: E402
+from stalker_gamma_linux.environment.report import build_report  # noqa: E402
 from stalker_gamma_linux.gui import prefs, space  # noqa: E402
 from stalker_gamma_linux.gui.format import format_gib  # noqa: E402
 from stalker_gamma_linux.i18n import _  # noqa: E402
@@ -41,11 +44,18 @@ class InstallDialog(Adw.Dialog):
         parent_window: Gtk.Window,
         preferences: prefs.Preferences,
         on_confirmed: Callable[[prefs.Preferences], None],
+        on_show_diagnostic: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(title=_("Install G.A.M.M.A."), content_width=440)
         self._parent_window = parent_window
         self._prefs = preferences
         self._on_confirmed = on_confirmed
+        self._on_show_diagnostic = on_show_diagnostic
+        # Le sondage d'environnement tourne dans un thread (sous-process `which`,
+        # `ldconfig`, `vulkaninfo`) : ce compteur ignore le résultat d'un sondage
+        # devenu obsolète parce que l'utilisateur a changé de disque entre-temps.
+        self._probe_generation = 0
+        self._blockers: tuple[Requirement, ...] | None = None
 
         header = Adw.HeaderBar()
         header.add_css_class("flat")
@@ -77,6 +87,26 @@ class InstallDialog(Adw.Dialog):
         self._space_chip.set_valign(Gtk.Align.CENTER)
         self._space_row.add_suffix(self._space_chip)
 
+        # Les prérequis système (7z, libunrar, umu) condamnent l'installation
+        # aussi sûrement qu'un disque plein. Ils n'étaient pourtant vérifiés
+        # nulle part ici : on cliquait « Démarrer », et l'échec tombait une
+        # seconde plus tard sous forme de ligne noyée dans la console.
+        self._prereq_row = Adw.ActionRow(title=_("System prerequisites"))
+        self._prereq_row.add_css_class("property")
+        self._prereq_chip = Gtk.Label(label=_("Checking…"))
+        self._prereq_chip.set_valign(Gtk.Align.CENTER)
+        self._prereq_chip.add_css_class("chip")
+        self._diagnostic_button = Gtk.Button(
+            label=_("Diagnostic"),
+            valign=Gtk.Align.CENTER,
+            tooltip_text=_("Opens the diagnostic, with the command to run for your distribution"),
+        )
+        self._diagnostic_button.add_css_class("flat")
+        self._diagnostic_button.set_visible(False)
+        self._diagnostic_button.connect("clicked", self._on_show_diagnostic_clicked)
+        self._prereq_row.add_suffix(self._prereq_chip)
+        self._prereq_row.add_suffix(self._diagnostic_button)
+
         self._shortcut_row = Adw.SwitchRow(
             title=_("« Play directly » shortcut"),
             subtitle=_(
@@ -90,6 +120,7 @@ class InstallDialog(Adw.Dialog):
         rows.add_css_class("boxed-list")
         rows.append(self._target_row)
         rows.append(self._space_row)
+        rows.append(self._prereq_row)
         rows.append(self._shortcut_row)
 
         self._space_note = Gtk.Label(justify=Gtk.Justification.CENTER, wrap=True)
@@ -116,6 +147,7 @@ class InstallDialog(Adw.Dialog):
         self.set_child(toolbar_view)
 
         self._refresh()
+        self._start_prerequisites_probe()
 
     # -- état ------------------------------------------------------------
 
@@ -135,8 +167,8 @@ class InstallDialog(Adw.Dialog):
         self._space_chip.add_css_class("chip")
         self._space_chip.add_css_class(verdict_class)
 
+        self._update_confirm_sensitivity(report)
         blocked = report.verdict is space.SpaceVerdict.INSUFFICIENT
-        self._confirm.set_sensitive(not blocked)
         if blocked:
             self._space_note.set_label(
                 _(
@@ -163,6 +195,60 @@ class InstallDialog(Adw.Dialog):
                 ).format(cache=sizing.CACHE_GIB, total=sizing.TOTAL_INSTALL_GIB)
             )
 
+    # -- prérequis système -------------------------------------------------
+
+    def _start_prerequisites_probe(self) -> None:
+        """Sonde l'environnement hors du fil GTK, comme la fenêtre principale."""
+        self._probe_generation += 1
+        generation = self._probe_generation
+        target = self._prefs.install_path
+        self._blockers = None
+        self._prereq_chip.set_label(_("Checking…"))
+        self._diagnostic_button.set_visible(False)
+        self._update_confirm_sensitivity(space.assess(target))
+
+        def worker() -> None:
+            blockers = build_report(target).install_blockers
+            GLib.idle_add(self._apply_prerequisites, generation, blockers)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _apply_prerequisites(self, generation: int, blockers: tuple[Requirement, ...]) -> bool:
+        if generation != self._probe_generation:
+            return False  # un sondage plus récent est en route
+        self._blockers = blockers
+        for css_class in ("chip-ok", "chip-error"):
+            self._prereq_chip.remove_css_class(css_class)
+        if blockers:
+            self._prereq_chip.set_label(", ".join(requirement.name for requirement in blockers))
+            self._prereq_chip.add_css_class("chip-error")
+            self._prereq_row.set_subtitle(
+                _("Install them before starting — the install cannot succeed without them.")
+            )
+            self._diagnostic_button.set_visible(self._on_show_diagnostic is not None)
+        else:
+            self._prereq_chip.set_label(_("All present"))
+            self._prereq_chip.add_css_class("chip-ok")
+            self._prereq_row.set_subtitle("")
+        self._update_confirm_sensitivity(space.assess(self._prefs.install_path))
+        return False
+
+    def _update_confirm_sensitivity(self, report: space.SpaceReport) -> None:
+        """On ne démarre que si l'espace **et** les prérequis le permettent.
+
+        Tant que le sondage n'a pas rendu (`_blockers is None`), le bouton reste
+        inactif : proposer de lancer 146 Gio de téléchargement avant de savoir
+        si `7z` est présent serait exactement le problème qu'on corrige.
+        """
+        space_ok = report.verdict is not space.SpaceVerdict.INSUFFICIENT
+        self._confirm.set_sensitive(space_ok and self._blockers == ())
+
+    def _on_show_diagnostic_clicked(self, _button: Gtk.Button) -> None:
+        if self._on_show_diagnostic is None:
+            return
+        self.close()
+        self._on_show_diagnostic()
+
     # -- actions -----------------------------------------------------------
 
     def _on_choose_target(self, _button: Gtk.Button) -> None:
@@ -183,6 +269,9 @@ class InstallDialog(Adw.Dialog):
             return
         self._prefs = self._prefs.with_install_path(Path(str(folder.get_path())))
         self._refresh()
+        # L'espace disque dépend du volume choisi ; les prérequis système, non —
+        # mais `check_disk_space` fait partie du rapport, donc on resonde.
+        self._start_prerequisites_probe()
 
     def _on_confirm(self, _button: Gtk.Button) -> None:
         updated = self._prefs.with_create_steam_shortcut(self._shortcut_row.get_active())

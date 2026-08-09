@@ -20,8 +20,9 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
+gi.require_version("Gdk", "4.0")
 
-from gi.repository import Adw, GLib, Gtk, Pango  # noqa: E402
+from gi.repository import Adw, Gdk, GLib, Gtk, Pango  # noqa: E402
 
 from stalker_gamma_linux.gui import phases  # noqa: E402
 from stalker_gamma_linux.gui.format import format_duration  # noqa: E402
@@ -126,6 +127,7 @@ class ProgressPage(Adw.NavigationPage):
         self._started_at = time.monotonic()
         self._timeline = phases.Timeline.from_labels(tuple(phase_labels)) if phase_labels else None
         self._phase_rows: list[_PhaseRow] = []
+        self._error_message = ""
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
         for side in ("top", "bottom", "start", "end"):
@@ -139,6 +141,11 @@ class ProgressPage(Adw.NavigationPage):
         status_line.append(self._status_label)
         status_line.append(self._elapsed_label)
         content.append(status_line)
+
+        # Le remède actionnable partait dans la console, mêlé à des centaines de
+        # lignes de sortie moteur : personne ne le lisait. Il a maintenant sa
+        # place propre, en haut, avec un bouton pour le copier.
+        content.append(self._build_error_banner())
 
         if self._timeline is not None:
             content.append(self._build_timeline_card())
@@ -255,7 +262,9 @@ class ProgressPage(Adw.NavigationPage):
         elif isinstance(event, DoneEvent):
             self._handle_done(event.exit_code)
         elif isinstance(event, FailedEvent):
-            self._append_log(_("Unexpected error: {error}").format(error=event.error))
+            message = _("Unexpected error: {error}").format(error=event.error)
+            self._append_log(message)
+            self._show_error(message, _("Please attach a diagnostic report to your issue."))
             self._handle_done(1)
 
     def _handle_reporter_event(self, event: ReporterEvent) -> None:
@@ -269,8 +278,51 @@ class ProgressPage(Adw.NavigationPage):
             self._append_log(_("Error: {message}").format(message=event.message))
             if event.hint is not None:
                 self._append_log(f"→ {event.hint}")
+            self._show_error(event.message, event.hint)
         else:
             self._append_log(event.message)
+
+    def _build_error_banner(self) -> Gtk.Widget:
+        self._error_title = Gtk.Label(xalign=0, wrap=True)
+        self._error_title.add_css_class("error-banner-title")
+        self._error_hint = Gtk.Label(xalign=0, wrap=True, selectable=True)
+        self._error_hint.add_css_class("error-banner-hint")
+
+        self._error_copy = Gtk.Button(
+            label=_("Copy"), valign=Gtk.Align.CENTER, halign=Gtk.Align.END
+        )
+        self._error_copy.add_css_class("flat")
+        self._error_copy.connect("clicked", self._on_copy_error)
+
+        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, hexpand=True)
+        text_box.append(self._error_title)
+        text_box.append(self._error_hint)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        for side in ("top", "bottom", "start", "end"):
+            getattr(box, f"set_margin_{side}")(14)
+        box.append(text_box)
+        box.append(self._error_copy)
+
+        self._error_banner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self._error_banner.add_css_class("error-banner")
+        self._error_banner.append(box)
+        self._error_banner.set_visible(False)
+        return self._error_banner
+
+    def _show_error(self, message: str, hint: str | None) -> None:
+        self._error_message = message if hint is None else f"{message}\n\n{hint}"
+        self._error_title.set_label(message)
+        self._error_hint.set_label(hint or "")
+        self._error_hint.set_visible(hint is not None)
+        self._error_banner.set_visible(True)
+
+    def _on_copy_error(self, _button: Gtk.Button) -> None:
+        display = Gdk.Display.get_default()
+        if display is None:
+            return
+        display.get_clipboard().set(self._error_message)
+        self._error_copy.set_label(_("Copied"))
 
     def _render_timeline(self) -> None:
         if self._timeline is None:
@@ -296,5 +348,5 @@ class ProgressPage(Adw.NavigationPage):
         elif exit_code == CANCELLED_EXIT_CODE:
             self._status_label.set_label(_("Cancelled — will resume where it left off."))
         else:
-            self._status_label.set_label(_("Failed — see details in the console below."))
+            self._status_label.set_label(_("Failed."))
         self._on_finished(exit_code)
