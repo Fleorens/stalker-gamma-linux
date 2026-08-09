@@ -9,6 +9,7 @@ d'activation/désactivation via MO2 (docs/INSTALL-MANUAL.md annexe A).
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 from stalker_gamma_linux.environment import system
@@ -34,6 +35,7 @@ def launch_flat(
     *,
     launcher: str = FLAT_LAUNCHER,
     on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> Path:
     """Lance l'install flat dans le préfixe. Lève `Mo2InstanceError` si elle est absente."""
     executable = final_dir / launcher
@@ -51,4 +53,5 @@ def launch_flat(
         proton_path=proton_path,
         log_label="flat-game",
         on_progress=on_progress,
+        cancel_event=cancel_event,
     )

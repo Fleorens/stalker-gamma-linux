@@ -24,6 +24,7 @@ gi.require_version("Gdk", "4.0")
 
 from gi.repository import Adw, Gdk, GLib, Gtk, Pango  # noqa: E402
 
+from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE  # noqa: E402
 from stalker_gamma_linux.gui import phases  # noqa: E402
 from stalker_gamma_linux.gui.format import format_duration  # noqa: E402
 from stalker_gamma_linux.gui.windows.background import wrap_with_background  # noqa: E402
@@ -35,7 +36,6 @@ from stalker_gamma_linux.gui.worker import (  # noqa: E402
     WorkerEvent,
 )
 from stalker_gamma_linux.i18n import _  # noqa: E402
-from stalker_gamma_linux.orchestrator import CANCELLED_EXIT_CODE  # noqa: E402
 
 _POLL_INTERVAL_MS = 80
 _PULSE_INTERVAL_MS = 200

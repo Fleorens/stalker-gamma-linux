@@ -20,9 +20,10 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
-from stalker_gamma_linux import orchestrator  # noqa: E402
+from stalker_gamma_linux import orchestrator, uninstall  # noqa: E402
 from stalker_gamma_linux import state as state_module  # noqa: E402
 from stalker_gamma_linux.environment.report import build_report  # noqa: E402
+from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE  # noqa: E402
 from stalker_gamma_linux.gui import prefs, space, summary, viewmodel  # noqa: E402
 from stalker_gamma_linux.gui.windows.background import wrap_with_background  # noqa: E402
 from stalker_gamma_linux.gui.windows.doctor_view import DoctorPage  # noqa: E402
@@ -38,6 +39,7 @@ from stalker_gamma_linux.gui.worker import (  # noqa: E402
 )
 from stalker_gamma_linux.i18n import _  # noqa: E402
 from stalker_gamma_linux.mo2 import session as mo2_session  # noqa: E402
+from stalker_gamma_linux.report_bundle import version_line  # noqa: E402
 
 JobFunc = Callable[[queue.Queue[WorkerEvent], threading.Event], int]
 
@@ -83,6 +85,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._add_action("show-doctor", self._on_show_doctor)
         self._add_action("show-preferences", self._on_show_preferences)
         self._add_action("show-about", self._on_show_about)
+        self._add_action("uninstall", self._on_uninstall)
 
         self._nav_view.push(self._build_main_page())
         self._refresh_status()
@@ -102,6 +105,7 @@ class MainWindow(Adw.ApplicationWindow):
         menu.append(_("Check for updates"), "win.check-update")
         menu.append(_("Diagnostic"), "win.show-doctor")
         menu.append(_("Preferences"), "win.show-preferences")
+        menu.append(_("Uninstall…"), "win.uninstall")
         menu.append(_("About"), "win.show-about")
         menu_button = Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=menu, primary=True)
 
@@ -258,6 +262,9 @@ class MainWindow(Adw.ApplicationWindow):
     def _on_show_about(self, _action: Gio.SimpleAction, _param: None) -> None:
         about = Adw.AboutDialog(
             application_name=_("GAMMA Linux Launcher"),
+            # Sans ça, un utilisateur qui ouvre une issue ne peut pas dire quelle
+            # version il fait tourner : la GUI est son seul point de contact.
+            version=version_line(),
             developer_name=_("Community project, not affiliated with GSC Game World"),
             comments=_(
                 "Installs and launches Grokitach's S.T.A.L.K.E.R. G.A.M.M.A. "
@@ -269,6 +276,45 @@ class MainWindow(Adw.ApplicationWindow):
             license_type=Gtk.License.GPL_3_0,
         )
         about.present(self)
+
+    def _on_uninstall(self, _action: Gio.SimpleAction, _param: None) -> None:
+        """Confirme avant de retirer, en montrant le plan exact.
+
+        Réutilise la séparation plan/application de `uninstall` : on affiche
+        littéralement ce qui va disparaître plutôt qu'un « êtes-vous sûr ? »
+        aveugle. Les données de jeu ne sont jamais concernées ici — c'est
+        `stalker-gamma-linux uninstall --game-data`, et il faut le demander.
+        """
+        plan = uninstall.build_plan(self._preferences.install_path)
+        if plan.is_empty:
+            self._show_toast(_("Nothing to remove — already clean."))
+            return
+
+        dialog = Adw.AlertDialog(
+            heading=_("Remove GAMMA Linux Launcher?"),
+            body=uninstall.format_plan(plan)
+            + "\n\n"
+            + _("Your game install is NOT affected: {root}").format(
+                root=self._preferences.install_path
+            ),
+        )
+        dialog.add_response("cancel", _("Cancel"))
+        dialog.add_response("remove", _("Remove"))
+        dialog.set_response_appearance("remove", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_default_response("cancel")
+        dialog.set_close_response("cancel")
+        dialog.connect("response", self._on_uninstall_response, plan)
+        dialog.present(self)
+
+    def _on_uninstall_response(
+        self, _dialog: Adw.AlertDialog, response: str, plan: uninstall.UninstallPlan
+    ) -> None:
+        if response != "remove":
+            return
+        removed = uninstall.apply_plan(plan)
+        self._show_toast(
+            _("{count} item(s) removed. Close the window to finish.").format(count=len(removed))
+        )
 
     # -- tâches longues (hors fil GTK) ----------------------------------
 
@@ -306,22 +352,29 @@ class MainWindow(Adw.ApplicationWindow):
     def _start_play(self) -> None:
         target = self._preferences.install_path
 
-        def job(events: queue.Queue[WorkerEvent], _cancel_event: threading.Event) -> int:
+        def job(events: queue.Queue[WorkerEvent], cancel_event: threading.Event) -> int:
             return mo2_session.run_play(
-                target, on_progress=lambda msg: events.put(ReporterEvent("progress", msg))
+                target,
+                on_progress=lambda msg: events.put(ReporterEvent("progress", msg)),
+                cancel_event=cancel_event,
             )
 
-        self._push_task(_("Launching the game"), job, cancellable=False)
+        # Annulable : un premier lancement télécharge le runtime umu et compile
+        # des shaders — ça peut durer très longtemps, et si MO2 ne rend jamais
+        # la main, tuer la fenêtre était la seule issue.
+        self._push_task(_("Launching the game"), job, cancellable=True)
 
     def _start_mo2(self) -> None:
         target = self._preferences.install_path
 
-        def job(events: queue.Queue[WorkerEvent], _cancel_event: threading.Event) -> int:
+        def job(events: queue.Queue[WorkerEvent], cancel_event: threading.Event) -> int:
             return mo2_session.run_mo2(
-                target, on_progress=lambda msg: events.put(ReporterEvent("progress", msg))
+                target,
+                on_progress=lambda msg: events.put(ReporterEvent("progress", msg)),
+                cancel_event=cancel_event,
             )
 
-        self._push_task(_("Opening Mod Organizer 2"), job, cancellable=False)
+        self._push_task(_("Opening Mod Organizer 2"), job, cancellable=True)
 
     def _push_task(
         self,
@@ -345,7 +398,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._refresh_status()
         if exit_code == 0:
             self._show_toast(_("Done."))
-        elif exit_code == orchestrator.CANCELLED_EXIT_CODE:
+        elif exit_code == CANCELLED_EXIT_CODE:
             self._show_toast(_("Cancelled — resuming will continue where it left off."))
         else:
             self._show_toast(_("Failed — see the console and the log."))

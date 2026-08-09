@@ -142,3 +142,18 @@ def test_vue_progression_session_sans_timeline() -> None:
     )
 
     assert page._timeline is None
+
+
+def test_menu_contient_desinstaller_et_version(window) -> None:  # type: ignore[no-untyped-def]
+    """`uninstall` et la version ont été ajoutés à la CLI ; ils doivent exister ici aussi."""
+    assert window.lookup_action("uninstall") is not None
+
+
+def test_lancer_le_jeu_est_annulable() -> None:
+    """`play` était `cancellable=False` : MO2 qui ne rend pas la main = fenêtre à tuer."""
+    import inspect
+
+    from stalker_gamma_linux.mo2 import session
+
+    for name in ("run_play", "run_mo2"):
+        assert "cancel_event" in inspect.signature(getattr(session, name)).parameters

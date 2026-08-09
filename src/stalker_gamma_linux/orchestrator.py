@@ -33,6 +33,7 @@ from stalker_gamma_linux.environment.report import (
     build_report,
     format_report,
 )
+from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE
 from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.mo2 import instance
 from stalker_gamma_linux.mo2.errors import Mo2Error
@@ -45,10 +46,6 @@ from stalker_gamma_linux.prefix.paths import PrefixPaths
 _RESUME_HINT_TEMPLATE = _(
     "Retry `stalker-gamma-linux install --target {root}`: resuming skips steps already validated."
 )
-
-# Convention POSIX (128 + SIGINT) : réutilisée pour toute annulation propre,
-# déclenchée par la CLI (Ctrl-C, hors de ce module) ou par la GUI (`cancel_event`).
-CANCELLED_EXIT_CODE = 130
 
 
 class _InstallCancelledError(Exception):

@@ -7,6 +7,7 @@ explicite (`play --flat`).
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
@@ -15,13 +16,14 @@ from stalker_gamma_linux.engine.errors import EngineError
 from stalker_gamma_linux.engine.paths import InstallPaths
 from stalker_gamma_linux.environment import system
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
+from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE
 from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.mo2 import diagnostics, flat, instance, launch
 from stalker_gamma_linux.mo2.errors import AnomalyNotFoundError, Mo2Error
 from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
 from stalker_gamma_linux.mo2.paths import Mo2Paths
 from stalker_gamma_linux.prefix import provision
-from stalker_gamma_linux.prefix.errors import PrefixError
+from stalker_gamma_linux.prefix.errors import PrefixCancelledError, PrefixError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 from stalker_gamma_linux.prefix.proton import ProtonBuild
 
@@ -54,6 +56,7 @@ def run_mo2(
     *,
     search_dirs: Sequence[Path] | None = None,
     on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> int:
     """Ouvre l'interface Mod Organizer 2 (préfixe prêt, instance configurée).
 
@@ -67,10 +70,15 @@ def run_mo2(
     prefix = PrefixPaths.under(root)
     anomaly = resolve_anomaly(mo2, InstallPaths.under(root))
     try:
-        build = provision.ensure_prefix(prefix, search_dirs=search_dirs, on_progress=progress)
+        build = provision.ensure_prefix(
+            prefix, search_dirs=search_dirs, on_progress=progress, cancel_event=cancel_event
+        )
         _configure_best_effort(mo2, anomaly, progress)
         progress(_("Launching Mod Organizer 2…"))
-        launch.launch_mo2(mo2, prefix, build.path, on_progress=progress)
+        launch.launch_mo2(mo2, prefix, build.path, on_progress=progress, cancel_event=cancel_event)
+    except PrefixCancelledError:
+        progress(_("Cancelled."))
+        return CANCELLED_EXIT_CODE
     except (PrefixError, Mo2Error) as error:
         progress(_("Error: {error}").format(error=error))
         return 1
@@ -85,6 +93,7 @@ def run_play(
     diagnose: bool = True,
     search_dirs: Sequence[Path] | None = None,
     on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> int:
     """Lance le jeu. Mode nominal : via MO2 (USVFS) + diagnostic. `flat_mode` : fallback.
 
@@ -134,6 +143,7 @@ def _run_flat(
     prefix: PrefixPaths,
     build: ProtonBuild,
     on_progress: ProgressCallback,
+    cancel_event: threading.Event | None = None,
 ) -> int:
     final = flat.flat_dir(root)
     on_progress(
@@ -143,7 +153,7 @@ def _run_flat(
             "See docs/INSTALL-MANUAL.md appendix A.\n"
         )
     )
-    engine.build_flat_install(install, final, on_progress=on_progress)
+    engine.build_flat_install(install, final, on_progress=on_progress, cancel_event=cancel_event)
     on_progress(_("Launching the flat install…"))
-    flat.launch_flat(final, prefix, build.path, on_progress=on_progress)
+    flat.launch_flat(final, prefix, build.path, on_progress=on_progress, cancel_event=cancel_event)
     return 0

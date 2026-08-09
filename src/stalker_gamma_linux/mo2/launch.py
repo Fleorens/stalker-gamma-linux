@@ -9,6 +9,7 @@ la partie instance est vide → `moshortcut://:Anomaly (DX11)`.
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 from stalker_gamma_linux.environment import system
@@ -39,6 +40,7 @@ def launch_mo2(
     proton_path: Path,
     *,
     on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> Path:
     """Ouvre l'interface MO2 dans le préfixe partagé. Retourne le chemin du journal."""
     _require_executable(mo2)
@@ -48,6 +50,7 @@ def launch_mo2(
         proton_path=proton_path,
         log_label="mo2",
         on_progress=on_progress,
+        cancel_event=cancel_event,
     )
 
 
@@ -58,6 +61,7 @@ def launch_game(
     *,
     executable: str = DEFAULT_EXECUTABLE,
     on_progress: ProgressCallback | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> Path:
     """Lance le jeu via MO2 (`moshortcut://`) pour monter l'USVFS. Bloque jusqu'à
     la fermeture du jeu ; retourne le chemin du journal."""
@@ -69,4 +73,5 @@ def launch_game(
         proton_path=proton_path,
         log_label="mo2-game",
         on_progress=on_progress,
+        cancel_event=cancel_event,
     )

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-09 22:48+0200\n"
+"POT-Creation-Date: 2026-08-09 22:52+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -721,6 +721,9 @@ msgstr ""
 msgid "Preferences"
 msgstr ""
 
+msgid "Uninstall…"
+msgstr ""
+
 msgid "About"
 msgstr ""
 
@@ -740,6 +743,23 @@ msgid ""
 "Installs and launches Grokitach's S.T.A.L.K.E.R. G.A.M.M.A. modpack on "
 "Linux: Anomaly, Mod Organizer 2 under Proton, shared prefix, and "
 "incremental updates."
+msgstr ""
+
+msgid "Remove GAMMA Linux Launcher?"
+msgstr ""
+
+#, python-brace-format
+msgid "Your game install is NOT affected: {root}"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Remove"
+msgstr ""
+
+#, python-brace-format
+msgid "{count} item(s) removed. Close the window to finish."
 msgstr ""
 
 msgid "Launching the game"
@@ -781,9 +801,6 @@ msgid " — already done"
 msgstr ""
 
 msgid "Preparing…"
-msgstr ""
-
-msgid "Cancel"
 msgstr ""
 
 msgid "Cancelling…"
@@ -870,6 +887,9 @@ msgid ""
 msgstr ""
 
 msgid "Launching Mod Organizer 2…"
+msgstr ""
+
+msgid "Cancelled."
 msgstr ""
 
 #, python-brace-format

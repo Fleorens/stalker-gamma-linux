@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-09 22:48+0200\n"
+"POT-Creation-Date: 2026-08-09 22:52+0200\n"
 "PO-Revision-Date: 2026-07-26 10:23+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -817,7 +817,9 @@ msgstr ""
 " où elle s'était arrêtée."
 
 msgid "Install them before starting — the install cannot succeed without them."
-msgstr "Installe-les avant de démarrer — l'installation ne peut pas aboutir sans eux."
+msgstr ""
+"Installe-les avant de démarrer — l'installation ne peut pas aboutir sans "
+"eux."
 
 msgid "All present"
 msgstr "Tous présents"
@@ -839,6 +841,9 @@ msgstr "Vérifier les mises à jour"
 
 msgid "Preferences"
 msgstr "Préférences"
+
+msgid "Uninstall…"
+msgstr "Désinstaller…"
 
 msgid "About"
 msgstr "À propos"
@@ -863,6 +868,23 @@ msgstr ""
 "Installe et lance le modpack S.T.A.L.K.E.R. G.A.M.M.A. de Grokitach sous "
 "Linux : Anomaly, Mod Organizer 2 sous Proton, préfixe partagé et mises à "
 "jour incrémentales."
+
+msgid "Remove GAMMA Linux Launcher?"
+msgstr "Retirer le Lanceur GAMMA (Linux) ?"
+
+#, python-brace-format
+msgid "Your game install is NOT affected: {root}"
+msgstr "Ton installation du jeu n'est PAS concernée : {root}"
+
+msgid "Cancel"
+msgstr "Annuler"
+
+msgid "Remove"
+msgstr "Retirer"
+
+#, python-brace-format
+msgid "{count} item(s) removed. Close the window to finish."
+msgstr "{count} élément(s) retiré(s). Ferme la fenêtre pour terminer."
 
 msgid "Launching the game"
 msgstr "Lancer le jeu"
@@ -909,9 +931,6 @@ msgstr " — déjà fait"
 
 msgid "Preparing…"
 msgstr "Préparation…"
-
-msgid "Cancel"
-msgstr "Annuler"
 
 msgid "Cancelling…"
 msgstr "Annulation en cours…"
@@ -1029,6 +1048,9 @@ msgstr ""
 
 msgid "Launching Mod Organizer 2…"
 msgstr "Lancement de Mod Organizer 2…"
+
+msgid "Cancelled."
+msgstr "Annulé."
 
 #, python-brace-format
 msgid "Launching Anomaly via MO2 (« {executable} », USVFS)…"

@@ -10,10 +10,11 @@ from pathlib import Path
 from stalker_gamma_linux import logging_setup, output, sizing
 from stalker_gamma_linux.desktop import run_shortcut
 from stalker_gamma_linux.doctor import run_doctor
+from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE
 from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.mo2 import run_mo2, run_play
 from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
-from stalker_gamma_linux.orchestrator import CANCELLED_EXIT_CODE, run_install, run_update
+from stalker_gamma_linux.orchestrator import run_install, run_update
 from stalker_gamma_linux.prefix import run_prefix_doctor
 from stalker_gamma_linux.prefix.umu import run_install_umu
 from stalker_gamma_linux.report_bundle import run_report, version_line
