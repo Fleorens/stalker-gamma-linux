@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-09 23:19+0200\n"
+"POT-Creation-Date: 2026-08-09 23:29+0200\n"
 "PO-Revision-Date: 2026-07-26 10:23+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -65,8 +65,8 @@ msgid ""
 "Only checks whether an update exists upstream, without installing "
 "anything (your MO2 mod list is left untouched)"
 msgstr ""
-"Vérifie seulement si une mise à jour existe en amont, sans rien installer "
-"(ta liste de mods MO2 n'est pas touchée)"
+"Vérifie seulement si une mise à jour existe en amont, sans rien installer"
+" (ta liste de mods MO2 n'est pas touchée)"
 
 msgid "Full report: system prerequisites + prefix status + install status"
 msgstr ""
@@ -220,6 +220,7 @@ msgstr ""
 msgid "Updating S.T.A.L.K.E.R. G.A.M.M.A. in {root}"
 msgstr "Mise à jour de S.T.A.L.K.E.R. G.A.M.M.A. dans {root}"
 
+#, python-brace-format
 msgid "Could not back up the MO2 profiles: {error}"
 msgstr "Impossible de sauvegarder les profils MO2 : {error}"
 
@@ -423,8 +424,20 @@ msgstr ""
 " est toujours là — cette commande tourne depuis lui. Retire-le avec :\n"
 "  rm -rf ~/.local/share/stalker-gamma-linux"
 
+#, python-brace-format
+msgid "Your modpack is up to date (G.A.M.M.A definition {version})."
+msgstr "Ton modpack est à jour (définition G.A.M.M.A {version})."
+
 msgid "Your modpack is up to date with upstream G.A.M.M.A."
 msgstr "Ton modpack est à jour par rapport au G.A.M.M.A amont."
+
+#, python-brace-format
+msgid ""
+"An update is available: G.A.M.M.A definition {local} → {upstream}.\n"
+"Updating re-downloads only what changed."
+msgstr ""
+"Une mise à jour est disponible : définition G.A.M.M.A {local} → {upstream}.\n"
+"La mise à jour ne retélécharge que ce qui a changé."
 
 #, python-brace-format
 msgid ""
@@ -434,6 +447,7 @@ msgstr ""
 "Une mise à jour est disponible : {files} a changé en amont.\n"
 "La mise à jour ne retélécharge que ce qui a changé."
 
+#, python-brace-format
 msgid "Could not check for updates: {detail}"
 msgstr "Impossible de vérifier les mises à jour : {detail}"
 
@@ -953,9 +967,9 @@ msgstr ""
 "Seul ce qui a changé en amont est retéléchargé. Tes sauvegardes et tes "
 "réglages in-game sont préservés.\n"
 "\n"
-"⚠ Ta liste de mods MO2 (mods activés/désactivés, ordre de chargement, mods "
-"que tu as ajoutés toi-même) est remise à celle de l'amont. Une sauvegarde "
-"est écrite dans <cible>/backups/ avant."
+"⚠ Ta liste de mods MO2 (mods activés/désactivés, ordre de chargement, "
+"mods que tu as ajoutés toi-même) est remise à celle de l'amont. Une "
+"sauvegarde est écrite dans <cible>/backups/ avant."
 
 msgid "Cancel"
 msgstr "Annuler"

@@ -20,15 +20,20 @@ def gamma_dir(tmp_path: Path) -> Path:
     definitions.mkdir(parents=True)
     for filename in updates.DEFINITION_FILES:
         (definitions / filename).write_bytes(b"contenu identique\n")
+    version = updates.local_version_file(tmp_path)
+    version.parent.mkdir(parents=True, exist_ok=True)
+    version.write_text("920\n")
     return tmp_path
 
 
 def _patch_remote(monkeypatch: pytest.MonkeyPatch, payloads: dict[str, bytes]) -> list[str]:
+    """Sert les charges demandées ; par défaut le numéro de définition est inchangé."""
     urls: list[str] = []
+    served = {updates.VERSION_FILE: b"920\n", **payloads}
 
     def fake(url: str) -> bytes:
         urls.append(url)
-        return payloads[url.rsplit("/", 1)[-1]]
+        return served[url.rsplit("/", 1)[-1]]
 
     monkeypatch.setattr(updates, "read_remote_bytes", fake)
     return urls
@@ -108,4 +113,70 @@ class TestCheckForUpdates:
         updates.check_for_updates(gamma_dir)
 
         assert all(updates.UPSTREAM_REPO in url for url in urls)
-        assert len(urls) == len(updates.DEFINITION_FILES)
+        # Numéro de définition + les deux fichiers de définitions.
+        assert len(urls) == len(updates.DEFINITION_FILES) + 1
+
+
+class TestNumeroDeDefinition:
+    """Le signal qui fait autorité : le numéro publié par Grokitach."""
+
+    def test_numero_different_signale_une_mise_a_jour(
+        self, gamma_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _patch_remote(monkeypatch, {updates.VERSION_FILE: b"921\n"})
+
+        result = updates.check_for_updates(gamma_dir)
+
+        assert result.is_available
+        assert result.local_version == "920"
+        assert result.upstream_version == "921"
+        assert "920" in result.message and "921" in result.message
+
+    def test_numero_identique_et_definitions_identiques(
+        self, gamma_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _patch_remote(monkeypatch, dict.fromkeys(updates.DEFINITION_FILES, b"contenu identique\n"))
+
+        result = updates.check_for_updates(gamma_dir)
+
+        assert result.status is updates.UpdateStatus.UP_TO_DATE
+        assert "920" in result.message
+
+    def test_definition_modifiee_sans_increment_est_detectee(
+        self, gamma_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Le filet : Grokitach corrige une liste sans toucher au numéro."""
+        payloads = dict.fromkeys(updates.DEFINITION_FILES, b"contenu identique\n")
+        payloads["modpack_maker_list.txt"] = b"directive corrigee\n"
+        _patch_remote(monkeypatch, payloads)
+
+        result = updates.check_for_updates(gamma_dir)
+
+        assert result.is_available
+        assert result.changed == ("modpack_maker_list.txt",)
+
+    def test_sans_fichier_de_version_on_retombe_sur_les_definitions(
+        self, gamma_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Installations anciennes : pas de numéro local, la comparaison reste possible."""
+        updates.local_version_file(gamma_dir).unlink()
+        _patch_remote(monkeypatch, dict.fromkeys(updates.DEFINITION_FILES, b"contenu identique\n"))
+
+        result = updates.check_for_updates(gamma_dir)
+
+        assert result.status is updates.UpdateStatus.UP_TO_DATE
+        assert result.local_version == ""
+
+    def test_le_numero_ne_passe_pas_par_lapi_github(
+        self, gamma_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """L'API est limitée à 60 req/h : un clic répété ne doit pas la toucher."""
+        urls = _patch_remote(
+            monkeypatch, dict.fromkeys(updates.DEFINITION_FILES, b"contenu identique\n")
+        )
+
+        updates.check_for_updates(gamma_dir)
+
+        assert urls, "aucune requête émise"
+        assert all("api.github.com" not in url for url in urls)
+        assert all(url.startswith("https://raw.githubusercontent.com/") for url in urls)

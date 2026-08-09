@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-09 23:19+0200\n"
+"POT-Creation-Date: 2026-08-09 23:29+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -355,7 +355,17 @@ msgid ""
 "  rm -rf ~/.local/share/stalker-gamma-linux"
 msgstr ""
 
+#, python-brace-format
+msgid "Your modpack is up to date (G.A.M.M.A definition {version})."
+msgstr ""
+
 msgid "Your modpack is up to date with upstream G.A.M.M.A."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"An update is available: G.A.M.M.A definition {local} → {upstream}.\n"
+"Updating re-downloads only what changed."
 msgstr ""
 
 #, python-brace-format

@@ -8,12 +8,25 @@ la liste amont, donc les mods activés/désactivés et l'ordre de chargement de
 l'utilisateur (constaté sur une vraie install : 757 lignes personnalisées
 contre 752 en amont).
 
-La vérification compare les fichiers de définition du modpack — `modlist.txt`
-et `modpack_maker_list.txt`, quelques dizaines de Ko — entre la copie locale
-(déposée par la dernière installation sous `.Grok's Modpack Installer/`) et
-celle publiée sur GitHub. C'est exactement ce que fait déjà
-`scripts/upstream_smoke_test.py`, sans rien télécharger d'autre et sans jamais
-écrire sur le disque.
+**Sur quoi on se base.** Grokitach publie `G.A.M.M.A_definition_version.txt`
+à la racine de son dépôt : c'est *son* numéro de définition de modpack (920 au
+2026-08-09), celui qui change quand le contenu du modpack change. C'est donc le
+signal qui fait autorité, et il est comparé en priorité.
+
+On y ajoute `modlist.txt` et `modpack_maker_list.txt` — la liste des mods et
+leurs directives d'installation — pour couvrir le cas d'une définition modifiée
+sans que le numéro soit incrémenté. Trois fichiers, quelques dizaines de Ko au
+total.
+
+Tout passe par `raw.githubusercontent.com`, jamais par l'API GitHub : celle-ci
+est limitée à 60 requêtes/h sans authentification, ce qui transformerait un
+clic répété sur « Vérifier » en faux « indéterminé ».
+
+Ce qu'on ne détecte **pas** : une archive de mod mise à jour sur ModDB sans que
+Grokitach touche à ses définitions. Ce cas-là n'apparaît qu'au moment d'un vrai
+`update`. En sens inverse, la copie locale vient de la dernière installation
+faite par le pipeline — sans elle (install posée à la main), on répond
+« indéterminé » plutôt que d'inventer une réponse.
 """
 
 from __future__ import annotations
@@ -31,10 +44,14 @@ UPSTREAM_REF = "main"
 _RAW_BASE = "https://raw.githubusercontent.com"
 
 # Déposé par gamma-launcher lors de l'installation, à l'intérieur de `<gamma>`.
-_MODPACK_DATA_DIR = Path(".Grok's Modpack Installer") / "G.A.M.M.A" / "modpack_data"
+_INSTALLER_DIR = Path(".Grok's Modpack Installer")
+_MODPACK_DATA_DIR = _INSTALLER_DIR / "G.A.M.M.A" / "modpack_data"
 
-# Les deux fichiers qui décrivent le modpack : la liste des mods et leurs
-# directives d'installation. Si aucun des deux n'a bougé, rien n'a changé.
+# Numéro de définition publié par Grokitach : le signal qui fait autorité.
+VERSION_FILE = "G.A.M.M.A_definition_version.txt"
+
+# Définitions du modpack : liste des mods et directives d'installation. Filet
+# pour le cas d'une définition modifiée sans incrément du numéro ci-dessus.
 DEFINITION_FILES = ("modlist.txt", "modpack_maker_list.txt")
 
 
@@ -56,11 +73,24 @@ class UpdateCheck:
     def is_available(self) -> bool:
         return self.status is UpdateStatus.AVAILABLE
 
+    # Numéros de définition GAMMA, quand ils ont pu être lus (« 920 »).
+    local_version: str = ""
+    upstream_version: str = ""
+
     @property
     def message(self) -> str:
         if self.status is UpdateStatus.UP_TO_DATE:
+            if self.local_version:
+                return _("Your modpack is up to date (G.A.M.M.A definition {version}).").format(
+                    version=self.local_version
+                )
             return _("Your modpack is up to date with upstream G.A.M.M.A.")
         if self.status is UpdateStatus.AVAILABLE:
+            if self.local_version and self.upstream_version != self.local_version:
+                return _(
+                    "An update is available: G.A.M.M.A definition {local} → {upstream}.\n"
+                    "Updating re-downloads only what changed."
+                ).format(local=self.local_version, upstream=self.upstream_version)
             return _(
                 "An update is available: {files} changed upstream.\n"
                 "Updating re-downloads only what changed."
@@ -72,6 +102,10 @@ def local_definition_dir(gamma_dir: Path) -> Path:
     return gamma_dir / _MODPACK_DATA_DIR
 
 
+def local_version_file(gamma_dir: Path) -> Path:
+    return gamma_dir / _INSTALLER_DIR / VERSION_FILE
+
+
 def _digest(payload: bytes) -> str:
     # Les fins de ligne diffèrent entre le dépôt (LF) et la copie locale
     # (CRLF selon l'extraction) : comparer le contenu normalisé, pas les octets.
@@ -80,6 +114,10 @@ def _digest(payload: bytes) -> str:
 
 def _upstream_url(filename: str, repo: str, ref: str) -> str:
     return f"{_RAW_BASE}/{repo}/{ref}/G.A.M.M.A/modpack_data/{filename}"
+
+
+def _upstream_version_url(repo: str, ref: str) -> str:
+    return f"{_RAW_BASE}/{repo}/{ref}/{VERSION_FILE}"
 
 
 def check_for_updates(
@@ -93,6 +131,26 @@ def check_for_updates(
             detail=_("no local modpack definition found at {path}").format(path=definitions),
         )
 
+    # 1. Le numéro de définition publié par Grokitach — le signal qui fait foi.
+    local_version = upstream_version = ""
+    version_path = local_version_file(gamma_dir)
+    if version_path.is_file():
+        local_version = version_path.read_text(encoding="utf-8", errors="replace").strip()
+        try:
+            upstream_version = (
+                read_remote_bytes(_upstream_version_url(repo, ref)).decode("utf-8").strip()
+            )
+        except OSError as error:
+            return UpdateCheck(status=UpdateStatus.UNKNOWN, detail=str(error))
+        if upstream_version and upstream_version != local_version:
+            return UpdateCheck(
+                status=UpdateStatus.AVAILABLE,
+                changed=(VERSION_FILE,),
+                local_version=local_version,
+                upstream_version=upstream_version,
+            )
+
+    # 2. Filet : une définition modifiée sans incrément du numéro.
     changed: list[str] = []
     for filename in DEFINITION_FILES:
         local = definitions / filename
@@ -109,8 +167,17 @@ def check_for_updates(
             changed.append(filename)
 
     if changed:
-        return UpdateCheck(status=UpdateStatus.AVAILABLE, changed=tuple(changed))
-    return UpdateCheck(status=UpdateStatus.UP_TO_DATE)
+        return UpdateCheck(
+            status=UpdateStatus.AVAILABLE,
+            changed=tuple(changed),
+            local_version=local_version,
+            upstream_version=upstream_version,
+        )
+    return UpdateCheck(
+        status=UpdateStatus.UP_TO_DATE,
+        local_version=local_version,
+        upstream_version=upstream_version,
+    )
 
 
 def run_update_check(target: Path | None = None) -> int:
