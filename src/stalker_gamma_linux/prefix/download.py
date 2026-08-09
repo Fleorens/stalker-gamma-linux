@@ -47,10 +47,15 @@ def _default_install_dir() -> Path:
     return Path.home() / ".local" / "share" / "Steam" / "compatibilitytools.d"
 
 
+def read_remote_bytes(url: str) -> bytes:
+    """Lecture distante brute — public : réutilisé par `updates` (comparaison d'empreintes)."""
+    with urllib.request.urlopen(url, timeout=_FETCH_TIMEOUT_SECONDS) as response:
+        return bytes(response.read())
+
+
 def read_remote_text(url: str) -> str:
     """Lecture texte distante — public : réutilisé par `prefix.umu`."""
-    with urllib.request.urlopen(url, timeout=_FETCH_TIMEOUT_SECONDS) as response:
-        return str(response.read().decode("utf-8"))
+    return read_remote_bytes(url).decode("utf-8")
 
 
 def download_to(url: str, dest: Path, *, cancel_event: threading.Event | None = None) -> None:

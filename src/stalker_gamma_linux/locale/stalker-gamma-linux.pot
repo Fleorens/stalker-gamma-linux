@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-09 22:56+0200\n"
+"POT-Creation-Date: 2026-08-09 23:19+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -48,6 +48,11 @@ msgstr ""
 msgid ""
 "Updates the G.A.M.M.A modpack, removes ReShade, and re-verifies the "
 "install"
+msgstr ""
+
+msgid ""
+"Only checks whether an update exists upstream, without installing "
+"anything (your MO2 mod list is left untouched)"
 msgstr ""
 
 msgid "Full report: system prerequisites + prefix status + install status"
@@ -168,6 +173,20 @@ msgstr ""
 
 #, python-brace-format
 msgid "Updating S.T.A.L.K.E.R. G.A.M.M.A. in {root}"
+msgstr ""
+
+#, python-brace-format
+msgid "Could not back up the MO2 profiles: {error}"
+msgstr ""
+
+msgid "Free some space or check permissions, then try again."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"MO2 profiles backed up to {path}\n"
+"(the update resets the mod list to the upstream one — this is your safety"
+" net)"
 msgstr ""
 
 msgid "G.A.M.M.A modpack (incremental download)…"
@@ -334,6 +353,32 @@ msgid ""
 "The Python environment itself (~/.local/share/stalker-gamma-linux/venv) "
 "is still there — this command runs from it. Remove it with:\n"
 "  rm -rf ~/.local/share/stalker-gamma-linux"
+msgstr ""
+
+msgid "Your modpack is up to date with upstream G.A.M.M.A."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"An update is available: {files} changed upstream.\n"
+"Updating re-downloads only what changed."
+msgstr ""
+
+#, python-brace-format
+msgid "Could not check for updates: {detail}"
+msgstr ""
+
+#, python-brace-format
+msgid "no local modpack definition found at {path}"
+msgstr ""
+
+#, python-brace-format
+msgid "{filename} is missing locally"
+msgstr ""
+
+msgid ""
+"Run `stalker-gamma-linux update` to apply it. Note: this resets the MO2 "
+"mod list to the upstream one (a backup is written first)."
 msgstr ""
 
 msgid "Play GAMMA (direct)"
@@ -727,7 +772,7 @@ msgstr ""
 msgid "GAMMA Linux Launcher"
 msgstr ""
 
-msgid "Check for updates"
+msgid "Check for updates…"
 msgstr ""
 
 msgid "Preferences"
@@ -748,6 +793,33 @@ msgstr ""
 msgid "INSTALL"
 msgstr ""
 
+msgid "Checking for updates…"
+msgstr ""
+
+msgid "Check for updates"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Update now"
+msgstr ""
+
+msgid "Update the modpack?"
+msgstr ""
+
+msgid ""
+"Only what changed upstream is re-downloaded. Your saves and your in-game "
+"settings are preserved.\n"
+"\n"
+"⚠ Your MO2 mod list (enabled/disabled mods, load order, mods you added "
+"yourself) is reset to the upstream one. A backup is written to "
+"<target>/backups/ first."
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
 msgid "Community project, not affiliated with GSC Game World"
 msgstr ""
 
@@ -762,9 +834,6 @@ msgstr ""
 
 #, python-brace-format
 msgid "Your game install is NOT affected: {root}"
-msgstr ""
-
-msgid "Cancel"
 msgstr ""
 
 msgid "Remove"

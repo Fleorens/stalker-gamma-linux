@@ -20,7 +20,7 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
-from stalker_gamma_linux import orchestrator, uninstall  # noqa: E402
+from stalker_gamma_linux import orchestrator, uninstall, updates  # noqa: E402
 from stalker_gamma_linux import state as state_module  # noqa: E402
 from stalker_gamma_linux.environment.report import build_report  # noqa: E402
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE  # noqa: E402
@@ -39,6 +39,7 @@ from stalker_gamma_linux.gui.worker import (  # noqa: E402
 )
 from stalker_gamma_linux.i18n import _  # noqa: E402
 from stalker_gamma_linux.mo2 import session as mo2_session  # noqa: E402
+from stalker_gamma_linux.mo2.paths import Mo2Paths  # noqa: E402
 from stalker_gamma_linux.report_bundle import version_line  # noqa: E402
 
 JobFunc = Callable[[queue.Queue[WorkerEvent], threading.Event], int]
@@ -102,7 +103,7 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _build_main_page(self) -> Adw.NavigationPage:
         menu = Gio.Menu()
-        menu.append(_("Check for updates"), "win.check-update")
+        menu.append(_("Check for updates…"), "win.check-update")
         menu.append(_("Diagnostic"), "win.show-doctor")
         menu.append(_("Preferences"), "win.show-preferences")
         menu.append(_("Uninstall…"), "win.uninstall")
@@ -131,7 +132,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._update_button = Gtk.Button(label=_("Update"))
         self._update_button.add_css_class("action-secondary")
         self._update_button.set_size_request(-1, 40)
-        self._update_button.connect("clicked", lambda _b: self._start_update())
+        self._update_button.connect("clicked", lambda _b: self._confirm_update())
 
         secondary_row = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=10, halign=Gtk.Align.END
@@ -238,7 +239,63 @@ class MainWindow(Adw.ApplicationWindow):
         self._start_install()
 
     def _on_check_update(self, _action: Gio.SimpleAction, _param: None) -> None:
-        self._start_update()
+        """Vérifie, et **seulement** ça.
+
+        Cette entrée lançait `run_update` — donc un `full-install` complet, qui
+        réécrit la liste de mods MO2. Un bouton qui annonce une vérification ne
+        doit rien installer : on compare les définitions du modpack à l'amont
+        (quelques dizaines de Ko, aucune écriture), puis on propose la vraie
+        mise à jour si elle a lieu d'être.
+        """
+        self._show_toast(_("Checking for updates…"))
+        gamma_dir = Mo2Paths.under(self._preferences.install_path).instance
+
+        def worker() -> None:
+            result = updates.check_for_updates(gamma_dir)
+            GLib.idle_add(self._present_update_check, result)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _present_update_check(self, result: updates.UpdateCheck) -> bool:
+        dialog = Adw.AlertDialog(heading=_("Check for updates"), body=result.message)
+        dialog.add_response("close", _("Close"))
+        if result.is_available:
+            dialog.add_response("update", _("Update now"))
+            dialog.set_response_appearance("update", Adw.ResponseAppearance.SUGGESTED)
+            dialog.connect(
+                "response",
+                lambda _d, response: self._confirm_update() if response == "update" else None,
+            )
+        dialog.present(self)
+        return False
+
+    def _confirm_update(self) -> None:
+        """Prévient de ce que la mise à jour va réellement faire, puis lance.
+
+        `full-install` remplace `profiles/G.A.M.M.A/modlist.txt` par la liste
+        amont : le joueur perd ses activations/désactivations et ses ajouts
+        manuels. `orchestrator.backup_mo2_profiles` en fait une copie, mais il
+        faut le dire avant, pas le découvrir après.
+        """
+        dialog = Adw.AlertDialog(
+            heading=_("Update the modpack?"),
+            body=_(
+                "Only what changed upstream is re-downloaded. Your saves and your "
+                "in-game settings are preserved.\n\n"
+                "⚠ Your MO2 mod list (enabled/disabled mods, load order, mods you "
+                "added yourself) is reset to the upstream one. A backup is written "
+                "to <target>/backups/ first."
+            ),
+        )
+        dialog.add_response("cancel", _("Cancel"))
+        dialog.add_response("update", _("Update"))
+        dialog.set_response_appearance("update", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_default_response("cancel")
+        dialog.set_close_response("cancel")
+        dialog.connect(
+            "response", lambda _d, response: self._start_update() if response == "update" else None
+        )
+        dialog.present(self)
 
     def _on_show_doctor(self, _action: Gio.SimpleAction, _param: None) -> None:
         self._push_doctor()

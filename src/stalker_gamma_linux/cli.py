@@ -19,6 +19,7 @@ from stalker_gamma_linux.prefix import run_prefix_doctor
 from stalker_gamma_linux.prefix.umu import run_install_umu
 from stalker_gamma_linux.report_bundle import run_report, version_line
 from stalker_gamma_linux.uninstall import run_uninstall
+from stalker_gamma_linux.updates import run_update_check
 
 _logger = logging.getLogger(logging_setup.LOGGER_NAME)
 
@@ -71,6 +72,14 @@ def build_parser() -> argparse.ArgumentParser:
         help=_("Updates the G.A.M.M.A modpack, removes ReShade, and re-verifies the install"),
     )
     update_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
+    update_parser.add_argument(
+        "--check",
+        action="store_true",
+        help=_(
+            "Only checks whether an update exists upstream, without installing "
+            "anything (your MO2 mod list is left untouched)"
+        ),
+    )
 
     doctor_parser = subparsers.add_parser(
         "doctor",
@@ -176,6 +185,8 @@ def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "install":
         return run_install(args.target, shortcut=args.shortcut, force=args.force)
     if args.command == "update":
+        if args.check:
+            return run_update_check(args.target)
         return run_update(args.target)
     if args.command == "doctor":
         if args.report is not None:

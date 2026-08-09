@@ -18,8 +18,10 @@ annulation propre depuis la GUI ; la CLI ne le passe jamais.
 
 from __future__ import annotations
 
+import shutil
 import threading
 from collections.abc import Callable, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 
 from stalker_gamma_linux import engine, output
@@ -173,6 +175,27 @@ def run_install(
     return 0
 
 
+def backup_mo2_profiles(root: Path) -> Path | None:
+    """Copie `<gamma>/profiles/` avant une mise à jour. Retourne le dossier créé.
+
+    `full-install` réécrit `profiles/G.A.M.M.A/modlist.txt` avec la liste amont
+    (`_install_modorganizer_profile` dans gamma-launcher) : les mods
+    activés/désactivés, l'ordre de chargement et les mods ajoutés à la main
+    disparaissent. Constaté sur une install réelle — 757 lignes personnalisées
+    contre 752 en amont, dont un patch de traduction ajouté par le joueur.
+
+    On ne peut pas empêcher l'amont de le faire, mais on peut rendre la perte
+    réversible. Retourne None s'il n'y a pas de profil à sauvegarder.
+    """
+    profiles = Mo2Paths.under(root).profiles
+    if not profiles.is_dir():
+        return None
+    destination = root / "backups" / f"profiles-{datetime.now(UTC):%Y%m%d-%H%M%S}"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(profiles, destination)
+    return destination
+
+
 def run_update(
     target: Path | None = None,
     *,
@@ -190,6 +213,25 @@ def run_update(
     install = InstallPaths.under(root)
 
     reporter.header(_("Updating S.T.A.L.K.E.R. G.A.M.M.A. in {root}").format(root=root))
+
+    try:
+        backup = backup_mo2_profiles(root)
+    except OSError as error:
+        # Refuser d'avancer : mieux vaut ne pas mettre à jour que de perdre une
+        # liste de mods sans filet.
+        reporter.error(
+            _("Could not back up the MO2 profiles: {error}").format(error=error),
+            hint=_("Free some space or check permissions, then try again."),
+        )
+        return 1
+    if backup is not None:
+        reporter.progress(
+            _(
+                "MO2 profiles backed up to {path}\n"
+                "(the update resets the mod list to the upstream one — this is your safety net)"
+            ).format(path=backup)
+        )
+
     try:
         reporter.step("1/3", _("G.A.M.M.A modpack (incremental download)…"))
         engine.update_gamma(install, on_progress=reporter.progress, cancel_event=cancel_event)

@@ -397,3 +397,47 @@ class TestPrerequisMBloquants:
         code, _events = self._run(monkeypatch, report, tmp_path)
 
         assert code == 0
+
+
+class TestSauvegardeDuProfil:
+    """`full-install` écrase modlist.txt : la copie de secours n'est pas optionnelle."""
+
+    def _profile(self, tmp_path: Path) -> Path:
+        profile = tmp_path / "gamma" / "profiles" / "G.A.M.M.A"
+        profile.mkdir(parents=True)
+        (profile / "modlist.txt").write_text("+MonMod\n-ModDesactive\n")
+        return profile
+
+    def test_le_profil_est_copie_avant_la_mise_a_jour(self, tmp_path: Path) -> None:
+        self._profile(tmp_path)
+
+        backup = orchestrator.backup_mo2_profiles(tmp_path)
+
+        assert backup is not None
+        assert (backup / "G.A.M.M.A" / "modlist.txt").read_text() == "+MonMod\n-ModDesactive\n"
+
+    def test_sans_profil_rien_a_faire(self, tmp_path: Path) -> None:
+        assert orchestrator.backup_mo2_profiles(tmp_path) is None
+
+    def test_run_update_sauvegarde_avant_de_toucher_au_modpack(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        profile = self._profile(tmp_path)
+        seen: dict[str, str] = {}
+
+        def fake_update(paths: Any, **kwargs: Any) -> None:
+            # Au moment où le moteur tourne, la copie doit déjà exister.
+            backups = sorted((tmp_path / "backups").glob("profiles-*"))
+            seen["backup"] = backups[0].name if backups else ""
+            # …et le moteur est en droit d'écraser la liste juste après.
+            (profile / "modlist.txt").write_text("+ListeAmont\n")
+
+        monkeypatch.setattr(engine, "update_gamma", fake_update)
+        monkeypatch.setattr(engine, "remove_reshade", lambda *a, **k: None)
+        monkeypatch.setattr(engine, "purge_shader_cache", lambda *a, **k: None)
+        monkeypatch.setattr(engine, "verify", lambda *a, **k: ())
+
+        assert orchestrator.run_update(tmp_path) == 0
+        assert seen["backup"].startswith("profiles-")
+        restored = tmp_path / "backups" / seen["backup"] / "G.A.M.M.A" / "modlist.txt"
+        assert restored.read_text() == "+MonMod\n-ModDesactive\n"
