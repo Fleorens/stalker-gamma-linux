@@ -249,6 +249,29 @@ GameMode est installé. Trois choix qui méritent d'être écrits :
 Rien n'est bloquant : sans GameMode, la commande part telle quelle ; sans le
 groupe, le jeu se lance quand même avec les priorités I/O.
 
+**Bruit attendu dans le journal de lancement.** À chaque partie, la sortie
+contient des dizaines de lignes :
+
+```
+gamemodeauto: dlopen failed - libgamemode.so: cannot open shared object file
+```
+
+C'est cosmétique, et identique sous Steam avec `gamemoderun %command%`.
+pressure-vessel importe bien la bibliothèque préchargée dans le conteneur
+steamrt (`--ld-preload=/run/host/lib64/libgamemodeauto.so.0:abi=x86_64…`, plus
+son équivalent i386), mais **pas** le `libgamemode.so.0` qu'elle `dlopen` à
+l'exécution : ce n'est pas une entrée `LD_PRELOAD`, et l'éditeur de liens du
+conteneur ne cherche pas dans le `/usr` de l'hôte. Chaque processus interne
+râle donc puis s'abstient de s'enregistrer. Sans conséquence : c'est le
+processus `umu-run` côté hôte qui détient l'enregistrement pour toute la durée
+de la session. Vérifié le 2026-08-13, jeu lancé : `gamemode is active` et
+16/16 CPU en `performance`. Même remarque pour les
+`ERROR: Skipping ioprio on client […]` du journal de `gamemoded` — message
+amont bavard, pas un échec.
+
+On ne filtre pas ces lignes de notre sortie : masquer ce que crachent umu et
+wine reviendrait à masquer aussi les vrais problèmes le jour où il y en aura.
+
 ## CLI orchestrateur (T07)
 
 ### Framework : `argparse`, pas `click`/`typer`
