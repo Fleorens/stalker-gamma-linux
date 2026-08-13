@@ -38,6 +38,16 @@ l'ordonnancement — la moitié du bénéfice. C'est invisible sans aller lire
 `journalctl`, donc `group_status` le détecte et `doctor` le dit, avec le
 `usermod` qui va bien. Un système sans groupe `gamemode` (politique polkit
 permissive) ne déclenche rien : il n'y a rien à corriger.
+
+**L'appartenance se lit dans la base, pas dans les gids du processus.** C'est
+polkit qui arbitre, et son `subject.isInGroup()` résout le groupe depuis la
+base système à partir de l'uid du demandeur — pas depuis les gids hérités du
+processus. Vérifié en réel le 2026-08-13 : un `usermod -aG` a suffi à faire
+passer le gouverneur en `performance` (16/16 CPU, `gamemoded -t` au vert)
+alors que le daemon *et* le shell appelant avaient tous deux été démarrés
+avant l'ajout au groupe, donc sans le gid. Se fier à `os.getgroups()` ferait
+donc crier au loup (« reconnectez-vous ») sur une machine où tout marche
+déjà : on interroge `grp`, point.
 """
 
 from __future__ import annotations
@@ -55,15 +65,12 @@ GAMEMODE_GROUP = "gamemode"
 
 
 class GroupStatus(Enum):
-    """État de l'appartenance au groupe `gamemode` de la session courante."""
+    """Appartenance de l'utilisateur au groupe `gamemode`, telle que polkit la voit."""
 
     # Pas de groupe `gamemode` sur ce système : la règle polkit qui s'appuie
     # dessus n'existe pas non plus — rien à corriger.
     NOT_APPLICABLE = auto()
     MEMBER = auto()
-    # Ajouté au groupe, mais la session en cours a été ouverte avant : les gids
-    # d'une session sont figés à l'ouverture, il faut se reconnecter.
-    NEEDS_RELOGIN = auto()
     MISSING = auto()
 
 
@@ -79,31 +86,34 @@ def is_available() -> bool:
 def group_status() -> GroupStatus:
     """Appartenance au groupe `gamemode`, qui conditionne le gouverneur CPU.
 
-    On regarde les gids **de la session courante** (`os.getgroups`) et pas
-    seulement la liste du groupe : c'est ce que verra le processus du jeu, et
-    c'est ce qui distingue « pas dans le groupe » de « ajouté mais pas encore
-    reconnecté » — deux problèmes aux remèdes différents.
+    Lecture dans la base système (`grp`/`pwd`), pas dans les gids du processus :
+    c'est ainsi que polkit tranche (cf. docstring du module). Le groupe primaire
+    compte autant que la liste des membres — `usermod -g` est rare mais valide.
     """
     try:
         entry = grp.getgrnam(GAMEMODE_GROUP)
     except KeyError:
         return GroupStatus.NOT_APPLICABLE
-    if entry.gr_gid in os.getgroups():
+    user = _passwd_entry()
+    if user is None:
+        return GroupStatus.MISSING
+    if user.pw_name in entry.gr_mem or user.pw_gid == entry.gr_gid:
         return GroupStatus.MEMBER
-    return GroupStatus.NEEDS_RELOGIN if _current_user() in entry.gr_mem else GroupStatus.MISSING
+    return GroupStatus.MISSING
 
 
-def _current_user() -> str:
-    """Nom de l'utilisateur courant, par uid — pas par terminal.
+def _passwd_entry() -> pwd.struct_passwd | None:
+    """Entrée passwd de l'utilisateur courant, par uid — pas par terminal.
 
     `os.getlogin()` lit le propriétaire du terminal de contrôle : il échoue sans
     tty (lancement depuis l'entrée de menu, service systemd) et peut mentir sous
-    `sudo`. L'uid effectif est le seul repère fiable ici.
+    `sudo`. L'uid effectif est le seul repère fiable ici. `None` = uid absent de
+    la base (conteneur minimal), auquel cas on ne peut rien affirmer.
     """
     try:
-        return pwd.getpwuid(os.getuid()).pw_name
-    except KeyError:  # uid absent de /etc/passwd (conteneur minimal)
-        return os.environ.get("USER", "")
+        return pwd.getpwuid(os.getuid())
+    except KeyError:
+        return None
 
 
 def wrap(command: Sequence[str]) -> list[str]:

@@ -238,9 +238,13 @@ GameMode est installé. Trois choix qui méritent d'être écrits :
   (l'action est en `allow_active: no`). Hors du groupe, le mode s'active et
   `gamemoded -s` répond « active », mais chaque changement de gouverneur échoue
   en `pkexec … Not authorized` dans le journal — rien de visible côté joueur, la
-  moitié du bénéfice en moins. `gamemode.group_status()` distingue « pas dans le
-  groupe » de « ajouté mais session ouverte avant » (les gids sont figés à
-  l'ouverture de session) et `doctor` affiche le `usermod` correspondant.
+  moitié du bénéfice en moins. `gamemode.group_status()` le détecte et `doctor`
+  affiche le `usermod` correspondant. L'appartenance se lit dans la base système
+  (`grp`/`pwd`) et **pas** dans les gids du processus : c'est ce que fait le
+  `subject.isInGroup()` de polkit. Mesuré le 2026-08-13 sur la machine de dev —
+  après `usermod -aG`, le gouverneur est passé en `performance` (16/16 CPU,
+  `gamemoded -t` intégralement au vert) sans reconnexion, alors que le daemon
+  comme le shell appelant dataient d'avant l'ajout au groupe.
 
 Rien n'est bloquant : sans GameMode, la commande part telle quelle ; sans le
 groupe, le jeu se lance quand même avec les priorités I/O.

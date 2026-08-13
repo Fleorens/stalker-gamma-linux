@@ -243,50 +243,59 @@ class _FakeGroup:
         self.gr_mem = members
 
 
-def _fake_group_db(
-    monkeypatch: pytest.MonkeyPatch, group: _FakeGroup | None, session_gids: list[int]
+class _FakeUser:
+    def __init__(self, name: str, gid: int) -> None:
+        self.pw_name = name
+        self.pw_gid = gid
+
+
+def _fake_db(
+    monkeypatch: pytest.MonkeyPatch,
+    group: _FakeGroup | None,
+    user: _FakeUser | None = None,
 ) -> None:
+    user = user if user is not None else _FakeUser("florian", 1000)
+
     def getgrnam(name: str) -> _FakeGroup:
         if group is None or name != gamemode.GAMEMODE_GROUP:
             raise KeyError(name)
         return group
 
     monkeypatch.setattr(gamemode.grp, "getgrnam", getgrnam)
-    monkeypatch.setattr(gamemode.os, "getgroups", lambda: session_gids)
+    monkeypatch.setattr(gamemode, "_passwd_entry", lambda: user)
 
 
 def test_group_status_not_applicable_without_a_gamemode_group(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Distribution dont la politique polkit n'utilise pas ce groupe : rien à corriger.
-    _fake_group_db(monkeypatch, None, [1000])
+    _fake_db(monkeypatch, None)
 
     assert gamemode.group_status() is gamemode.GroupStatus.NOT_APPLICABLE
 
 
-def test_group_status_member_when_the_session_carries_the_gid(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _fake_group_db(monkeypatch, _FakeGroup(972, ["florian"]), [1000, 972])
+def test_group_status_member_reads_the_system_database(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Constaté en réel : polkit résout l'appartenance depuis la base, pas depuis
+    # les gids du processus — un `usermod -aG` prend effet sans reconnexion, y
+    # compris pour un daemon démarré avant. Se fier à `os.getgroups()` ferait
+    # crier au loup sur une machine où le gouverneur bascule déjà.
+    _fake_db(monkeypatch, _FakeGroup(972, ["florian"]))
 
     assert gamemode.group_status() is gamemode.GroupStatus.MEMBER
 
 
-def test_group_status_needs_relogin_when_added_after_login(
+def test_group_status_member_when_gamemode_is_the_primary_group(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # `usermod -aG` passé, mais les gids d'une session sont figés à l'ouverture.
-    _fake_group_db(monkeypatch, _FakeGroup(972, ["florian"]), [1000])
-    monkeypatch.setattr(gamemode, "_current_user", lambda: "florian")
+    _fake_db(monkeypatch, _FakeGroup(972, []), _FakeUser("florian", 972))
 
-    assert gamemode.group_status() is gamemode.GroupStatus.NEEDS_RELOGIN
+    assert gamemode.group_status() is gamemode.GroupStatus.MEMBER
 
 
 def test_group_status_missing_when_the_user_never_joined(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _fake_group_db(monkeypatch, _FakeGroup(972, []), [1000])
-    monkeypatch.setattr(gamemode, "_current_user", lambda: "florian")
+    _fake_db(monkeypatch, _FakeGroup(972, ["someone-else"]))
 
     assert gamemode.group_status() is gamemode.GroupStatus.MISSING
 
@@ -297,7 +306,7 @@ def test_doctor_detail_carries_the_usermod_fix(monkeypatch: pytest.MonkeyPatch) 
     detail = checks.gamemode_detail()
 
     assert "sudo usermod -aG gamemode $USER" in detail
-    assert "log out and back in" in detail
+    assert "next launch" in detail
 
 
 def test_check_gamemode_detected(monkeypatch: pytest.MonkeyPatch) -> None:

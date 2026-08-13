@@ -33,9 +33,6 @@ ProgressCallback = Callable[[str], None]
 
 ANOMALY_MARKER = "AnomalyLauncher.exe"
 
-# États du groupe `gamemode` où le gouverneur CPU restera bloqué (cf. `environment.gamemode`).
-_GOVERNOR_LOCKED = (gamemode.GroupStatus.MISSING, gamemode.GroupStatus.NEEDS_RELOGIN)
-
 
 def _resolve_root(target: Path | None) -> Path:
     return target if target is not None else DEFAULT_INSTALL_TARGET
@@ -102,7 +99,7 @@ def gamemode_notice(enabled: bool) -> str:
     if not enabled:
         return _("GameMode disabled for this launch.")
     if gamemode.is_available():
-        if gamemode.group_status() in _GOVERNOR_LOCKED:
+        if gamemode.group_status() is gamemode.GroupStatus.MISSING:
             # Détail et remède dans `doctor` : une ligne de lancement n'est pas
             # l'endroit pour expliquer polkit, mais taire la moitié manquante
             # laisserait chercher pourquoi les FPS ne bougent pas.

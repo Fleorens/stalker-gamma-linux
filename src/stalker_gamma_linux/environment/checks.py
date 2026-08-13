@@ -81,17 +81,11 @@ def gamemode_detail() -> str:
     dans `environment.gamemode` : tout a l'air de marcher, mais le gouverneur CPU
     ne bouge jamais — autant le dire avec le `usermod` qui le débloque.
     """
-    status = gamemode.group_status()
-    if status is gamemode.GroupStatus.MISSING:
+    if gamemode.group_status() is gamemode.GroupStatus.MISSING:
         return _(
             "gamemoderun detected, but the CPU governor stays locked: run "
-            "`sudo usermod -aG {group} $USER` then log out and back in "
+            "`sudo usermod -aG {group} $USER` — effective on the next launch "
             "(I/O and scheduling priorities work regardless)"
-        ).format(group=gamemode.GAMEMODE_GROUP)
-    if status is gamemode.GroupStatus.NEEDS_RELOGIN:
-        return _(
-            "gamemoderun detected — CPU governor locked until you log out and "
-            "back in (you joined the « {group} » group after this session started)"
         ).format(group=gamemode.GAMEMODE_GROUP)
     return _(
         "gamemoderun detected — applied automatically when you play "

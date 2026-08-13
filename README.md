@@ -113,7 +113,8 @@ launcher would need in a container.
   `play --no-gamemode` or the switch in the GUI's Preferences. On Fedora and
   Arch the CPU-governor part is reserved to members of the `gamemode` group by
   a polkit rule, and fails silently otherwise — `doctor` detects that and gives
-  you the one-time `usermod` command.
+  you the one-time `usermod` command (effective on the next launch: polkit reads
+  the group from the system database, so no re-login needed).
 
 Once installed (or with the venv activated), the CLI is `stalker-gamma-linux`:
 
