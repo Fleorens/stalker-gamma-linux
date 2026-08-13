@@ -2,14 +2,26 @@
 
 [![CI](https://github.com/Fleorens/stalker-gamma-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/Fleorens/stalker-gamma-linux/actions/workflows/ci.yml)
 
-**A real Linux port of the [S.T.A.L.K.E.R. G.A.M.M.A.](https://github.com/Grokitach/Stalker_GAMMA) installation experience.**
+**Install [S.T.A.L.K.E.R. G.A.M.M.A.](https://github.com/Grokitach/Stalker_GAMMA)
+on Linux with one command** — Mod Organizer 2 under Proton, your mods still
+enable/disable like on Windows.
 
 ![Accueil du launcher](docs/screenshots/accueil.png)
 
 The game itself (Anomaly, X-Ray Monolith engine) already runs great under Proton.
-What does *not* work on Linux is everything around it: the official launcher is
-.NET + PowerShell, Mod Organizer 2 needs careful Wine/Proton setup, and today's
-community guides require a dozen manual steps.
+Everything *around* it is the problem: the official launcher is .NET + PowerShell,
+Mod Organizer 2 needs a careful Wine/Proton setup, and the community route is a
+long manual checklist. Same install, before and after:
+
+| By hand ([INSTALL-MANUAL.md](docs/INSTALL-MANUAL.md), the spec this project automates) | With this project |
+|---|---|
+| 8 documented steps, plus a page of known traps | `curl … \| bash`, then one window |
+| ≈ 160 GiB of downloads to shepherd yourself | Progress, disk check and resume built in |
+| Official launcher: .NET + PowerShell, Windows-only | Native GTK4/libadwaita launcher |
+| Proton prefix, DLL injection, winetricks verbs by hand | Shared prefix provisioned — and repairable (`prefix-doctor --repair`) |
+| MO2 `gamePath` and profile edited by hand in `ModOrganizer.ini` | Configured for you, USVFS diagnosed after launch |
+| Interrupted mid-way? Start over | Resumable: rerun, completed steps are skipped |
+| "works on my distro" | Exercised in CI on Fedora, Arch, Debian 12 and Ubuntu 24.04 on every push |
 
 This project is the **Linux integration layer** that makes GAMMA a one-command
 (and eventually one-click) install:

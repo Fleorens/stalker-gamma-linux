@@ -65,10 +65,22 @@ jobs:
         with:
           fetch-depth: 0 # historique complet requis par --generate-notes
 
+      # Notes écrites à la main sous docs/release-notes/<tag>.md quand elles
+      # existent : la liste des commits générée par GitHub s'adresse à un dev
+      # qui connaît déjà le projet, pas au joueur qui découvre la release. Le
+      # titre est repris de la première ligne du fichier (le `# …`), le reste
+      # devient le corps. Sans fichier, on retombe sur les notes générées.
       - name: Créer la GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            --title "${{ github.ref_name }}" \
-            --generate-notes
+          NOTES="docs/release-notes/${TAG}.md"
+          if [ -f "$NOTES" ]; then
+            TITLE="$(head -n 1 "$NOTES" | sed 's/^#\+[[:space:]]*//')"
+            tail -n +2 "$NOTES" | gh release create "$TAG" \
+              --title "${TITLE:-$TAG}" \
+              --notes-file -
+          else
+            gh release create "$TAG" --title "$TAG" --generate-notes
+          fi
