@@ -180,17 +180,35 @@ def test_main_dispatches_to_play_with_flags(monkeypatch: pytest.MonkeyPatch) -> 
     captured: dict[str, object] = {}
 
     def fake_run_play(
-        target: Path | None, *, flat_mode: bool, executable: str, diagnose: bool
+        target: Path | None,
+        *,
+        flat_mode: bool,
+        executable: str,
+        diagnose: bool,
+        use_gamemode: bool,
     ) -> int:
         captured.update(
-            target=target, flat_mode=flat_mode, executable=executable, diagnose=diagnose
+            target=target,
+            flat_mode=flat_mode,
+            executable=executable,
+            diagnose=diagnose,
+            use_gamemode=use_gamemode,
         )
         return 0
 
     monkeypatch.setattr(cli, "run_play", fake_run_play)
 
     exit_code = cli.main(
-        ["play", "--target", "/tmp/g", "--flat", "--executable", "Anomaly (DX10)", "--no-diagnose"]
+        [
+            "play",
+            "--target",
+            "/tmp/g",
+            "--flat",
+            "--executable",
+            "Anomaly (DX10)",
+            "--no-diagnose",
+            "--no-gamemode",
+        ]
     )
 
     assert exit_code == 0
@@ -199,7 +217,21 @@ def test_main_dispatches_to_play_with_flags(monkeypatch: pytest.MonkeyPatch) -> 
         "flat_mode": True,
         "executable": "Anomaly (DX10)",
         "diagnose": False,
+        "use_gamemode": False,
     }
+
+
+def test_main_play_enables_gamemode_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run_play(target: Path | None, **kwargs: object) -> int:
+        captured.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(cli, "run_play", fake_run_play)
+
+    assert cli.main(["play"]) == 0
+    assert captured["use_gamemode"] is True
 
 
 def test_main_play_returns_run_play_code(monkeypatch: pytest.MonkeyPatch) -> None:

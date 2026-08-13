@@ -117,6 +117,18 @@ INSTALL_COMMANDS: Mapping[str, InstallCommand] = {
             DistroFamily.DEBIAN: ("vulkan-tools", "mesa-vulkan-drivers"),
         },
     ),
+    "gamemode": InstallCommand(
+        # Arch : `lib32-gamemode` fournit la `libgamemodeauto.so.0` 32 bits que
+        # préchargent les processus wine 32 bits — sans elle, l'éditeur de liens
+        # se contente d'un avertissement (le jeu tourne, GameMode reste actif via
+        # le processus parent 64 bits). Fedora et Debian empaquettent les deux
+        # architectures dans le même nom (`gamemode` / multiarch), rien à ajouter.
+        packages={
+            DistroFamily.FEDORA: ("gamemode",),
+            DistroFamily.ARCH: ("gamemode", "lib32-gamemode"),
+            DistroFamily.DEBIAN: ("gamemode",),
+        },
+    ),
     "gtk-gui": InstallCommand(
         packages={
             DistroFamily.FEDORA: ("gtk4", "libadwaita", "python3-gobject"),

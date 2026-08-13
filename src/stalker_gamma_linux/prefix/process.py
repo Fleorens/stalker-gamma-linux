@@ -17,6 +17,7 @@ from collections import deque
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
+from stalker_gamma_linux.environment import gamemode as gamemode_tool
 from stalker_gamma_linux.environment import system
 from stalker_gamma_linux.prefix.errors import (
     PrefixCancelledError,
@@ -84,6 +85,7 @@ def run_in_prefix(
     proton_path: Path,
     env: Mapping[str, str] | None = None,
     log_label: str | None = None,
+    gamemode: bool = False,
     on_progress: ProgressCallback | None = None,
     cancel_event: threading.Event | None = None,
 ) -> Path:
@@ -92,12 +94,15 @@ def run_in_prefix(
     `exe` est un exécutable Windows ou une sentinelle umu (`winetricks`,
     `createprefix`). `env` ajoute des variables d'environnement ; les variables
     structurelles (WINEPREFIX, GAMEID, PROTONPATH) restent toujours imposées.
-    Toute la sortie (stdout + stderr) est capturée dans un fichier de
-    `paths.logs`, dont le chemin est retourné. Lève `UmuNotFoundError` si
-    umu-run est absent du PATH, `PrefixCommandError` (journal joint) si le code
-    de retour est non nul. `cancel_event` (optionnel, GUI) : voir
-    `engine.process.run`, même comportement d'annulation propre —
-    lève `PrefixCancelledError` au lieu de `PrefixCommandError`.
+    `gamemode` (réservé aux lancements de *jeu*, pas aux étapes d'installation)
+    enveloppe la commande dans `gamemoderun` si GameMode est installé — sans
+    effet sinon, cf. `environment.gamemode`. Toute la sortie (stdout + stderr)
+    est capturée dans un fichier de `paths.logs`, dont le chemin est retourné.
+    Lève `UmuNotFoundError` si umu-run est absent du PATH, `PrefixCommandError`
+    (journal joint) si le code de retour est non nul. `cancel_event`
+    (optionnel, GUI) : voir `engine.process.run`, même comportement
+    d'annulation propre — lève `PrefixCancelledError` au lieu de
+    `PrefixCommandError`.
     """
     binary = system.which(_UMU_BINARY)
     if binary is None:
@@ -107,6 +112,8 @@ def run_in_prefix(
     label = log_label or _slug(exe)
     log_path = paths.logs / f"{label}-{time.strftime('%Y%m%d-%H%M%S')}.log"
     command = [binary, str(exe), *args]
+    if gamemode:
+        command = gamemode_tool.wrap(command)
     progress = on_progress or _noop
     tail: deque[str] = deque(maxlen=_OUTPUT_TAIL_LINES)
 

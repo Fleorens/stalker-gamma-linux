@@ -14,7 +14,9 @@ from pathlib import Path
 from stalker_gamma_linux import engine
 from stalker_gamma_linux.engine.errors import EngineError
 from stalker_gamma_linux.engine.paths import InstallPaths
-from stalker_gamma_linux.environment import system
+from stalker_gamma_linux.environment import gamemode, system
+from stalker_gamma_linux.environment.commands import INSTALL_COMMANDS
+from stalker_gamma_linux.environment.distro import detect_distro
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE
 from stalker_gamma_linux.i18n import _
@@ -30,6 +32,9 @@ from stalker_gamma_linux.prefix.proton import ProtonBuild
 ProgressCallback = Callable[[str], None]
 
 ANOMALY_MARKER = "AnomalyLauncher.exe"
+
+# États du groupe `gamemode` où le gouverneur CPU restera bloqué (cf. `environment.gamemode`).
+_GOVERNOR_LOCKED = (gamemode.GroupStatus.MISSING, gamemode.GroupStatus.NEEDS_RELOGIN)
 
 
 def _resolve_root(target: Path | None) -> Path:
@@ -85,18 +90,50 @@ def run_mo2(
     return 0
 
 
+def gamemode_notice(enabled: bool) -> str:
+    """Ligne de progression décrivant l'état de GameMode pour ce lancement.
+
+    Trois cas, tous informatifs : demandé et disponible (on l'annonce, parce que
+    l'utilisateur ne le verrait nulle part ailleurs — `gamemoded -s` répond
+    « inactive » tant que le jeu n'est pas lancé), demandé mais absent (on donne
+    la commande d'installation de SA distribution, c'est du FPS gratuit), ou
+    désactivé explicitement.
+    """
+    if not enabled:
+        return _("GameMode disabled for this launch.")
+    if gamemode.is_available():
+        if gamemode.group_status() in _GOVERNOR_LOCKED:
+            # Détail et remède dans `doctor` : une ligne de lancement n'est pas
+            # l'endroit pour expliquer polkit, mais taire la moitié manquante
+            # laisserait chercher pourquoi les FPS ne bougent pas.
+            return _(
+                "GameMode enabled: I/O and scheduling priorities only — the CPU "
+                "governor stays locked, see `doctor` to unlock it."
+            )
+        return _("GameMode enabled: performance CPU governor and priorities while you play.")
+    hint = INSTALL_COMMANDS["gamemode"].for_family(detect_distro().family)
+    message = _(
+        "GameMode not installed — launching without it "
+        "(optional: performance CPU governor and priorities while you play)."
+    )
+    return f"{message}\n  {hint}" if hint else message
+
+
 def run_play(
     target: Path | None = None,
     *,
     flat_mode: bool = False,
     executable: str = DEFAULT_EXECUTABLE,
     diagnose: bool = True,
+    use_gamemode: bool = True,
     search_dirs: Sequence[Path] | None = None,
     on_progress: ProgressCallback | None = None,
     cancel_event: threading.Event | None = None,
 ) -> int:
     """Lance le jeu. Mode nominal : via MO2 (USVFS) + diagnostic. `flat_mode` : fallback.
 
+    `use_gamemode` (défaut : actif) enveloppe le lancement dans `gamemoderun`
+    quand GameMode est installé ; sans effet sinon (cf. `environment.gamemode`).
     `on_progress` : voir `run_mo2`.
     """
     progress = on_progress or print
@@ -106,13 +143,21 @@ def run_play(
     install = InstallPaths.under(root)
     try:
         build = provision.ensure_prefix(prefix, search_dirs=search_dirs, on_progress=progress)
+        progress(gamemode_notice(use_gamemode))
         if flat_mode:
-            return _run_flat(root, install, prefix, build, progress)
+            return _run_flat(root, install, prefix, build, progress, use_gamemode=use_gamemode)
         instance.configure_instance(mo2, resolve_anomaly(mo2, install))
         progress(
             _("Launching Anomaly via MO2 (« {executable} », USVFS)…").format(executable=executable)
         )
-        launch.launch_game(mo2, prefix, build.path, executable=executable, on_progress=progress)
+        launch.launch_game(
+            mo2,
+            prefix,
+            build.path,
+            executable=executable,
+            gamemode=use_gamemode,
+            on_progress=progress,
+        )
     except (PrefixError, EngineError, Mo2Error) as error:
         progress(_("Error: {error}").format(error=error))
         return 1
@@ -143,6 +188,8 @@ def _run_flat(
     prefix: PrefixPaths,
     build: ProtonBuild,
     on_progress: ProgressCallback,
+    *,
+    use_gamemode: bool = True,
     cancel_event: threading.Event | None = None,
 ) -> int:
     final = flat.flat_dir(root)
@@ -155,5 +202,12 @@ def _run_flat(
     )
     engine.build_flat_install(install, final, on_progress=on_progress, cancel_event=cancel_event)
     on_progress(_("Launching the flat install…"))
-    flat.launch_flat(final, prefix, build.path, on_progress=on_progress, cancel_event=cancel_event)
+    flat.launch_flat(
+        final,
+        prefix,
+        build.path,
+        gamemode=use_gamemode,
+        on_progress=on_progress,
+        cancel_event=cancel_event,
+    )
     return 0

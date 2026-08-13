@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 from stalker_gamma_linux import sizing
-from stalker_gamma_linux.environment import system
+from stalker_gamma_linux.environment import gamemode, system
 from stalker_gamma_linux.environment.commands import INSTALL_COMMANDS
 from stalker_gamma_linux.environment.distro import DistroFamily
 from stalker_gamma_linux.environment.models import Requirement, Status
@@ -70,6 +70,55 @@ def check_umu(family: DistroFamily) -> Requirement:
         detail=_("umu-run not found in PATH"),
         install_hint=INSTALL_COMMANDS["umu-launcher"].for_family(family),
         key="umu-launcher",
+    )
+
+
+def gamemode_detail() -> str:
+    """Ce que GameMode fera réellement sur cette machine, groupe polkit compris.
+
+    Partagé entre `doctor` et la fenêtre de préférences pour que les deux disent
+    exactement la même chose. Le cas « pas dans le groupe » est le piège décrit
+    dans `environment.gamemode` : tout a l'air de marcher, mais le gouverneur CPU
+    ne bouge jamais — autant le dire avec le `usermod` qui le débloque.
+    """
+    status = gamemode.group_status()
+    if status is gamemode.GroupStatus.MISSING:
+        return _(
+            "gamemoderun detected, but the CPU governor stays locked: run "
+            "`sudo usermod -aG {group} $USER` then log out and back in "
+            "(I/O and scheduling priorities work regardless)"
+        ).format(group=gamemode.GAMEMODE_GROUP)
+    if status is gamemode.GroupStatus.NEEDS_RELOGIN:
+        return _(
+            "gamemoderun detected — CPU governor locked until you log out and "
+            "back in (you joined the « {group} » group after this session started)"
+        ).format(group=gamemode.GAMEMODE_GROUP)
+    return _(
+        "gamemoderun detected — applied automatically when you play "
+        "(the daemon starts on demand, « inactive » in between is normal)"
+    )
+
+
+def check_gamemode(family: DistroFamily) -> Requirement:
+    """Feral GameMode : facultatif, appliqué automatiquement au lancement du jeu.
+
+    On teste `gamemoderun` (le script qui *demande* le mode), pas l'état du
+    daemon : celui-ci est activé à la demande par D-Bus, donc « inactive » entre
+    deux parties est normal — le dire ici évite la fausse piste du
+    `systemctl --user enable gamemoded` (cf. `environment.gamemode`).
+    """
+    if gamemode.is_available():
+        return Requirement(name="GameMode", status=Status.OK, detail=gamemode_detail())
+    return Requirement(
+        name="GameMode",
+        status=Status.OPTIONAL,
+        detail=_(
+            "absent — optional: performance CPU governor and priorities while "
+            "you play, applied automatically once installed"
+        ),
+        install_hint=INSTALL_COMMANDS["gamemode"].for_family(family),
+        key="gamemode",
+        needed_to_install=False,
     )
 
 

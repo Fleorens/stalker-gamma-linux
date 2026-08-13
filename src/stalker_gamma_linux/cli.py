@@ -140,6 +140,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=_("Doesn't run the USVFS diagnostic after launch"),
     )
+    play_parser.add_argument(
+        "--no-gamemode",
+        action="store_true",
+        help=_(
+            "Launches without GameMode (enabled by default when installed: "
+            "performance CPU governor and priorities while you play)"
+        ),
+    )
 
     shortcut_parser = subparsers.add_parser(
         "shortcut",
@@ -204,6 +212,7 @@ def _dispatch(args: argparse.Namespace) -> int:
             flat_mode=args.flat,
             executable=args.executable,
             diagnose=not args.no_diagnose,
+            use_gamemode=not args.no_gamemode,
         )
     if args.command == "shortcut":
         return run_shortcut(args.target)

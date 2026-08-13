@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-09 23:29+0200\n"
+"POT-Creation-Date: 2026-08-13 21:18+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -86,6 +86,11 @@ msgid ""
 msgstr ""
 
 msgid "Doesn't run the USVFS diagnostic after launch"
+msgstr ""
+
+msgid ""
+"Launches without GameMode (enabled by default when installed: performance"
+" CPU governor and priorities while you play)"
 msgstr ""
 
 msgid "Creates/updates the desktop shortcut (.desktop + icon, application menu)"
@@ -475,6 +480,29 @@ msgid "umu-run detected"
 msgstr ""
 
 msgid "umu-run not found in PATH"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"gamemoderun detected, but the CPU governor stays locked: run `sudo "
+"usermod -aG {group} $USER` then log out and back in (I/O and scheduling "
+"priorities work regardless)"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"gamemoderun detected — CPU governor locked until you log out and back in "
+"(you joined the « {group} » group after this session started)"
+msgstr ""
+
+msgid ""
+"gamemoderun detected — applied automatically when you play (the daemon "
+"starts on demand, « inactive » in between is normal)"
+msgstr ""
+
+msgid ""
+"absent — optional: performance CPU governor and priorities while you "
+"play, applied automatically once installed"
 msgstr ""
 
 msgid "protontricks (Flatpak) detected"
@@ -868,6 +896,9 @@ msgstr ""
 msgid "Failed — see the console and the log."
 msgstr ""
 
+msgid "Performance CPU governor and priorities — GameMode is not installed yet."
+msgstr ""
+
 msgid "Choose…"
 msgstr ""
 
@@ -877,6 +908,12 @@ msgid ""
 msgstr ""
 
 msgid "Version (e.g. GE-Proton10-8)"
+msgstr ""
+
+msgid "Performance"
+msgstr ""
+
+msgid "GameMode while playing"
 msgstr ""
 
 msgid "« Play directly » shortcut on install"
@@ -981,6 +1018,22 @@ msgid "Launching Mod Organizer 2…"
 msgstr ""
 
 msgid "Cancelled."
+msgstr ""
+
+msgid "GameMode disabled for this launch."
+msgstr ""
+
+msgid ""
+"GameMode enabled: I/O and scheduling priorities only — the CPU governor "
+"stays locked, see `doctor` to unlock it."
+msgstr ""
+
+msgid "GameMode enabled: performance CPU governor and priorities while you play."
+msgstr ""
+
+msgid ""
+"GameMode not installed — launching without it (optional: performance CPU "
+"governor and priorities while you play)."
 msgstr ""
 
 #, python-brace-format

@@ -33,6 +33,7 @@ def build_report(target: Path | None = None) -> EnvironmentReport:
         checks.check_libunrar(family),
         checks.check_disk_space(resolved_target),
         checks.check_vulkan(family),
+        checks.check_gamemode(family),
     )
     return EnvironmentReport(distro=distro, requirements=requirements)
 

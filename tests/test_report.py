@@ -41,7 +41,7 @@ def test_build_report_all_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert report.is_ready
     assert report.distro.pretty_name == "Fedora Linux 41"
-    assert len(report.requirements) == 7
+    assert len(report.requirements) == 8
 
 
 def test_build_report_missing_everything(monkeypatch: pytest.MonkeyPatch) -> None:

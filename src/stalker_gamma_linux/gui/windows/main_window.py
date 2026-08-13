@@ -408,10 +408,12 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _start_play(self) -> None:
         target = self._preferences.install_path
+        use_gamemode = self._preferences.use_gamemode
 
         def job(events: queue.Queue[WorkerEvent], cancel_event: threading.Event) -> int:
             return mo2_session.run_play(
                 target,
+                use_gamemode=use_gamemode,
                 on_progress=lambda msg: events.put(ReporterEvent("progress", msg)),
                 cancel_event=cancel_event,
             )

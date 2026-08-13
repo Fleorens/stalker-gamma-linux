@@ -34,10 +34,15 @@ def launch_flat(
     proton_path: Path,
     *,
     launcher: str = FLAT_LAUNCHER,
+    gamemode: bool = True,
     on_progress: ProgressCallback | None = None,
     cancel_event: threading.Event | None = None,
 ) -> Path:
-    """Lance l'install flat dans le préfixe. Lève `Mo2InstanceError` si elle est absente."""
+    """Lance l'install flat dans le préfixe. Lève `Mo2InstanceError` si elle est absente.
+
+    `gamemode` : voir `launch.launch_game` — même traitement, c'est un lancement
+    de jeu.
+    """
     executable = final_dir / launcher
     if not system.path_exists(executable):
         raise Mo2InstanceError(
@@ -52,6 +57,7 @@ def launch_flat(
         paths=prefix,
         proton_path=proton_path,
         log_label="flat-game",
+        gamemode=gamemode,
         on_progress=on_progress,
         cancel_event=cancel_event,
     )

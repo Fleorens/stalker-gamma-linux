@@ -36,6 +36,11 @@ class Preferences:
     install_path: Path = DEFAULT_INSTALL_TARGET
     proton_release: str | None = None
     create_steam_shortcut: bool = False
+    # `use_gamemode` à `True` par défaut : quand GameMode est installé, il n'y a
+    # aucune raison de s'en priver, et quand il ne l'est pas c'est un no-op
+    # (cf. `environment.gamemode`). L'interrupteur n'existe que comme échappatoire
+    # (diagnostic d'un problème de perfs, machine où le daemon fait des siennes).
+    use_gamemode: bool = True
 
     def with_install_path(self, path: Path) -> Preferences:
         return replace(self, install_path=path)
@@ -45,6 +50,9 @@ class Preferences:
 
     def with_create_steam_shortcut(self, enabled: bool) -> Preferences:
         return replace(self, create_steam_shortcut=enabled)
+
+    def with_use_gamemode(self, enabled: bool) -> Preferences:
+        return replace(self, use_gamemode=enabled)
 
 
 def prefs_file() -> Path:
@@ -68,6 +76,7 @@ def load_preferences() -> Preferences:
         install_path=Path(str(raw_path)) if raw_path else DEFAULT_INSTALL_TARGET,
         proton_release=str(raw_release) if raw_release else None,
         create_steam_shortcut=bool(data.get("create_steam_shortcut", False)),
+        use_gamemode=bool(data.get("use_gamemode", True)),
     )
 
 
@@ -78,5 +87,6 @@ def save_preferences(prefs: Preferences) -> None:
         "install_path": str(prefs.install_path),
         "proton_release": prefs.proton_release or "",
         "create_steam_shortcut": prefs.create_steam_shortcut,
+        "use_gamemode": prefs.use_gamemode,
     }
     prefs_file().write_text(tomli_w.dumps(payload), encoding="utf-8")

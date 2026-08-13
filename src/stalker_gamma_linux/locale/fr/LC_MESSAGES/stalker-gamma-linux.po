@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-09 23:29+0200\n"
+"POT-Creation-Date: 2026-08-13 21:18+0200\n"
 "PO-Revision-Date: 2026-07-26 10:23+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -109,6 +109,13 @@ msgstr ""
 
 msgid "Doesn't run the USVFS diagnostic after launch"
 msgstr "N'exécute pas le diagnostic USVFS après le lancement"
+
+msgid ""
+"Launches without GameMode (enabled by default when installed: performance"
+" CPU governor and priorities while you play)"
+msgstr ""
+"Lance le jeu sans GameMode (activé par défaut quand il est installé : "
+"gouverneur CPU performance et priorités pendant la partie)"
 
 msgid "Creates/updates the desktop shortcut (.desktop + icon, application menu)"
 msgstr "Crée/actualise le raccourci bureau (.desktop + icône, menu applications)"
@@ -436,7 +443,8 @@ msgid ""
 "An update is available: G.A.M.M.A definition {local} → {upstream}.\n"
 "Updating re-downloads only what changed."
 msgstr ""
-"Une mise à jour est disponible : définition G.A.M.M.A {local} → {upstream}.\n"
+"Une mise à jour est disponible : définition G.A.M.M.A {local} → "
+"{upstream}.\n"
 "La mise à jour ne retélécharge que ce qui a changé."
 
 #, python-brace-format
@@ -583,6 +591,33 @@ msgstr "umu-run détecté"
 
 msgid "umu-run not found in PATH"
 msgstr "umu-run introuvable dans le PATH"
+
+#, python-brace-format
+msgid ""
+"gamemoderun detected, but the CPU governor stays locked: run `sudo "
+"usermod -aG {group} $USER` then log out and back in (I/O and scheduling "
+"priorities work regardless)"
+msgstr "gamemoderun détecté, mais le gouverneur CPU reste bloqué : lancez `sudo usermod -aG {group} $USER` puis reconnectez-vous (les priorités I/O et d'ordonnancement fonctionnent malgré tout)"
+
+#, python-brace-format
+msgid ""
+"gamemoderun detected — CPU governor locked until you log out and back in "
+"(you joined the « {group} » group after this session started)"
+msgstr "gamemoderun détecté — gouverneur CPU bloqué jusqu'à votre reconnexion (vous avez rejoint le groupe « {group} » après l'ouverture de cette session)"
+
+msgid ""
+"gamemoderun detected — applied automatically when you play (the daemon "
+"starts on demand, « inactive » in between is normal)"
+msgstr ""
+"gamemoderun détecté — appliqué automatiquement quand vous jouez (le démon"
+" démarre à la demande, « inactive » entre deux parties est normal)"
+
+msgid ""
+"absent — optional: performance CPU governor and priorities while you "
+"play, applied automatically once installed"
+msgstr ""
+"absent — facultatif : gouverneur CPU performance et priorités pendant la "
+"partie, appliqué automatiquement une fois installé"
 
 msgid "protontricks (Flatpak) detected"
 msgstr "protontricks (Flatpak) détecté"
@@ -1015,6 +1050,11 @@ msgstr "Annulé — la reprise continuera où c'était arrêté."
 msgid "Failed — see the console and the log."
 msgstr "Échec — voir la console et le journal."
 
+msgid "Performance CPU governor and priorities — GameMode is not installed yet."
+msgstr ""
+"Gouverneur CPU performance et priorités — GameMode n'est pas encore "
+"installé."
+
 msgid "Choose…"
 msgstr "Choisir…"
 
@@ -1027,6 +1067,12 @@ msgstr ""
 
 msgid "Version (e.g. GE-Proton10-8)"
 msgstr "Version (ex. GE-Proton10-8)"
+
+msgid "Performance"
+msgstr "Performances"
+
+msgid "GameMode while playing"
+msgstr "GameMode pendant la partie"
 
 msgid "« Play directly » shortcut on install"
 msgstr "Raccourci « jouer en direct » à l'installation"
@@ -1165,6 +1211,26 @@ msgstr "Lancement de Mod Organizer 2…"
 
 msgid "Cancelled."
 msgstr "Annulé."
+
+msgid "GameMode disabled for this launch."
+msgstr "GameMode désactivé pour ce lancement."
+
+msgid ""
+"GameMode enabled: I/O and scheduling priorities only — the CPU governor "
+"stays locked, see `doctor` to unlock it."
+msgstr "GameMode activé : priorités I/O et ordonnancement seulement — le gouverneur CPU reste bloqué, voir `doctor` pour le débloquer."
+
+msgid "GameMode enabled: performance CPU governor and priorities while you play."
+msgstr ""
+"GameMode activé : gouverneur CPU performance et priorités pendant la "
+"partie."
+
+msgid ""
+"GameMode not installed — launching without it (optional: performance CPU "
+"governor and priorities while you play)."
+msgstr ""
+"GameMode n'est pas installé — lancement sans lui (facultatif : gouverneur"
+" CPU performance et priorités pendant la partie)."
 
 #, python-brace-format
 msgid "Launching Anomaly via MO2 (« {executable} », USVFS)…"
@@ -1526,4 +1592,7 @@ msgstr "umu-run opérationnel : {target}"
 
 #~ msgid "Failed — see details in the console below."
 #~ msgstr "Échec — détail dans la console ci-dessous."
+
+#~ msgid "Performance CPU governor and priorities while the game runs (detected)."
+#~ msgstr "Gouverneur CPU performance et priorités pendant la partie (détecté)."
 

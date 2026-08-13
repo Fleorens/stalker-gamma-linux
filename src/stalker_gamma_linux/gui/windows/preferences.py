@@ -18,8 +18,27 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
+from stalker_gamma_linux.environment import checks, gamemode  # noqa: E402
+from stalker_gamma_linux.environment.commands import INSTALL_COMMANDS  # noqa: E402
+from stalker_gamma_linux.environment.distro import detect_distro  # noqa: E402
 from stalker_gamma_linux.gui import prefs  # noqa: E402
 from stalker_gamma_linux.i18n import _  # noqa: E402
+
+
+def _gamemode_subtitle() -> str:
+    """Sous-titre de l'interrupteur : ce que ça fait, et si c'est installé.
+
+    L'interrupteur reste actionnable même sans GameMode installé (la préférence
+    est persistée, elle s'appliquera dès que le paquet sera là) — d'où le
+    sous-titre qui donne la commande d'installation plutôt qu'une ligne grisée.
+    """
+    if gamemode.is_available():
+        # Même phrase que `doctor` : l'utilisateur qui a lu l'un ne doit pas
+        # découvrir un état différent dans l'autre (groupe `gamemode` compris).
+        return checks.gamemode_detail()
+    hint = INSTALL_COMMANDS["gamemode"].for_family(detect_distro().family)
+    missing = _("Performance CPU governor and priorities — GameMode is not installed yet.")
+    return f"{missing} {hint}" if hint else missing
 
 
 class PreferencesDialog(Adw.PreferencesDialog):
@@ -59,6 +78,15 @@ class PreferencesDialog(Adw.PreferencesDialog):
         self._release_row = Adw.EntryRow(title=_("Version (e.g. GE-Proton10-8)"))
         self._release_row.set_text(preferences.proton_release or "")
         proton_group.add(self._release_row)
+
+        performance_group = Adw.PreferencesGroup(title=_("Performance"))
+        page.add(performance_group)
+        self._gamemode_row = Adw.SwitchRow(
+            title=_("GameMode while playing"),
+            subtitle=_gamemode_subtitle(),
+            active=preferences.use_gamemode,
+        )
+        performance_group.add(self._gamemode_row)
 
         steam_group = Adw.PreferencesGroup(title="Steam")
         page.add(steam_group)
@@ -100,8 +128,10 @@ class PreferencesDialog(Adw.PreferencesDialog):
 
     def _on_closed(self, _dialog: Adw.PreferencesDialog) -> None:
         release = self._release_row.get_text().strip()
-        updated = self._prefs.with_proton_release(release).with_create_steam_shortcut(
-            self._shortcut_row.get_active()
+        updated = (
+            self._prefs.with_proton_release(release)
+            .with_create_steam_shortcut(self._shortcut_row.get_active())
+            .with_use_gamemode(self._gamemode_row.get_active())
         )
         prefs.save_preferences(updated)
         self._on_saved(updated)

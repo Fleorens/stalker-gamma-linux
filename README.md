@@ -105,6 +105,15 @@ launcher would need in a container.
   and Vulkan drivers are **optional**: the pipeline runs everything through
   umu (own runtime, Proton-GE fetched from GitHub) — Steam only matters for
   Steam Input / Gaming Mode on the Deck, Vulkan only to actually play.
+- [**GameMode**](https://github.com/FeralInteractive/gamemode) is optional too,
+  and used automatically when present: `play` wraps the launch in
+  `gamemoderun`, which is what actually *requests* the mode (the daemon is
+  D-Bus-activated, so `gamemoded -s` saying « inactive » between sessions is
+  normal, not a bug to fix with `systemctl enable`). Opt out with
+  `play --no-gamemode` or the switch in the GUI's Preferences. On Fedora and
+  Arch the CPU-governor part is reserved to members of the `gamemode` group by
+  a polkit rule, and fails silently otherwise — `doctor` detects that and gives
+  you the one-time `usermod` command.
 
 Once installed (or with the venv activated), the CLI is `stalker-gamma-linux`:
 
@@ -112,7 +121,7 @@ Once installed (or with the venv activated), the CLI is `stalker-gamma-linux`:
 stalker-gamma-linux doctor                       # system prerequisites + prefix + install state
 stalker-gamma-linux install                      # anomaly → GAMMA → prefix → MO2 → (default target: ~/Games/stalker-gamma)
 stalker-gamma-linux install --target /mnt/disk --shortcut   # custom disk, + desktop entry
-stalker-gamma-linux play                         # launch Anomaly through MO2 (USVFS, mods active)
+stalker-gamma-linux play                         # launch Anomaly through MO2 (USVFS, mods active, GameMode if installed)
 stalker-gamma-linux mo2                          # open Mod Organizer 2 itself (enable/disable mods)
 stalker-gamma-linux update                       # update the modpack, re-verify, remove ReShade again if needed
 stalker-gamma-linux shortcut                     # (re)create the .desktop menu entry
