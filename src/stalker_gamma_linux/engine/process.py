@@ -96,6 +96,7 @@ def run(
     on_progress: ProgressCallback | None = None,
     cancel_event: threading.Event | None = None,
     tmpdir: Path | None = None,
+    download_dir: Path | None = None,
 ) -> None:
     """Lance `gamma-launcher <subcommand> <args>` et suit sa progression ligne à ligne.
 
@@ -107,6 +108,9 @@ def run(
     `_TERMINATE_GRACE_SECONDS`) et `EngineCancelledError` est levée.
     `tmpdir` (optionnel) : redirige `TMPDIR` du sous-process (extraction des
     archives) hors du tmpfs `/tmp` — voir `_engine_environment`.
+    `download_dir` (optionnel) : dossier où *cette* sous-commande dépose ses
+    archives, joint à l'erreur pour que le remède « télécharge ce fichier à la
+    main » désigne le bon dossier (cf. `engine.errors`).
     """
     binary = _resolve_engine_binary()
     if binary is None:
@@ -147,4 +151,4 @@ def run(
     if cancel_event is not None and cancel_event.is_set():
         raise EngineCancelledError(subcommand)
     if returncode != 0:
-        raise EngineExecutionError(subcommand, returncode, "\n".join(tail))
+        raise EngineExecutionError(subcommand, returncode, "\n".join(tail), download_dir)

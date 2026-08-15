@@ -101,9 +101,7 @@ def test_run_succeeds_without_progress_callback(monkeypatch: pytest.MonkeyPatch)
 
 def test_run_raises_execution_error_with_output_tail(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/gamma-launcher")
-    monkeypatch.setattr(
-        subprocess, "Popen", _fake_popen(["oops", "ModDB download link not found"], 1)
-    )
+    monkeypatch.setattr(subprocess, "Popen", _fake_popen(["oops", "boom"], 1))
 
     with pytest.raises(EngineExecutionError) as excinfo:
         process.run("full-install", [])
@@ -111,8 +109,21 @@ def test_run_raises_execution_error_with_output_tail(monkeypatch: pytest.MonkeyP
     error = excinfo.value
     assert error.subcommand == "full-install"
     assert error.returncode == 1
-    assert "ModDB download link not found" in error.output_tail
-    assert "issue #167" in str(error)
+    assert "boom" in error.output_tail
+
+
+def test_run_attaches_the_download_folder_to_the_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Le remède « dépose le fichier toi-même » doit nommer le dossier de CETTE
+    # sous-commande : sans ce transport, il désignerait le mauvais.
+    monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/gamma-launcher")
+    failure = "ModDBDownloadError: Download link not found when requesting https://www.moddb.com/x"
+    monkeypatch.setattr(subprocess, "Popen", _fake_popen([failure], 1))
+
+    with pytest.raises(EngineExecutionError) as excinfo:
+        process.run("full-install", [], download_dir=Path("/games/gamma/downloads"))
+
+    assert excinfo.value.download_dir == Path("/games/gamma/downloads")
+    assert "/games/gamma/downloads" in str(excinfo.value)
 
 
 def test_run_disables_gamma_launcher_persistent_config(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -15,6 +15,17 @@ from stalker_gamma_linux.engine.paths import InstallPaths
 from stalker_gamma_linux.engine.process import ProgressCallback, run
 
 
+def _gamma_downloads(paths: InstallPaths) -> Path:
+    """Dossier où `full-install` dépose les archives de mods : `<gamma>/downloads`.
+
+    Codé en dur côté amont (`FullInstall._dl_dir = self._gamma_dir / "downloads"`)
+    et c'est bien celui-ci qu'il faut nommer à l'utilisateur pour un dépôt
+    manuel — pas `cache/`, que cette sous-commande n'utilise pas (on ne lui
+    passe volontairement pas `--cache-directory`, voir `install_gamma`).
+    """
+    return paths.gamma / "downloads"
+
+
 def _extract_tmpdir(paths: InstallPaths) -> Path:
     """Dossier temporaire d'extraction, sur le disque d'installation.
 
@@ -42,6 +53,7 @@ def install_anomaly(
         on_progress=on_progress,
         cancel_event=cancel_event,
         tmpdir=_extract_tmpdir(paths),
+        download_dir=paths.cache,
     )
 
 
@@ -86,6 +98,7 @@ def install_gamma(
         on_progress=on_progress,
         cancel_event=cancel_event,
         tmpdir=_extract_tmpdir(paths),
+        download_dir=_gamma_downloads(paths),
     )
 
 
@@ -237,11 +250,12 @@ def verify(
             ["--gamma", str(paths.gamma)],
             on_progress=watch,
             cancel_event=cancel_event,
+            download_dir=_gamma_downloads(paths),
         )
     except EngineExecutionError as error:
         if corrupted or not unverifiable:
             raise VerificationError(
-                error.subcommand, error.returncode, error.output_tail
+                error.subcommand, error.returncode, error.output_tail, error.download_dir
             ) from error
         # Échec uniquement « en ligne » : aucune archive locale en défaut.
     return tuple(dict.fromkeys(unverifiable))
