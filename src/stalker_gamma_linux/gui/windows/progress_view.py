@@ -26,7 +26,7 @@ from gi.repository import Adw, Gdk, GLib, Gtk, Pango  # noqa: E402
 
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE  # noqa: E402
 from stalker_gamma_linux.gui import phases  # noqa: E402
-from stalker_gamma_linux.gui.format import format_duration  # noqa: E402
+from stalker_gamma_linux.gui.format import first_url, format_duration  # noqa: E402
 from stalker_gamma_linux.gui.windows.background import wrap_with_background  # noqa: E402
 from stalker_gamma_linux.gui.worker import (  # noqa: E402
     BackgroundTask,
@@ -129,6 +129,7 @@ class ProgressPage(Adw.NavigationPage):
         self._timeline = phases.Timeline.from_labels(tuple(phase_labels)) if phase_labels else None
         self._phase_rows: list[_PhaseRow] = []
         self._error_message = ""
+        self._error_url: str | None = None
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
         for side in ("top", "bottom", "start", "end"):
@@ -295,15 +296,30 @@ class ProgressPage(Adw.NavigationPage):
         self._error_copy.add_css_class("flat")
         self._error_copy.connect("clicked", self._on_copy_error)
 
+        # Certains remèdes commencent par « ouvre cette page » (mur ModDB :
+        # télécharger le fichier à la main). Recopier une URL longue depuis un
+        # bandeau, à la souris, est exactement le genre de friction qui fait
+        # abandonner — d'où le bouton, affiché seulement quand il y a une URL.
+        self._error_open = Gtk.Button(
+            label=_("Open page"), valign=Gtk.Align.CENTER, halign=Gtk.Align.END
+        )
+        self._error_open.add_css_class("flat")
+        self._error_open.connect("clicked", self._on_open_error_url)
+        self._error_open.set_visible(False)
+
         text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, hexpand=True)
         text_box.append(self._error_title)
         text_box.append(self._error_hint)
+
+        buttons = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, valign=Gtk.Align.CENTER)
+        buttons.append(self._error_copy)
+        buttons.append(self._error_open)
 
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         for side in ("top", "bottom", "start", "end"):
             getattr(box, f"set_margin_{side}")(14)
         box.append(text_box)
-        box.append(self._error_copy)
+        box.append(buttons)
 
         self._error_banner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self._error_banner.add_css_class("error-banner")
@@ -316,6 +332,8 @@ class ProgressPage(Adw.NavigationPage):
         self._error_title.set_label(message)
         self._error_hint.set_label(hint or "")
         self._error_hint.set_visible(hint is not None)
+        self._error_url = first_url(self._error_message)
+        self._error_open.set_visible(self._error_url is not None)
         self._error_banner.set_visible(True)
 
     def _on_copy_error(self, _button: Gtk.Button) -> None:
@@ -324,6 +342,16 @@ class ProgressPage(Adw.NavigationPage):
             return
         display.get_clipboard().set(self._error_message)
         self._error_copy.set_label(_("Copied"))
+
+    def _on_open_error_url(self, _button: Gtk.Button) -> None:
+        if self._error_url is None:
+            return
+        # `Gtk.UriLauncher` passe par le portail quand il y en a un et retombe
+        # sur le navigateur par défaut sinon — rien à faire du résultat : si
+        # l'ouverture échoue, l'URL reste lisible et copiable dans le bandeau.
+        root = self.get_root()
+        parent = root if isinstance(root, Gtk.Window) else None
+        Gtk.UriLauncher(uri=self._error_url).launch(parent, None, None)
 
     def _render_timeline(self) -> None:
         if self._timeline is None:

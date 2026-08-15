@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from stalker_gamma_linux.gui.format import format_duration, format_gib, parse_step_index
+from stalker_gamma_linux.gui.format import (
+    first_url,
+    format_duration,
+    format_gib,
+    parse_step_index,
+)
 
 
 class TestParseStepIndex:
@@ -46,3 +51,23 @@ class TestFormatDuration:
 
     def test_negatif_borne_a_zero(self) -> None:
         assert format_duration(-3.2) == "0 s"
+
+
+def test_first_url_finds_the_moddb_page_in_a_remedy() -> None:
+    remedy = (
+        "ModDB refused this download. Fetch it yourself:\n"
+        "   1. open https://www.moddb.com/mods/stalker-anomaly/addons/boomsticks "
+        "in your browser;\n"
+        "   2. drop it in /games/gamma/downloads;"
+    )
+
+    assert first_url(remedy) == "https://www.moddb.com/mods/stalker-anomaly/addons/boomsticks"
+
+
+def test_first_url_trims_sentence_punctuation() -> None:
+    # « ouvre https://…/addon. » ne doit pas produire un lien mort d'un caractère.
+    assert first_url("open https://www.moddb.com/addon.") == "https://www.moddb.com/addon"
+
+
+def test_first_url_returns_none_without_a_link() -> None:
+    assert first_url("libunrar is missing. Install it and retry.") is None

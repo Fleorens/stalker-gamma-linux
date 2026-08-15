@@ -2,7 +2,25 @@
 
 from __future__ import annotations
 
+import re
+
 _GIB = 1024**3
+
+# URL citée dans un message d'erreur (ex. la page ModDB d'un mod que le
+# téléchargement n'a pas pu servir, cf. `engine.errors`). La ponctuation
+# terminale d'une phrase française n'appartient pas à l'URL : `[^\s<>"']+`
+# capture large, puis on rogne `.,;:)]` — sinon « ouvre https://…/addon. »
+# produit un lien mort d'un caractère.
+_URL_RE = re.compile(r"https?://[^\s<>\"']+")
+_URL_TRAILING = ".,;:!?)]}»"
+
+
+def first_url(text: str) -> str | None:
+    """Première URL http(s) du texte, ponctuation de fin rognée. `None` s'il n'y en a pas."""
+    match = _URL_RE.search(text)
+    if match is None:
+        return None
+    return match.group(0).rstrip(_URL_TRAILING) or None
 
 
 def parse_step_index(index: str) -> tuple[int, int] | None:

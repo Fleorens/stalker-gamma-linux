@@ -136,6 +136,28 @@ def test_vue_progression_affiche_le_bandeau_derreur() -> None:
     assert page._error_banner.get_visible()
     assert "libunrar" in page._error_title.get_label()
     assert "dnf" in page._error_hint.get_label()
+    # Pas d'URL dans ce remède : le bouton « Ouvrir la page » reste caché.
+    assert not page._error_open.get_visible()
+
+
+def test_vue_progression_propose_douvrir_lurl_du_remede() -> None:
+    """Mur ModDB : le remède commence par « ouvre cette page » — un clic, pas une recopie."""
+    from stalker_gamma_linux.gui.windows.progress_view import ProgressPage
+
+    page = ProgressPage(
+        title="Installation",
+        task=BackgroundTask(lambda _events, _cancel: 1),
+        cancellable=True,
+        on_finished=lambda _code: None,
+    )
+
+    page._show_error(
+        "gamma-launcher full-install a échoué",
+        "ouvre https://www.moddb.com/mods/stalker-anomaly/addons/boomsticks puis dépose le fichier",
+    )
+
+    assert page._error_open.get_visible()
+    assert page._error_url == "https://www.moddb.com/mods/stalker-anomaly/addons/boomsticks"
 
 
 def test_vue_progression_session_sans_timeline() -> None:
