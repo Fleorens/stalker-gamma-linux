@@ -87,5 +87,14 @@ def run_doctor(target: Path | None = None) -> int:
             )
             + "[/green]"
         )
+        if not report.install.gamma:
+            # Les fichiers sont là mais l'état ne le sait pas : sans ce conseil,
+            # `install` relancerait des téléchargements déjà faits. C'est le cas
+            # d'une install GOG/Heroic, manuelle ou partagée avec un dual-boot.
+            console.print(
+                _("Adopt it (no re-download) with: stalker-gamma-linux import {root}").format(
+                    root=report.target
+                )
+            )
 
     return 0 if report.is_ready else 1

@@ -374,11 +374,22 @@ pas le mode nominal de ce projet.
 
 ## Annexe C — Contexte : distribution GOG
 
-Fin 2025, GOG a ajouté G.A.M.M.A. en « mod en un clic » via GOG Galaxy
-(`⚠ À VALIDER` : périmètre exact — Galaxy est Windows-only, donc sans
-impact direct pour Linux, mais cela crédibilise une distribution
-« officielle » du modpack et pourrait offrir à terme une source de
-téléchargement alternative à ModDB).
+Fin 2025, GOG a ajouté G.A.M.M.A. en « mod en un clic ». La première version
+de cette annexe concluait « Galaxy est Windows-only, donc sans impact direct
+pour Linux » : c'est **faux**, et vérifié comme tel le 2026-08-15. Les
+joueurs Linux passent par **Heroic**, et l'installation s'y bloque après le
+téléchargement — 130 Gio sur le disque, blocage à 100 % sur « Processing
+files », contournement en annulant puis en important les fichiers, après quoi
+le jeu ne démarre pas correctement (Heroic#5063).
+
+Conséquence pour ce projet : il existe un public qui a **déjà** les fichiers
+et aucune installation exploitable. C'est exactement ce que la commande
+`import` adopte (voir `adopt.py`) — repérage par marqueurs, liens symboliques
+si le layout diffère, aucun octet retéléchargé.
+
+Reste la piste, non explorée : GOG héberge le pack, ce qui pourrait offrir à
+terme une source de téléchargement alternative à ModDB (et donc au mur
+Cloudflare).
 
 ---
 

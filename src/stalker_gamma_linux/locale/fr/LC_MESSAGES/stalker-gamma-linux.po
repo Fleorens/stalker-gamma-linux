@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-15 10:24+0200\n"
+"POT-Creation-Date: 2026-08-15 10:30+0200\n"
 "PO-Revision-Date: 2026-07-26 10:23+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -17,6 +17,95 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+#, python-brace-format
+msgid "{source} is not a directory."
+msgstr "{source} n'est pas un répertoire."
+
+#, python-brace-format
+msgid ""
+"No GAMMA install found under {source}: {markers} not found within {depth}"
+" levels.\n"
+"Point --source at the folder that contains the game (the one holding "
+"Anomaly and the Mod Organizer 2 instance)."
+msgstr ""
+"Aucune installation GAMMA trouvée sous {source} : {markers} "
+"introuvable(s) dans les {depth} premiers niveaux.\n"
+"Indique dans --source le dossier qui contient le jeu (celui qui héberge "
+"Anomaly et l'instance Mod Organizer 2)."
+
+#, python-brace-format
+msgid ""
+"{link} already exists and does not point at {destination}. Remove it (or "
+"pick another --target) and run the import again."
+msgstr ""
+"{link} existe déjà et ne pointe pas vers {destination}. Retire-le (ou "
+"choisis un autre --target) puis relance l'import."
+
+#, python-brace-format
+msgid "Linked {link} → {destination}"
+msgstr "Lien créé : {link} → {destination}"
+
+msgid "Found:"
+msgstr "Trouvé :"
+
+#, python-brace-format
+msgid "  Anomaly           {path}"
+msgstr "  Anomaly           {path}"
+
+#, python-brace-format
+msgid "  Mod Organizer 2   {path}"
+msgstr "  Mod Organizer 2   {path}"
+
+#, python-brace-format
+msgid "Adopting as install root: {root}"
+msgstr "Racine d'installation adoptée : {root}"
+
+msgid "  (already in the expected layout — nothing to link)"
+msgstr "  (déjà au layout attendu — aucun lien à créer)"
+
+msgid "  Links to create (no file is copied or moved):"
+msgstr "  Liens à créer (aucun fichier n'est copié ni déplacé) :"
+
+#, python-brace-format
+msgid "    {link} → {destination}"
+msgstr "    {link} → {destination}"
+
+#, python-brace-format
+msgid "Error: {error}"
+msgstr "Erreur : {error}"
+
+msgid ""
+"\n"
+"Dry run: nothing was written."
+msgstr ""
+"\n"
+"Simulation : rien n'a été écrit."
+
+#, python-brace-format
+msgid ""
+"\n"
+"Imported. The downloads are considered done — nothing will be re-"
+"downloaded.\n"
+"Finish the setup (ReShade removal, Proton prefix, MO2 instance, shortcut)"
+" with:\n"
+"    stalker-gamma-linux install --target {root}\n"
+"\n"
+"If the modpack itself is incomplete (an interrupted download), run "
+"`stalker-gamma-linux update --target {root}` instead — it re-runs the "
+"modpack install, and backs up your MO2 profiles first."
+msgstr ""
+"\n"
+"Importé. Les téléchargements sont considérés comme faits — rien ne sera "
+"retéléchargé.\n"
+"Termine la mise en place (retrait de ReShade, préfixe Proton, instance "
+"MO2, raccourci) avec :\n"
+"    stalker-gamma-linux install --target {root}\n"
+"\n"
+"Si c'est le modpack lui-même qui est incomplet (téléchargement "
+"interrompu), lance plutôt `stalker-gamma-linux update --target {root}` — "
+"il rejoue l'installation du modpack, et sauvegarde d'abord tes profils "
+"MO2."
 
 msgid "Target install directory (default: ~/Games/stalker-gamma)"
 msgstr "Répertoire d'installation visé (défaut : ~/Games/stalker-gamma)"
@@ -117,6 +206,19 @@ msgstr ""
 "Lance le jeu sans GameMode (activé par défaut quand il est installé : "
 "gouverneur CPU performance et priorités pendant la partie)"
 
+msgid ""
+"Adopts a GAMMA install already on disk (GOG/Heroic, manual, Windows dual-"
+"boot) instead of downloading ~146 GiB again"
+msgstr ""
+"Adopte une installation GAMMA déjà présente sur le disque (GOG/Heroic, "
+"manuelle, dual-boot Windows) au lieu de retélécharger ~146 Gio"
+
+msgid "Folder holding the existing install (Anomaly + Mod Organizer 2)"
+msgstr "Dossier contenant l'installation existante (Anomaly + Mod Organizer 2)"
+
+msgid "Shows what would be adopted and linked, without writing anything"
+msgstr "Affiche ce qui serait adopté et lié, sans rien écrire"
+
 msgid "Creates/updates the desktop shortcut (.desktop + icon, application menu)"
 msgstr "Crée/actualise le raccourci bureau (.desktop + icône, menu applications)"
 
@@ -180,6 +282,10 @@ msgstr ""
 "Install GAMMA détectée sur le disque (Anomaly + Mod Organizer 2 présents)"
 " — utilisable même si les étapes ci-dessus ne sont pas cochées (install "
 "hors pipeline)."
+
+#, python-brace-format
+msgid "Adopt it (no re-download) with: stalker-gamma-linux import {root}"
+msgstr "Adopte-la (sans retéléchargement) avec : stalker-gamma-linux import {root}"
 
 #, python-brace-format
 msgid ""
@@ -488,10 +594,6 @@ msgstr ""
 #, python-brace-format
 msgid "Could not write {path}: {cause}"
 msgstr "Impossible d'écrire {path} : {cause}"
-
-#, python-brace-format
-msgid "Error: {error}"
-msgstr "Erreur : {error}"
 
 #, python-brace-format
 msgid ""

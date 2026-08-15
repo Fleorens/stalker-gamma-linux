@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from stalker_gamma_linux import logging_setup, output, sizing
+from stalker_gamma_linux.adopt import run_import
 from stalker_gamma_linux.desktop import run_shortcut
 from stalker_gamma_linux.doctor import run_doctor
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE
@@ -149,6 +150,25 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    import_parser = subparsers.add_parser(
+        "import",
+        help=_(
+            "Adopts a GAMMA install already on disk (GOG/Heroic, manual, "
+            "Windows dual-boot) instead of downloading ~146 GiB again"
+        ),
+    )
+    import_parser.add_argument(
+        "source",
+        type=Path,
+        help=_("Folder holding the existing install (Anomaly + Mod Organizer 2)"),
+    )
+    import_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
+    import_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=_("Shows what would be adopted and linked, without writing anything"),
+    )
+
     shortcut_parser = subparsers.add_parser(
         "shortcut",
         help=_("Creates/updates the desktop shortcut (.desktop + icon, application menu)"),
@@ -214,6 +234,8 @@ def _dispatch(args: argparse.Namespace) -> int:
             diagnose=not args.no_diagnose,
             use_gamemode=not args.no_gamemode,
         )
+    if args.command == "import":
+        return run_import(args.source, args.target, dry_run=args.dry_run)
     if args.command == "shortcut":
         return run_shortcut(args.target)
     if args.command == "install-umu":

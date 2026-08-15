@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-15 10:24+0200\n"
+"POT-Creation-Date: 2026-08-15 10:30+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,6 +16,76 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+#, python-brace-format
+msgid "{source} is not a directory."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"No GAMMA install found under {source}: {markers} not found within {depth}"
+" levels.\n"
+"Point --source at the folder that contains the game (the one holding "
+"Anomaly and the Mod Organizer 2 instance)."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"{link} already exists and does not point at {destination}. Remove it (or "
+"pick another --target) and run the import again."
+msgstr ""
+
+#, python-brace-format
+msgid "Linked {link} → {destination}"
+msgstr ""
+
+msgid "Found:"
+msgstr ""
+
+#, python-brace-format
+msgid "  Anomaly           {path}"
+msgstr ""
+
+#, python-brace-format
+msgid "  Mod Organizer 2   {path}"
+msgstr ""
+
+#, python-brace-format
+msgid "Adopting as install root: {root}"
+msgstr ""
+
+msgid "  (already in the expected layout — nothing to link)"
+msgstr ""
+
+msgid "  Links to create (no file is copied or moved):"
+msgstr ""
+
+#, python-brace-format
+msgid "    {link} → {destination}"
+msgstr ""
+
+#, python-brace-format
+msgid "Error: {error}"
+msgstr ""
+
+msgid ""
+"\n"
+"Dry run: nothing was written."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"\n"
+"Imported. The downloads are considered done — nothing will be re-"
+"downloaded.\n"
+"Finish the setup (ReShade removal, Proton prefix, MO2 instance, shortcut)"
+" with:\n"
+"    stalker-gamma-linux install --target {root}\n"
+"\n"
+"If the modpack itself is incomplete (an interrupted download), run "
+"`stalker-gamma-linux update --target {root}` instead — it re-runs the "
+"modpack install, and backs up your MO2 profiles first."
+msgstr ""
 
 msgid "Target install directory (default: ~/Games/stalker-gamma)"
 msgstr ""
@@ -93,6 +163,17 @@ msgid ""
 " CPU governor and priorities while you play)"
 msgstr ""
 
+msgid ""
+"Adopts a GAMMA install already on disk (GOG/Heroic, manual, Windows dual-"
+"boot) instead of downloading ~146 GiB again"
+msgstr ""
+
+msgid "Folder holding the existing install (Anomaly + Mod Organizer 2)"
+msgstr ""
+
+msgid "Shows what would be adopted and linked, without writing anything"
+msgstr ""
+
 msgid "Creates/updates the desktop shortcut (.desktop + icon, application menu)"
 msgstr ""
 
@@ -141,6 +222,10 @@ msgid ""
 "GAMMA install detected on disk (Anomaly + Mod Organizer 2 present) — "
 "usable even if the steps above aren't checked off (install outside the "
 "pipeline)."
+msgstr ""
+
+#, python-brace-format
+msgid "Adopt it (no re-download) with: stalker-gamma-linux import {root}"
 msgstr ""
 
 #, python-brace-format
@@ -406,10 +491,6 @@ msgstr ""
 
 #, python-brace-format
 msgid "Could not write {path}: {cause}"
-msgstr ""
-
-#, python-brace-format
-msgid "Error: {error}"
 msgstr ""
 
 #, python-brace-format

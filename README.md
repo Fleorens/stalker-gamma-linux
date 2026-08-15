@@ -134,6 +134,7 @@ Once installed (or with the venv activated), the CLI is `stalker-gamma-linux`:
 stalker-gamma-linux doctor                       # system prerequisites + prefix + install state
 stalker-gamma-linux install                      # anomaly → GAMMA → prefix → MO2 → (default target: ~/Games/stalker-gamma)
 stalker-gamma-linux install --target /mnt/disk --shortcut   # custom disk, + desktop entry
+stalker-gamma-linux import /path/to/existing     # adopt an install already on disk — no re-download
 stalker-gamma-linux play                         # launch Anomaly through MO2 (USVFS, mods active, GameMode if installed)
 stalker-gamma-linux mo2                          # open Mod Organizer 2 itself (enable/disable mods)
 stalker-gamma-linux update                       # update the modpack, re-verify, remove ReShade again if needed
@@ -142,6 +143,16 @@ stalker-gamma-linux prefix-doctor --repair        # repair the shared Proton pre
 stalker-gamma-linux uninstall                    # remove shortcuts/settings/logs (keeps the game)
 stalker-gamma-linux doctor --report              # write a report to attach to an issue
 ```
+
+**Already have GAMMA on disk?** Don't download it twice. `stalker-gamma-linux
+import /path/to/it` finds Anomaly and the Mod Organizer 2 instance by their
+markers, adopts them where they are (symlinks if the layout differs — nothing is
+copied or moved), and marks the downloads as done. `install` then only does what
+is actually missing: ReShade removal, Proton prefix, MO2 configuration,
+shortcut. Works for a manual install, a folder shared with a Windows dual-boot,
+and for the [GOG one-click GAMMA that gets stuck in
+Heroic](https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/issues/5063)
+after downloading its 130 GB. Add `--dry-run` to see what it would adopt.
 
 **Reporting a problem?** Run `stalker-gamma-linux doctor --report` (or click the
 save icon in the GUI's Diagnostic view). It writes a single file with your
