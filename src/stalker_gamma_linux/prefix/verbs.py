@@ -11,9 +11,21 @@ from stalker_gamma_linux.prefix import process
 from stalker_gamma_linux.prefix.errors import PrefixCommandError, WinetricksVerbError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 
-# Liste actée en T04 (docs/ARCHITECTURE.md, décision 3). `dx8vb`/`quartz`,
-# présents chez v1ld uniquement, restent ⚠ À VALIDER → matrice T05.
+# Liste actée en T04 (docs/ARCHITECTURE.md, décision 3).
 # vcrun2022 en premier : c'est le prérequis le plus structurant pour MO2.
+#
+# `dx8vb` et `quartz` (présents dans le guide v1ld, absents des deux autres
+# sources) : tranché le 2026-08-15, ils **ne sont pas requis**.
+# - `dx8vb` est la bibliothèque de types DirectX 8 pour **Visual Basic**, pas
+#   le runtime D3D8. X-Ray est du C++ et embarque ses propres rendus
+#   DX8/9/10/11 (`bin/AnomalyDX*.exe`) : rien n'y consomme une typelib VB. La
+#   confusion vient probablement du « DX8 » présent dans les deux noms.
+# - `quartz` est le runtime DirectShow, pour la lecture vidéo. Vérifié sur une
+#   installation réelle : Anomaly ne livre aucun `.ogm`/`.ogv`/`.avi` ni
+#   aucune DLL de codec — DirectShow n'a rien à décoder ici.
+# Confirmé à l'usage : le préfixe du mainteneur tourne avec ces 6 verbs et
+# rien d'autre. Si un jour une vidéo refuse de se lire, `quartz` reste le
+# premier remède à tenter — c'est du dépannage, pas un prérequis.
 REQUIRED_VERBS: tuple[str, ...] = (
     "vcrun2022",
     "d3dcompiler_43",

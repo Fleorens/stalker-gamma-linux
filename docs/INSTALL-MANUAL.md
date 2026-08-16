@@ -36,10 +36,14 @@ Points clés validés par les sources :
 | Outil préfixe | protontricks (prefix Steam) | winetricks/protontricks | protontricks (Discover) |
 | Espace disque | 17 + 83 + 46 Go ≈ **146 Go** | n/a | n/a |
 
-Décisions pour l'automatisation : partir du **surensemble des verbs**
-(`d3dcompiler_43 d3dcompiler_47 d3dx9 d3dx10 d3dx11_43 dx8vb quartz
-vcrun2022`) puis élaguer par tests (`⚠ À VALIDER` : dx8vb/quartz
-réellement nécessaires ?). Proton : décision utilisateur (2026-07-19) —
+Décisions pour l'automatisation : partir du **surensemble des verbs** puis
+élaguer par tests. **Élagage fait (2026-08-15)** — la liste retenue est
+`vcrun2022 d3dcompiler_43 d3dcompiler_47 d3dx9 d3dx10 d3dx11_43`, sans
+`dx8vb` ni `quartz` : le premier est la typelib DirectX 8 pour *Visual
+Basic* (X-Ray est en C++ et embarque ses propres rendus DX8/9/10/11), le
+second est le runtime DirectShow alors qu'Anomaly ne livre aucun fichier
+vidéo ni codec. Préfixe réel du mainteneur : ces 6 verbs, rien d'autre, jeu
+fonctionnel. Proton : décision utilisateur (2026-07-19) —
 **dernière release GE-Proton par défaut** (ou Proton Experimental de Steam
 s'il est présent et qu'aucun GE ne l'est) ; les retours signalant des
 soucis MO2 avec certaines versions GE seront arbitrés par la matrice T05.
@@ -221,8 +225,11 @@ Notes :
 - Ne **pas** installer `dxvk` via winetricks (Proton l'embarque déjà).
 - Avertissements de hash SHA sur `vcrun2022` : ignorables (source amont).
 - `cmd` est listé par v1ld mais échoue parfois → optionnel, skipper si erreur.
-- `⚠ À VALIDER` : `dx8vb`/`quartz` (présents chez v1ld uniquement) et
-  `d3dcompiler_43` (absent chez v1ld) — tester le sous-ensemble minimal.
+- `dx8vb`/`quartz` (chez v1ld uniquement) : **écartés**, voir le tableau des
+  divergences plus haut. `quartz` reste le premier remède à tenter si une
+  vidéo refuse de se lire — du dépannage, pas un prérequis.
+- `d3dcompiler_43` (absent chez v1ld) : **conservé**, il est présent dans les
+  deux autres sources et ne coûte rien.
 
 **Vérification** :
 ```bash
