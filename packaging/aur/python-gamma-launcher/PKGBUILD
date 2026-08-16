@@ -1,0 +1,43 @@
+# Maintainer: Florian Deruwez <florian.deruwez@outlook.com>
+#
+# Dépendance de `stalker-gamma-linux` : le moteur d'installation du modpack.
+# Il n'est publié ni sur PyPI ni dans les dépôts Arch — d'où ce paquet séparé,
+# plutôt que de le vendorer dans le nôtre (une seule copie, une seule mise à
+# jour à suivre, et il reste utilisable seul en ligne de commande).
+
+pkgname=python-gamma-launcher
+_pkgname=gamma-launcher
+pkgver=3.1
+pkgrel=1
+pkgdesc="Installer engine for the S.T.A.L.K.E.R. G.A.M.M.A. modpack"
+arch=('any')
+url="https://github.com/Mord3rca/gamma-launcher"
+license=('GPL-3.0-only')
+depends=(
+  'python'
+  'python-beautifulsoup4'
+  'python-cloudscraper'
+  'python-gitpython'
+  'python-platformdirs'
+  'python-py7zr'
+  'python-requests'
+  'python-tenacity'
+  'python-tqdm'
+)
+# `unrar` fournit le module Python du même nom, chargé en ctypes par le moteur
+# pour extraire les archives RAR du modpack (voir la note libunrar de doctor).
+optdepends=('python-unrar: RAR mod archives (most of the modpack)')
+makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
+source=("$_pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+sha256sums=('63d275e26f42da7029a2d6e4b7c020c0a8607c3686d1dce01d6cbda4b23ca61a')
+
+build() {
+  cd "$_pkgname-$pkgver"
+  python -m build --wheel --no-isolation
+}
+
+package() {
+  cd "$_pkgname-$pkgver"
+  python -m installer --destdir="$pkgdir" dist/*.whl
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

@@ -1,0 +1,76 @@
+# Maintainer: Florian Deruwez <florian.deruwez@outlook.com>
+
+pkgname=stalker-gamma-linux
+pkgver=0.4.0
+pkgrel=1
+pkgdesc="Install and launch S.T.A.L.K.E.R. G.A.M.M.A. on Linux (Mod Organizer 2 under Proton)"
+arch=('any')
+url="https://github.com/Fleorens/stalker-gamma-linux"
+license=('GPL-3.0-or-later')
+depends=(
+  'python'
+  'python-rich'
+  'python-tomli-w'
+  'python-gamma-launcher'
+  # Nécessaires à l'installation elle-même, pas au confort : sans eux le
+  # pipeline s'arrête (voir `environment.checks`). Autant que pacman les pose.
+  'umu-launcher'
+  'p7zip'
+  'libunrar'
+)
+optdepends=(
+  'python-gobject: graphical launcher'
+  'gtk4: graphical launcher'
+  'libadwaita: graphical launcher'
+  'gamemode: performance CPU governor and priorities while playing'
+  'lib32-gamemode: same, for the 32-bit wine processes'
+  'steam: Steam Input, Gaming Mode on the Steam Deck'
+  'protontricks: manual prefix troubleshooting'
+)
+makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+sha256sums=('f5eef39a5396d453d32233a4e10b825ad2a1e9beda9ed96963b295ab797acd63')
+
+build() {
+  cd "$pkgname-$pkgver"
+  python -m build --wheel --no-isolation
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+  # Les tests GTK sont ignorés d'eux-mêmes sans affichage (voir
+  # tests/test_gui_smoke.py) : rien à exclure ici.
+  PYTHONPATH="src" python -m pytest -q
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  python -m installer --destdir="$pkgdir" dist/*.whl
+
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+
+  # Entrée de menu et icône : `install.sh` les pose dans ~/.local quand on
+  # installe à la main, mais un paquet doit les livrer lui-même, à l'échelle
+  # du système. Même identifiant que celui d'install.sh pour qu'une machine
+  # ayant connu les deux n'affiche pas deux entrées.
+  install -Dm644 src/stalker_gamma_linux/assets/icon.png \
+    "$pkgdir/usr/share/icons/hicolor/256x256/apps/stalker-gamma-linux-gui.png"
+  install -Dm644 /dev/stdin \
+    "$pkgdir/usr/share/applications/stalker-gamma-linux-gui.desktop" <<'DESKTOP'
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=GAMMA Linux Launcher
+Name[fr]=Lanceur GAMMA (Linux)
+GenericName=S.T.A.L.K.E.R. GAMMA installer & launcher
+GenericName[fr]=Installeur et lanceur S.T.A.L.K.E.R. GAMMA
+Comment=Install, manage and launch S.T.A.L.K.E.R. G.A.M.M.A. on Linux
+Comment[fr]=Installer, gérer et lancer S.T.A.L.K.E.R. G.A.M.M.A. sous Linux
+Exec=stalker-gamma-linux-gui
+Icon=stalker-gamma-linux-gui
+Categories=Game;
+Terminal=false
+StartupNotify=false
+DESKTOP
+}

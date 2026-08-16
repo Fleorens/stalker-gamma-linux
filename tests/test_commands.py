@@ -22,7 +22,7 @@ def test_for_family_returns_none_when_no_command_available() -> None:
 
 def test_for_family_groups_multiple_packages() -> None:
     command = INSTALL_COMMANDS["7z"]
-    assert command.for_family(DistroFamily.FEDORA) == "sudo dnf install p7zip p7zip-plugins"
+    assert command.for_family(DistroFamily.FEDORA) == "sudo dnf install 7zip"
 
 
 def test_umu_hint_uses_zipapp_not_pipx() -> None:

@@ -115,7 +115,7 @@ jobs:
             expected_hint: "dnf install gtk4"
           - name: Arch
             image: archlinux:latest
-            setup: pacman -Sy --noconfirm --needed python git ca-certificates
+            setup: pacman -Syu --noconfirm --needed python git ca-certificates
             expected_hint: "pacman -S gtk4"
     steps:
       - name: Dépendances système minimales
@@ -203,3 +203,97 @@ jobs:
 
       - name: Scan git history
         run: ./gitleaks git --no-banner --redact --verbose .
+
+  # Les noms de paquets pourrissent en silence. Constaté le 2026-08-16 :
+  # `p7zip` avait disparu de Fedora et d'Arch (remplacé par `7zip`) et
+  # `libunrar5t64` n'existe pas sur Debian 13 — le seul remède qu'on affiche à
+  # l'utilisateur échouait donc sur trois des quatre distributions promises,
+  # sans que rien ne le signale : `install.sh` n'installe pas ces paquets, et
+  # aucun test ne pouvait interroger des dépôts distants.
+  #
+  # Ce job demande à chaque distribution si les noms qu'on affiche existent
+  # réellement chez elle. Il n'installe rien.
+  package-names:
+    name: Noms de paquets (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Debian 12
+            image: debian:12
+            family: debian
+            # contrib/non-free activés : `libunrar5` et `steam` n'y sont pas
+            # sans eux, et le remède qu'on affiche le dit déjà à l'utilisateur.
+            # Ubuntu, lui, active universe/multiverse par défaut.
+            setup: >-
+              sed -i 's/^Components: main$/Components: main contrib non-free/'
+              /etc/apt/sources.list.d/debian.sources &&
+              apt-get update -qq && apt-get install -y -qq python3
+            query: apt-cache show
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+            family: debian
+            setup: apt-get update -qq && apt-get install -y -qq python3
+            query: apt-cache show
+          - name: Fedora
+            image: fedora:latest
+            family: fedora
+            # RPM Fusion nonfree activé comme le fait le remède qu'on affiche :
+            # `libunrar` et `steam` n'existent que là, et vérifier sans lui
+            # reviendrait à tester un chemin que personne ne suit.
+            setup: >-
+              dnf install -y -q python3
+              "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
+            query: dnf list --available
+          - name: Arch
+            image: archlinux:latest
+            family: arch
+            # multilib activé : `umu-launcher`, `steam` et `lib32-gamemode` n'y
+            # sont pas sans lui. C'est la configuration de toute machine Arch
+            # qui joue, mais pas celle de l'image nue — sans ça on testerait un
+            # Arch que personne n'utilise pour jouer.
+            setup: >-
+              printf '\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n' >> /etc/pacman.conf &&
+              pacman -Syu --noconfirm --needed python
+            query: pacman -Si
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prérequis de l'image
+        run: ${{ matrix.setup }}
+
+      - name: Les paquets annoncés existent-ils ?
+        env:
+          FAMILY: ${{ matrix.family }}
+          QUERY: ${{ matrix.query }}
+          DISTRO: ${{ matrix.name }}
+        run: |
+          # Noms extraits de la source de vérité, sans dupliquer la liste ici.
+          PACKAGES="$(PYTHONPATH=src python3 -c "
+          import os
+          from stalker_gamma_linux.environment.commands import INSTALL_COMMANDS
+          from stalker_gamma_linux.environment.distro import DistroFamily
+          family = DistroFamily(os.environ['FAMILY'])
+          names = {n for c in INSTALL_COMMANDS.values() for n in c.packages.get(family, ())}
+          print(' '.join(sorted(names)))
+          ")"
+          echo "À vérifier : $PACKAGES"
+          if [ -z "$PACKAGES" ]; then
+            echo "::error::Aucun nom de paquet extrait — vérification impossible."
+            exit 1
+          fi
+          missing=""
+          for package in $PACKAGES; do
+            if $QUERY "$package" >/dev/null 2>&1; then
+              echo "  ok       $package"
+            else
+              echo "  ABSENT   $package"
+              missing="$missing $package"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Paquets introuvables dans les dépôts de $DISTRO :$missing"
+            exit 1
+          fi

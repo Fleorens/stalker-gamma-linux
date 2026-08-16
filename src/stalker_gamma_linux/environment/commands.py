@@ -81,9 +81,19 @@ INSTALL_COMMANDS: Mapping[str, InstallCommand] = {
         flatpak_app="com.github.Matoking.protontricks",
     ),
     "7z": InstallCommand(
+        # ⚠ Ces noms périment. Vérifiés le 2026-08-16 dans les dépôts réels
+        # (conteneurs fedora:44, archlinux:latest, debian:13) — le job
+        # `package-names` de la CI le revérifie à chaque push, parce que
+        # « paquet renommé en amont » est invisible d'ici et casse le seul
+        # remède qu'on donne à l'utilisateur.
+        #
+        # p7zip est mort chez Fedora et Arch, remplacé par `7zip` (upstream
+        # 7-Zip officiel) : `dnf install p7zip p7zip-plugins` et
+        # `pacman -S p7zip` échouaient tous les deux sur « no match ».
+        # Debian/Ubuntu gardent `p7zip-full`, toujours présent en 13/24.04.
         packages={
-            DistroFamily.FEDORA: ("p7zip", "p7zip-plugins"),
-            DistroFamily.ARCH: ("p7zip",),
+            DistroFamily.FEDORA: ("7zip",),
+            DistroFamily.ARCH: ("7zip",),
             DistroFamily.DEBIAN: ("p7zip-full",),
         },
     ),
@@ -92,22 +102,24 @@ INSTALL_COMMANDS: Mapping[str, InstallCommand] = {
         # gamma-launcher), pas le binaire CLI `unrar` — les deux sont des
         # paquets distincts partout (bug réel constaté en VM le 2026-07-25 :
         # `dnf install unrar` laissait le diagnostic « absent »).
-        # Noms vérifiés le 2026-07-25 sur les dépôts officiels :
-        # - Fedora : `libunrar` (RPM Fusion nonfree) ;
-        # - Debian 13+/Ubuntu 24.04+ : `libunrar5t64` (transition time64 —
-        #   l'ancien nom `libunrar5` ne survit que sur Debian 12) ;
-        # - Arch : `libunrar` est passé dans extra (l'AUR n'est plus requis).
+        # Noms revérifiés le 2026-08-16 dans les dépôts réels :
+        # - Fedora : `libunrar` (RPM Fusion nonfree) — confirmé, c'est bien lui
+        #   qui fournit /lib64/libunrar.so sur la machine de dev ;
+        # - Arch : `libunrar` dans extra (l'AUR n'est plus requis) ;
+        # - Debian/Ubuntu : `libunrar5`. La valeur précédente (`libunrar5t64`,
+        #   posée en supposant la transition time64) **n'existe pas sur
+        #   Debian 13** — la commande y échouait. Ubuntu 24.04 fournit les deux
+        #   noms, donc `libunrar5` est le seul qui marche partout.
         packages={
             DistroFamily.FEDORA: ("libunrar",),
-            DistroFamily.DEBIAN: ("libunrar5t64",),
+            DistroFamily.DEBIAN: ("libunrar5",),
             DistroFamily.ARCH: ("libunrar",),
         },
         note=_(
             "Fedora: RPM Fusion nonfree repo required — enable it first if "
             "needed: sudo dnf install https://mirrors.rpmfusion.org/nonfree/"
             "fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm · "
-            "Debian/Ubuntu: non-free/multiverse component required; on "
-            "Debian 12 the package is called libunrar5"
+            "Debian/Ubuntu: non-free/multiverse component required"
         ),
     ),
     "vulkan": InstallCommand(
