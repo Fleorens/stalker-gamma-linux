@@ -1,0 +1,25 @@
+pkgbase = python-gamma-launcher
+	pkgdesc = Installer engine for the S.T.A.L.K.E.R. G.A.M.M.A. modpack
+	pkgver = 3.1
+	pkgrel = 1
+	url = https://github.com/Mord3rca/gamma-launcher
+	arch = any
+	license = GPL-3.0-only
+	makedepends = python-build
+	makedepends = python-installer
+	makedepends = python-setuptools
+	makedepends = python-wheel
+	depends = python
+	depends = python-beautifulsoup4
+	depends = python-cloudscraper
+	depends = python-gitpython
+	depends = python-platformdirs
+	depends = python-py7zr
+	depends = python-requests
+	depends = python-tenacity
+	depends = python-tqdm
+	optdepends = python-unrar: RAR mod archives (most of the modpack)
+	source = gamma-launcher-3.1.tar.gz::https://github.com/Mord3rca/gamma-launcher/archive/v3.1.tar.gz
+	sha256sums = 63d275e26f42da7029a2d6e4b7c020c0a8607c3686d1dce01d6cbda4b23ca61a
+
+pkgname = python-gamma-launcher
