@@ -15,7 +15,7 @@ depends=(
   # Nécessaires à l'installation elle-même, pas au confort : sans eux le
   # pipeline s'arrête (voir `environment.checks`). Autant que pacman les pose.
   'umu-launcher'
-  'p7zip'
+  '7zip'
   'libunrar'
 )
 optdepends=(
@@ -27,7 +27,7 @@ optdepends=(
   'steam: Steam Input, Gaming Mode on the Steam Deck'
   'protontricks: manual prefix troubleshooting'
 )
-makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
+makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel' 'python-pytest')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
 sha256sums=('f5eef39a5396d453d32233a4e10b825ad2a1e9beda9ed96963b295ab797acd63')
 
