@@ -12,6 +12,7 @@ from __future__ import annotations
 import queue
 import threading
 from collections.abc import Callable, Sequence
+from pathlib import Path
 
 import gi
 
@@ -20,7 +21,7 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
-from stalker_gamma_linux import orchestrator, uninstall, updates  # noqa: E402
+from stalker_gamma_linux import adopt, orchestrator, uninstall, updates  # noqa: E402
 from stalker_gamma_linux import state as state_module  # noqa: E402
 from stalker_gamma_linux.environment.report import build_report  # noqa: E402
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE  # noqa: E402
@@ -83,6 +84,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.set_content(self._toast_overlay)
 
         self._update_action = self._add_action("check-update", self._on_check_update)
+        self._add_action("import-install", self._on_import_install)
         self._add_action("show-doctor", self._on_show_doctor)
         self._add_action("show-preferences", self._on_show_preferences)
         self._add_action("show-about", self._on_show_about)
@@ -104,6 +106,10 @@ class MainWindow(Adw.ApplicationWindow):
     def _build_main_page(self) -> Adw.NavigationPage:
         menu = Gio.Menu()
         menu.append(_("Check for updates…"), "win.check-update")
+        # Le public de l'import (install GOG/Heroic bloquée, dossier partagé
+        # avec un dual-boot) est précisément celui qui n'ouvre pas de terminal :
+        # la commande CLI seule le laissait hors de portée.
+        menu.append(_("Import an existing install…"), "win.import-install")
         menu.append(_("Diagnostic"), "win.show-doctor")
         menu.append(_("Preferences"), "win.show-preferences")
         menu.append(_("Uninstall…"), "win.uninstall")
@@ -295,6 +301,64 @@ class MainWindow(Adw.ApplicationWindow):
         dialog.connect(
             "response", lambda _d, response: self._start_update() if response == "update" else None
         )
+        dialog.present(self)
+
+    def _on_import_install(self, _action: Gio.SimpleAction, _param: None) -> None:
+        dialog = Gtk.FileDialog(title=_("Choose the folder holding your GAMMA install"))
+        dialog.select_folder(self, None, self._on_import_folder_selected)
+
+    def _on_import_folder_selected(
+        self, dialog: Gtk.FileDialog, result: Gio.AsyncResult, *_args: object
+    ) -> None:
+        try:
+            folder = dialog.select_folder_finish(result)
+        except GLib.Error:
+            return  # annulé par l'utilisateur : rien à signaler
+        if folder is None or folder.get_path() is None:
+            return
+        self._preview_adoption(Path(str(folder.get_path())))
+
+    def _preview_adoption(self, source: Path) -> None:
+        """Montre ce qui a été trouvé et demande confirmation avant d'écrire."""
+        try:
+            adoption = adopt.plan(adopt.discover(source))
+        except adopt.AdoptionError as error:
+            self._alert(_("Nothing to import"), str(error))
+            return
+
+        confirm = Adw.AlertDialog(
+            heading=_("Import this install?"),
+            body=adopt.format_plan(adoption),
+        )
+        confirm.add_response("cancel", _("Cancel"))
+        confirm.add_response("import", _("Import"))
+        confirm.set_response_appearance("import", Adw.ResponseAppearance.SUGGESTED)
+        confirm.set_default_response("import")
+        confirm.connect("response", self._on_import_confirmed, adoption)
+        confirm.present(self)
+
+    def _on_import_confirmed(
+        self, _dialog: Adw.AlertDialog, response: str, adoption: adopt.AdoptionPlan
+    ) -> None:
+        if response != "import":
+            return
+        try:
+            adopt.apply(adoption, on_progress=lambda _line: None)
+        except OSError as error:
+            self._alert(_("Import failed"), str(error))
+            return
+
+        # La cible devient l'installation adoptée : le bouton principal enchaîne
+        # alors sur ce qui manque vraiment (ReShade, préfixe, instance MO2), en
+        # sautant les téléchargements que l'adoption vient de marquer faits.
+        self._preferences = self._preferences.with_install_path(adoption.root)
+        prefs.save_preferences(self._preferences)
+        self._refresh_status()
+        self._show_toast(_("Install adopted — press the main button to finish the setup."))
+
+    def _alert(self, heading: str, body: str) -> None:
+        dialog = Adw.AlertDialog(heading=heading, body=body)
+        dialog.add_response("ok", _("OK"))
         dialog.present(self)
 
     def _on_show_doctor(self, _action: Gio.SimpleAction, _param: None) -> None:

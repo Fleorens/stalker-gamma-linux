@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-16 11:34+0200\n"
+"POT-Creation-Date: 2026-08-16 20:24+0200\n"
 "PO-Revision-Date: 2026-07-26 10:23+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -1098,6 +1098,9 @@ msgstr "Lanceur GAMMA (Linux)"
 msgid "Check for updates…"
 msgstr "Vérifier les mises à jour…"
 
+msgid "Import an existing install…"
+msgstr "Importer une installation existante…"
+
 msgid "Preferences"
 msgstr "Préférences"
 
@@ -1148,6 +1151,29 @@ msgstr ""
 
 msgid "Cancel"
 msgstr "Annuler"
+
+msgid "Choose the folder holding your GAMMA install"
+msgstr "Choisis le dossier qui contient ton installation GAMMA"
+
+msgid "Nothing to import"
+msgstr "Rien à importer"
+
+msgid "Import this install?"
+msgstr "Importer cette installation ?"
+
+msgid "Import"
+msgstr "Importer"
+
+msgid "Import failed"
+msgstr "L'import a échoué"
+
+msgid "Install adopted — press the main button to finish the setup."
+msgstr ""
+"Installation adoptée — appuie sur le bouton principal pour terminer la "
+"mise en place."
+
+msgid "OK"
+msgstr "OK"
 
 msgid "Community project, not affiliated with GSC Game World"
 msgstr "Projet communautaire, non affilié à GSC Game World"

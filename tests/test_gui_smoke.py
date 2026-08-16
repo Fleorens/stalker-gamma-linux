@@ -187,3 +187,37 @@ def test_lancer_le_jeu_est_annulable() -> None:
 
     for name in ("run_play", "run_mo2"):
         assert "cancel_event" in inspect.signature(getattr(session, name)).parameters
+
+
+def test_import_adopte_une_install_et_bascule_la_cible(window, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """L'import doit être atteignable sans terminal — c'est tout son intérêt."""
+    from stalker_gamma_linux import adopt, state
+
+    source = tmp_path / "gog" / "STALKER GAMMA"
+    for name, marker in (("Anomaly", adopt.ANOMALY_MARKER), ("GAMMA", adopt.MO2_MARKER)):
+        (source / name).mkdir(parents=True)
+        (source / name / marker).write_text("", encoding="utf-8")
+    target = tmp_path / "adopted"
+
+    adoption = adopt.plan(adopt.discover(source), target)
+    window._on_import_confirmed(None, "import", adoption)
+
+    assert window._preferences.install_path == target
+    assert state.load_state(target).gamma
+    assert (target / "anomaly").is_symlink()
+
+
+def test_import_annule_ne_touche_a_rien(window, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from stalker_gamma_linux import adopt, state
+
+    source = tmp_path / "src"
+    for name, marker in (("Anomaly", adopt.ANOMALY_MARKER), ("GAMMA", adopt.MO2_MARKER)):
+        (source / name).mkdir(parents=True)
+        (source / name / marker).write_text("", encoding="utf-8")
+    target = tmp_path / "adopted"
+
+    adoption = adopt.plan(adopt.discover(source), target)
+    window._on_import_confirmed(None, "cancel", adoption)
+
+    assert not target.exists()
+    assert not state.load_state(target).gamma

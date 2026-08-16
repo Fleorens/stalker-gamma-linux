@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-16 11:34+0200\n"
+"POT-Creation-Date: 2026-08-16 20:24+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -918,6 +918,9 @@ msgstr ""
 msgid "Check for updates…"
 msgstr ""
 
+msgid "Import an existing install…"
+msgstr ""
+
 msgid "Preferences"
 msgstr ""
 
@@ -961,6 +964,27 @@ msgid ""
 msgstr ""
 
 msgid "Cancel"
+msgstr ""
+
+msgid "Choose the folder holding your GAMMA install"
+msgstr ""
+
+msgid "Nothing to import"
+msgstr ""
+
+msgid "Import this install?"
+msgstr ""
+
+msgid "Import"
+msgstr ""
+
+msgid "Import failed"
+msgstr ""
+
+msgid "Install adopted — press the main button to finish the setup."
+msgstr ""
+
+msgid "OK"
 msgstr ""
 
 msgid "Community project, not affiliated with GSC Game World"
