@@ -63,6 +63,7 @@ def run_install(
     cancel_event: threading.Event | None = None,
     proton_release: str | None = None,
     force: bool = False,
+    only: Sequence[str] | None = None,
 ) -> int:
     """Installe Anomaly + le modpack GAMMA sous `target`, prêt à jouer.
 
@@ -78,7 +79,22 @@ def run_install(
     voir `prefix.proton.ensure_proton`. `force` : démarre malgré des prérequis
     manquants (voir `EnvironmentReport.install_blockers`) — sinon on retourne 1
     sans rien télécharger.
+
+    `only` (optionnel) : ne joue que les étapes nommées, et les joue **même si
+    elles sont déjà marquées faites**. Sert au dépannage — « relance juste le
+    préfixe et envoie-moi le journal » — au lieu de faire rejouer un pipeline
+    de 146 Gio pour reproduire un problème sur une seule étape. Les étapes non
+    citées ne sont ni exécutées ni démarquées.
     """
+    unknown = sorted(set(only or ()) - set(state_module.STEPS))
+    if unknown:
+        reporter.error(
+            _("Unknown step(s): {unknown}. Valid steps: {steps}").format(
+                unknown=", ".join(unknown), steps=", ".join(state_module.STEPS)
+            )
+        )
+        return 1
+
     root = target if target is not None else DEFAULT_INSTALL_TARGET
     install = InstallPaths.under(root)
     prefix_paths = PrefixPaths.under(root)
@@ -115,7 +131,14 @@ def run_install(
         nonlocal state
         label = state_module.STEP_LABELS[step_name]
         index = f"{number}/{total}"
-        if state.is_done(step_name):
+        if only is not None:
+            # Rejeu ciblé : l'étape demandée tourne **même si elle est marquée
+            # faite** (c'est tout l'intérêt — « relance juste le préfixe »), et
+            # les autres ne sont ni jouées ni touchées.
+            if step_name not in only:
+                reporter.skip(index, label)
+                return
+        elif state.is_done(step_name):
             reporter.skip(index, label)
             return
         if cancel_event is not None and cancel_event.is_set():
@@ -156,7 +179,9 @@ def run_install(
         run_step(3, "reshade", remove_reshade_and_purge)
         run_step(4, "prefix", ensure_prefix)
         run_step(5, "mo2", configure_mo2)
-        if shortcut:
+        # `--only shortcut` vaut demande explicite : inutile d'exiger en plus
+        # `--shortcut`, qui ne sert qu'à l'ajouter à un pipeline complet.
+        if shortcut or (only is not None and "shortcut" in only):
             run_step(6, "shortcut", create_shortcut)
     except (_InstallCancelledError, EngineCancelledError, PrefixCancelledError):
         reporter.warn(_("Installation cancelled."))
@@ -164,6 +189,12 @@ def run_install(
     except (EngineError, PrefixError, Mo2Error, DesktopError) as error:
         reporter.error(str(error), hint=_RESUME_HINT_TEMPLATE.format(root=root))
         return 1
+
+    if only is not None:
+        # Pas de « installation terminée » sur un rejeu ciblé : l'installation
+        # n'a pas été jouée en entier, et le dire serait mentir.
+        reporter.success(_("\nStep(s) replayed: {steps}.").format(steps=", ".join(only)))
+        return 0
 
     reporter.success(
         _(

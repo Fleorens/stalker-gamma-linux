@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-16 11:07+0200\n"
+"POT-Creation-Date: 2026-08-16 11:34+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -113,6 +113,13 @@ msgstr ""
 msgid ""
 "Also creates the desktop shortcut (.desktop + icon) at the end of the "
 "install"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Replays only these steps, even if already done ({steps}). For "
+"troubleshooting: rerun one step and read its log, instead of replaying "
+"the whole pipeline"
 msgstr ""
 
 msgid ""
@@ -235,6 +242,10 @@ msgid ""
 msgstr ""
 
 #, python-brace-format
+msgid "Unknown step(s): {unknown}. Valid steps: {steps}"
+msgstr ""
+
+#, python-brace-format
 msgid "Installing S.T.A.L.K.E.R. G.A.M.M.A. in {root}"
 msgstr ""
 
@@ -250,6 +261,12 @@ msgid "Missing prerequisites — steps depending on them may fail:\n"
 msgstr ""
 
 msgid "Installation cancelled."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"\n"
+"Step(s) replayed: {steps}."
 msgstr ""
 
 #, python-brace-format

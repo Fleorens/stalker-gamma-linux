@@ -441,3 +441,79 @@ class TestSauvegardeDuProfil:
         assert seen["backup"].startswith("profiles-")
         restored = tmp_path / "backups" / seen["backup"] / "G.A.M.M.A" / "modlist.txt"
         assert restored.read_text() == "+MonMod\n-ModDesactive\n"
+
+
+def test_run_install_only_replays_the_named_step(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Cas de dépannage : « relance juste le préfixe et envoie-moi le journal ».
+    events: list[str] = []
+    _patch_all(monkeypatch, events)
+
+    code = orchestrator.run_install(tmp_path, only=["prefix"])
+
+    assert code == 0
+    assert events == ["ensure_prefix"]
+
+
+def test_run_install_only_ignores_the_done_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Rejouer une étape déjà marquée faite est tout l'intérêt du drapeau :
+    # sans ça, `--only prefix` ne ferait rien sur une install complète.
+    events: list[str] = []
+    _patch_all(monkeypatch, events)
+    state.mark_done(tmp_path, "prefix")
+
+    orchestrator.run_install(tmp_path, only=["prefix"])
+
+    assert events == ["ensure_prefix"]
+
+
+def test_run_install_only_leaves_other_steps_untouched(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    events: list[str] = []
+    _patch_all(monkeypatch, events)
+
+    orchestrator.run_install(tmp_path, only=["prefix"])
+
+    persisted = state.load_state(tmp_path)
+    assert persisted.prefix
+    assert not persisted.anomaly
+    assert not persisted.gamma
+
+
+def test_run_install_only_accepts_several_steps(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    events: list[str] = []
+    _patch_all(monkeypatch, events)
+
+    orchestrator.run_install(tmp_path, only=["reshade", "mo2"])
+
+    assert events == ["remove_reshade", "purge_shader_cache", "configure_instance"]
+
+
+def test_run_install_only_shortcut_does_not_need_the_shortcut_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    events: list[str] = []
+    _patch_all(monkeypatch, events)
+    monkeypatch.setattr(orchestrator, "install_shortcut", lambda root: events.append("shortcut"))
+
+    orchestrator.run_install(tmp_path, only=["shortcut"])
+
+    assert events == ["shortcut"]
+
+
+def test_run_install_rejects_an_unknown_step(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    events: list[str] = []
+    _patch_all(monkeypatch, events)
+
+    code = orchestrator.run_install(tmp_path, only=["prefixe"])
+
+    assert code == 1
+    assert events == []

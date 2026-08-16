@@ -139,6 +139,7 @@ stalker-gamma-linux play                         # launch Anomaly through MO2 (U
 stalker-gamma-linux mo2                          # open Mod Organizer 2 itself (enable/disable mods)
 stalker-gamma-linux update                       # update the modpack, re-verify, remove ReShade again if needed
 stalker-gamma-linux shortcut                     # (re)create the .desktop menu entry
+stalker-gamma-linux install --only prefix        # replay one step (troubleshooting), even if done
 stalker-gamma-linux prefix-doctor --repair        # repair the shared Proton prefix in place
 stalker-gamma-linux uninstall                    # remove shortcuts/settings/logs (keeps the game)
 stalker-gamma-linux doctor --report              # write a report to attach to an issue

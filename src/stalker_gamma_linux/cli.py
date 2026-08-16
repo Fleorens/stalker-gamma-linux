@@ -7,7 +7,7 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 
-from stalker_gamma_linux import logging_setup, output, sizing
+from stalker_gamma_linux import logging_setup, output, sizing, state
 from stalker_gamma_linux.adopt import run_import
 from stalker_gamma_linux.desktop import run_shortcut
 from stalker_gamma_linux.doctor import run_doctor
@@ -66,6 +66,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--shortcut",
         action="store_true",
         help=_("Also creates the desktop shortcut (.desktop + icon) at the end of the install"),
+    )
+    install_parser.add_argument(
+        "--only",
+        nargs="+",
+        metavar="STEP",
+        choices=state.STEPS,
+        default=None,
+        help=_(
+            "Replays only these steps, even if already done ({steps}). "
+            "For troubleshooting: rerun one step and read its log, instead of "
+            "replaying the whole pipeline"
+        ).format(steps=", ".join(state.STEPS)),
     )
 
     update_parser = subparsers.add_parser(
@@ -211,7 +223,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "install":
-        return run_install(args.target, shortcut=args.shortcut, force=args.force)
+        return run_install(args.target, shortcut=args.shortcut, force=args.force, only=args.only)
     if args.command == "update":
         if args.check:
             return run_update_check(args.target)

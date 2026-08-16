@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -22,7 +23,9 @@ def test_build_parser_install_shortcut_flag() -> None:
 def test_main_dispatches_to_install(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[Path | None, bool]] = []
 
-    def fake_run_install(target: Path | None, *, shortcut: bool, force: bool = False) -> int:
+    def fake_run_install(
+        target: Path | None, *, shortcut: bool, force: bool = False, only: Any = None
+    ) -> int:
         calls.append((target, shortcut))
         return 0
 
@@ -40,7 +43,9 @@ def test_main_ctrl_c_retourne_le_code_dannulation(monkeypatch: pytest.MonkeyPatc
     traceback au lieu du message de reprise.
     """
 
-    def interrupted(target: Path | None, *, shortcut: bool, force: bool = False) -> int:
+    def interrupted(
+        target: Path | None, *, shortcut: bool, force: bool = False, only: Any = None
+    ) -> int:
         raise KeyboardInterrupt
 
     monkeypatch.setattr(cli, "run_install", interrupted)
@@ -280,3 +285,21 @@ def test_main_reports_unexpected_exception_instead_of_crashing(
     out = capsys.readouterr().out
     assert "Error" in out
     assert "log" in out.lower()
+
+
+def test_main_forwards_only_steps_to_install(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run_install(target: Path | None, **kwargs: object) -> int:
+        captured.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(cli, "run_install", fake_run_install)
+
+    assert cli.main(["install", "--only", "prefix", "mo2"]) == 0
+    assert captured["only"] == ["prefix", "mo2"]
+
+
+def test_build_parser_rejects_an_unknown_only_step() -> None:
+    with pytest.raises(SystemExit):
+        cli.build_parser().parse_args(["install", "--only", "prefixe"])

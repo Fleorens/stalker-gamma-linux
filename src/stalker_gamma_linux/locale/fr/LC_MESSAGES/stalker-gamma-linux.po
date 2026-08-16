@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-16 11:07+0200\n"
+"POT-Creation-Date: 2026-08-16 11:34+0200\n"
 "PO-Revision-Date: 2026-07-26 10:23+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -142,6 +142,16 @@ msgid ""
 msgstr ""
 "Crée aussi le raccourci bureau (.desktop + icône) à la fin de "
 "l'installation"
+
+#, python-brace-format
+msgid ""
+"Replays only these steps, even if already done ({steps}). For "
+"troubleshooting: rerun one step and read its log, instead of replaying "
+"the whole pipeline"
+msgstr ""
+"Rejoue uniquement ces étapes, même si elles sont déjà faites ({steps}). "
+"Pour le dépannage : relancer une seule étape et lire son journal, au lieu"
+" de rejouer tout le pipeline"
 
 msgid ""
 "Updates the G.A.M.M.A modpack, removes ReShade, and re-verifies the "
@@ -296,6 +306,10 @@ msgstr ""
 "les étapes déjà validées."
 
 #, python-brace-format
+msgid "Unknown step(s): {unknown}. Valid steps: {steps}"
+msgstr "Étape(s) inconnue(s) : {unknown}. Étapes valides : {steps}"
+
+#, python-brace-format
 msgid "Installing S.T.A.L.K.E.R. G.A.M.M.A. in {root}"
 msgstr "Installation de S.T.A.L.K.E.R. G.A.M.M.A. dans {root}"
 
@@ -314,6 +328,14 @@ msgstr "Prérequis manquants — les étapes qui en dépendent peuvent échouer 
 
 msgid "Installation cancelled."
 msgstr "Installation annulée."
+
+#, python-brace-format
+msgid ""
+"\n"
+"Step(s) replayed: {steps}."
+msgstr ""
+"\n"
+"Étape(s) rejouée(s) : {steps}."
 
 #, python-brace-format
 msgid ""
