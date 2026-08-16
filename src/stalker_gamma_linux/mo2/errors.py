@@ -25,6 +25,10 @@ class Mo2NotInstalledError(Mo2Error):
         )
 
 
+class Mo2CancelledError(Mo2Error):
+    """Opération MO2 longue interrompue via `cancel_event` (fusion du mode flat)."""
+
+
 class Mo2InstanceError(Mo2Error):
     """L'instance MO2 ne peut pas être configurée (jeu, profil ou `.ini` invalide)."""
 

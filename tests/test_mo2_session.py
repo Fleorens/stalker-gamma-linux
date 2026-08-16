@@ -3,9 +3,8 @@ from typing import Any
 
 import pytest
 
-from stalker_gamma_linux import engine
 from stalker_gamma_linux.engine.paths import InstallPaths
-from stalker_gamma_linux.mo2 import diagnostics, flat, instance, launch, session
+from stalker_gamma_linux.mo2 import diagnostics, flat, instance, launch, merge, session
 from stalker_gamma_linux.mo2.diagnostics import UsvfsDiagnosis
 from stalker_gamma_linux.mo2.errors import AnomalyNotFoundError
 from stalker_gamma_linux.mo2.paths import Mo2Paths
@@ -132,7 +131,7 @@ def test_run_play_flat_builds_and_launches_flat(
         raise AssertionError("le mode flat ne configure pas MO2")
 
     monkeypatch.setattr(instance, "configure_instance", fail_configure)
-    monkeypatch.setattr(engine, "build_flat_install", _recorder(events, "build"))
+    monkeypatch.setattr(merge, "build_merged_install", _recorder(events, "build"))
     monkeypatch.setattr(flat, "launch_flat", _recorder(events, "launch", Path("/l")))
 
     code = session.run_play(tmp_path, flat_mode=True)

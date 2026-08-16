@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-15 10:30+0200\n"
+"POT-Creation-Date: 2026-08-16 11:07+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1105,6 +1105,40 @@ msgid ""
 "`play --flat` does before launching."
 msgstr ""
 
+#, python-brace-format
+msgid ""
+"Merged {mods} mods: {linked} files hardlinked ({gib:.1f} GiB shared "
+"instead of duplicated), {copied} copied."
+msgstr ""
+
+msgid "Merge cancelled."
+msgstr ""
+
+#, python-brace-format
+msgid "Anomaly folder not found: {path}"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"No enabled mod found in profile « {profile} » ({path}).\n"
+"Install the modpack first — a flat merge of Anomaly alone would just be "
+"vanilla Anomaly."
+msgstr ""
+
+msgid "Merging Anomaly…"
+msgstr ""
+
+#, python-brace-format
+msgid "Merging mod {index}/{total}: {mod}"
+msgstr ""
+
+msgid "Restoring Anomaly binaries…"
+msgstr ""
+
+#, python-brace-format
+msgid "Warning: {count} enabled mods have no folder and were skipped: {mods}"
+msgstr ""
+
 msgid "Launching Mod Organizer 2…"
 msgstr ""
 
@@ -1139,8 +1173,9 @@ msgstr ""
 
 msgid ""
 "⚠ Flat mode (fallback): USVFS bypassed, Anomaly and the mods are merged. "
-"You LOSE mod flexibility (no more enabling/disabling via MO2). See docs"
-"/INSTALL-MANUAL.md appendix A.\n"
+"You LOSE mod flexibility (no more enabling/disabling via MO2). The merged"
+" tree shares its files with the mods (hardlinks): edit mods under "
+"gamma/mods/, never inside flat/. See docs/INSTALL-MANUAL.md appendix A.\n"
 msgstr ""
 
 msgid "Launching the flat install…"

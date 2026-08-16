@@ -11,7 +11,6 @@ import threading
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from stalker_gamma_linux import engine
 from stalker_gamma_linux.engine.errors import EngineError
 from stalker_gamma_linux.engine.paths import InstallPaths
 from stalker_gamma_linux.environment import gamemode, system
@@ -20,7 +19,7 @@ from stalker_gamma_linux.environment.distro import detect_distro
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE
 from stalker_gamma_linux.i18n import _
-from stalker_gamma_linux.mo2 import diagnostics, flat, instance, launch
+from stalker_gamma_linux.mo2 import diagnostics, flat, instance, launch, merge
 from stalker_gamma_linux.mo2.errors import AnomalyNotFoundError, Mo2Error
 from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
 from stalker_gamma_linux.mo2.paths import Mo2Paths
@@ -194,10 +193,18 @@ def _run_flat(
         _(
             "⚠ Flat mode (fallback): USVFS bypassed, Anomaly and the mods are merged. "
             "You LOSE mod flexibility (no more enabling/disabling via MO2). "
+            "The merged tree shares its files with the mods (hardlinks): edit mods "
+            "under gamma/mods/, never inside flat/. "
             "See docs/INSTALL-MANUAL.md appendix A.\n"
         )
     )
-    engine.build_flat_install(install, final, on_progress=on_progress, cancel_event=cancel_event)
+    merge.build_merged_install(
+        resolve_anomaly(Mo2Paths.under(root), install),
+        Mo2Paths.under(root),
+        final,
+        on_progress=on_progress,
+        cancel_event=cancel_event,
+    )
     on_progress(_("Launching the flat install…"))
     flat.launch_flat(
         final,

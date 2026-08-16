@@ -154,36 +154,6 @@ def purge_shader_cache(
     )
 
 
-def build_flat_install(
-    paths: InstallPaths,
-    final_dir: Path,
-    *,
-    on_progress: ProgressCallback | None = None,
-    cancel_event: threading.Event | None = None,
-) -> None:
-    """Construit l'install fusionnée sans MO2 (`gamma-launcher usvfs-workaround`).
-
-    Fusionne Anomaly + les mods GAMMA en une installation jouable directement
-    (fallback du mode principal, cf. `mo2/flat.py` et docs/INSTALL-MANUAL.md
-    annexe A). `final_dir` est le dossier de sortie (`<install>/flat`).
-    """
-    final_dir.mkdir(parents=True, exist_ok=True)
-    run(
-        "usvfs-workaround",
-        [
-            "--anomaly",
-            str(paths.anomaly),
-            "--gamma",
-            str(paths.gamma),
-            "--final",
-            str(final_dir),
-        ],
-        on_progress=on_progress,
-        cancel_event=cancel_event,
-        tmpdir=_extract_tmpdir(paths),
-    )
-
-
 # Vraie corruption locale : émis par le downloader de base de gamma-launcher
 # (`Hash verification failed for/since/after ...`) quand une archive du cache
 # est absente ou ne correspond pas au MD5 attendu.

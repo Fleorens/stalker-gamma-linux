@@ -211,11 +211,26 @@ mods). Découpage :
 4. **Version de Proton** : arbitrée par `docs/MO2-PROTON-COMPAT.md`. Défaut =
    dernier GE (décision T04) ; repli documenté sur Proton 9/10 *vanilla* si le
    diagnostic détecte un USVFS mort.
-5. **Fallback flat (`flat.py`)** — accessible uniquement par flag explicite
-   (`play --flat`). Délègue la fusion à `engine.build_flat_install`
-   (`gamma-launcher usvfs-workaround`) puis lance `AnomalyLauncher.exe` du
-   dossier fusionné. **Perte de la flexibilité des mods** — d'où le flag et
-   l'avertissement (docs/INSTALL-MANUAL.md annexe A).
+5. **Fallback flat (`flat.py` + `merge.py`)** — accessible uniquement par flag
+   explicite (`play --flat`). Fusionne Anomaly + les mods **par liens durs**,
+   puis lance `AnomalyLauncher.exe` du dossier fusionné. **Perte de la
+   flexibilité des mods** — d'où le flag et l'avertissement
+   (docs/INSTALL-MANUAL.md annexe A).
+
+   *Seule divergence assumée vis-à-vis du moteur amont*, et elle est mesurée :
+   `gamma-launcher usvfs-workaround` fait des `copytree` (vérifié dans son code
+   v3.1, `commands/usvfs.py`), donc le fallback coûtait une seconde
+   installation complète — ~100 Gio. Un lien dur donne le même arbre pour
+   quelques inodes. On ne réimplémente que la fusion : la résolution ModDB, le
+   parsing des directives et la vérification MD5 restent chez gamma-launcher.
+   Le correctif a vocation à remonter en amont (option `--link`).
+
+   Deux règles que `merge.py` applique et qui n'ont rien d'évident :
+   l'ordre d'application suit `modlist.txt` **de bas en haut** (priorité
+   croissante vers le haut chez MO2, donc le mod prioritaire écrase en
+   dernier), et tout ce qui vit sous `appdata/` est **copié, jamais lié** —
+   le jeu y réécrit ses réglages et ses sauvegardes, et un lien dur les
+   ferait remonter dans l'installation MO2 d'origine.
 
 `session.py` orchestre les commandes `mo2` et `play` : préfixe prêt (T04) →
 instance configurée → lancement → diagnostic.

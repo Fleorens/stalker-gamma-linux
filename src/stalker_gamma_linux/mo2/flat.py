@@ -1,10 +1,11 @@
 """Mode flat : fallback **sans MO2/USVFS**, accessible par flag explicite.
 
 Uniquement si aucune version de Proton ne monte l'USVFS sur la machine. On
-délègue la fusion Anomaly + mods à gamma-launcher (`usvfs-workaround`, via
-`engine.build_flat_install`), puis on lance directement `AnomalyLauncher.exe` du
-dossier fusionné dans le préfixe. **Perte de la flexibilité des mods** : plus
-d'activation/désactivation via MO2 (docs/INSTALL-MANUAL.md annexe A).
+fusionne Anomaly + mods par liens durs (`mo2.merge` — voir sa docstring pour
+la raison de ne pas déléguer à `usvfs-workaround`, qui copie), puis on lance
+directement `AnomalyLauncher.exe` du dossier fusionné dans le préfixe.
+**Perte de la flexibilité des mods** : plus d'activation/désactivation via MO2
+(docs/INSTALL-MANUAL.md annexe A).
 """
 
 from __future__ import annotations
