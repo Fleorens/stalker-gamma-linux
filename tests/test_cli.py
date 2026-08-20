@@ -303,3 +303,29 @@ def test_main_forwards_only_steps_to_install(monkeypatch: pytest.MonkeyPatch) ->
 def test_build_parser_rejects_an_unknown_only_step() -> None:
     with pytest.raises(SystemExit):
         cli.build_parser().parse_args(["install", "--only", "prefixe"])
+
+
+def test_build_parser_uninstall_yes_defaults_to_false() -> None:
+    args = cli.build_parser().parse_args(["uninstall"])
+
+    assert args.yes is False
+
+
+def test_build_parser_uninstall_yes_flag() -> None:
+    args = cli.build_parser().parse_args(["uninstall", "--game-data", "--yes"])
+
+    assert args.yes is True
+
+
+def test_main_dispatches_to_uninstall_with_yes(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run_uninstall(target: Path | None, **kwargs: object) -> int:
+        captured.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(cli, "run_uninstall", fake_run_uninstall)
+
+    assert cli.main(["uninstall", "--game-data", "--yes"]) == 0
+    assert captured["assume_yes"] is True
+    assert captured["game_data"] is True

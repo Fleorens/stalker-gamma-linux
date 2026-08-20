@@ -205,6 +205,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=_("Shows exactly what would be removed, without deleting anything"),
     )
+    uninstall_parser.add_argument(
+        "--yes",
+        action="store_true",
+        help=_("Skips the --game-data confirmation prompt — for scripted use"),
+    )
     # Contrat interne avec `install.sh --uninstall`, qui retire le venv lui-même
     # juste après nous : sans ça on lui conseillerait de supprimer à la main un
     # répertoire déjà parti. Masqué de l'aide, ce n'est pas un choix utilisateur.
@@ -258,6 +263,7 @@ def _dispatch(args: argparse.Namespace) -> int:
             game_data=args.game_data,
             dry_run=args.dry_run,
             venv_hint=not args.no_venv_hint,
+            assume_yes=args.yes,
         )
     raise AssertionError(f"unknown command: {args.command}")
 

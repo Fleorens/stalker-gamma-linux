@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -109,6 +110,18 @@ class TestApplyPlan:
 
         assert not target.exists()
 
+    def test_cible_dangereuse_leve_meme_appele_directement(self, home: Path) -> None:
+        """`apply_plan` valide aussi — un appelant (GUI, script) ne peut pas contourner T11.
+
+        Les éléments d'intégration sont listés avant les données de jeu dans le
+        plan (voir `build_plan`) : seule la cible de jeu elle-même est refusée
+        ici, et le refus doit interrompre au lieu d'être avalé.
+        """
+        with pytest.raises(uninstall.UnsafeWipeTargetError):
+            uninstall.apply_plan(uninstall.build_plan(home, game_data=True))
+
+        assert home.exists()
+
     def test_idempotent(self, home: Path) -> None:
         _, target = _populate(home)
         uninstall.apply_plan(uninstall.build_plan(target))
@@ -143,3 +156,52 @@ class TestRunUninstall:
         assert uninstall.run_uninstall(target) == 0
         assert not desktop.desktop_file.exists()
         assert (target / "anomaly" / "AnomalyLauncher.exe").exists()
+
+
+class TestRunUninstallGameData:
+    """`--game-data --target ~` et consorts (T11) : voir aussi test_paths_safety.py."""
+
+    def test_cible_dangereuse_echoue_et_ne_supprime_rien(self, home: Path) -> None:
+        """`--target ~` : `home` ici est exactement `Path.home()` (voir la fixture)."""
+        desktop, target = _populate(home)
+
+        assert uninstall.run_uninstall(home, game_data=True) == 1
+        assert desktop.desktop_file.exists()
+        assert (target / "anomaly" / "AnomalyLauncher.exe").exists()
+
+    def test_dry_run_signale_aussi_une_cible_dangereuse(self, home: Path) -> None:
+        assert uninstall.run_uninstall(home, game_data=True, dry_run=True) == 1
+
+    def test_installation_reelle_fonctionne_avec_confirmation(
+        self, home: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        desktop, target = _populate(home)
+        monkeypatch.setattr("builtins.input", lambda _prompt: "yes")
+
+        assert uninstall.run_uninstall(target, game_data=True) == 0
+        assert not target.exists()
+        assert not desktop.desktop_file.exists()
+
+    def test_confirmation_refusee_ne_supprime_rien(
+        self, home: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        desktop, target = _populate(home)
+        monkeypatch.setattr("builtins.input", lambda _prompt: "no")
+
+        assert uninstall.run_uninstall(target, game_data=True) == 1
+        assert target.exists()
+        assert desktop.desktop_file.exists()
+
+    def test_yes_saute_la_confirmation(self, home: Path) -> None:
+        _, target = _populate(home)
+
+        assert uninstall.run_uninstall(target, game_data=True, assume_yes=True) == 0
+        assert not target.exists()
+
+    def test_cible_de_jeu_deja_absente_nettoie_quand_meme_lintegration(self, home: Path) -> None:
+        """Le jeu a déjà été effacé à la main : rien à valider, le reste de l'intégration part."""
+        desktop, target = _populate(home)
+        shutil.rmtree(target)
+
+        assert uninstall.run_uninstall(target, game_data=True) == 0
+        assert not desktop.desktop_file.exists()

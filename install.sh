@@ -49,7 +49,7 @@ done
 # est le seul chemin qui les efface, et il faut le demander explicitement.
 if [ "$UNINSTALL" -eq 1 ]; then
     if [ -x "$VENV_DIR/bin/stalker-gamma-linux" ]; then
-        "$VENV_DIR/bin/stalker-gamma-linux" uninstall --no-venv-hint || \
+        "$VENV_DIR/bin/stalker-gamma-linux" uninstall --no-venv-hint --yes || \
             warn "Le nettoyage par la CLI a échoué — on retire quand même le venv."
     else
         warn "Aucune installation détectée sous $VENV_DIR — nettoyage des raccourcis seulement."

@@ -51,6 +51,37 @@ sous Proton, reprise après interruption, mise à jour incrémentale.
   vérifications puis GitHub Release, sans artefact de packaging depuis le
   retrait de T09). Voir `docs/CI.md`.
 
+## Phase 4 — Durcissement (ouverte le 2026-08-17)
+
+Issue d'une revue d'état de l'art menée le 2026-08-17 sur les autres outils de
+l'écosystème Linux/GAMMA. Sur dix pistes retenues, quatre étaient déjà
+couvertes chez nous ; six deviennent des tâches.
+
+- **T11** 🔴 Garde-fous de chemin sur `uninstall --game-data`. `build_plan()`
+  ajoute `--target` à la liste des suppressions **sans validation**, et
+  `apply_plan()` fait `rmtree` dessus sans confirmation interactive : une faute
+  de frappe (`--target ~`) suffit. À corriger avant tout le reste.
+- **T12** 🟠 Intégrité MD5 des **mods installés** + réparation ciblée. Nous
+  vérifions les archives (`check-md5` du moteur), pas le contenu sur le disque :
+  un fichier de mod corrompu après l'installation est aujourd'hui indétectable.
+  Baseline, diff, réparation des seuls mods officiels abîmés, ajouts de
+  l'utilisateur jamais touchés.
+- **T13** 🟠 Verrou « préfixe occupé ». Rien n'empêche `prefix-doctor --repair`,
+  `update` ou `install --only prefix` de travailler sur un préfixe pendant que
+  MO2 ou le jeu tournent dedans.
+- **T14** 🟡 Diagnostic du log de lancement : `mo2/diagnostics.py` couvre
+  l'USVFS mais pas les échecs qui surviennent en amont (`concrt140.dll`,
+  `version mismatch` d'un préfixe construit par un autre Proton).
+- **T15** 🟡 `play` détaché du terminal — à qualifier avant de coder.
+- **T16** 🔵 Épinglage `WINESERVER` sous umu — investigation à mener, patch
+  seulement si un découplage est mesuré.
+
+Déjà couvert, donc écarté de la revue : contournement du rate-limit de l'API
+GitHub (`updates.py` le documente ; `prefix/umu.py` et `prefix/download.py` ont
+leurs replis `FALLBACK_*`), distinction compat-data / `pfx`
+(`prefix/paths.py`), préservation des clés inconnues de `ModOrganizer.ini`
+(`mo2/ini.py`), packaging AppImage (hors périmètre depuis T09).
+
 ## Hors scope (assumé)
 - Portage natif du moteur X-Ray Monolith (sans Proton) : projet d'une autre
   échelle, Proton est la réponse pour les années à venir.

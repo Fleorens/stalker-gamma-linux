@@ -29,10 +29,11 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from stalker_gamma_linux import logging_setup, state
+from stalker_gamma_linux import logging_setup, paths_safety, sizing, state
 from stalker_gamma_linux.desktop.paths import DesktopPaths
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
 from stalker_gamma_linux.i18n import _
+from stalker_gamma_linux.paths_safety import UnsafeWipeTargetError
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,17 +109,30 @@ def apply_plan(plan: UninstallPlan) -> tuple[Removal, ...]:
 
     Une suppression qui échoue (permissions, montage occupé) n'interrompt pas
     les suivantes : mieux vaut un nettoyage partiel qu'un abandon à mi-chemin,
-    et le résultat retourné dit exactement ce qui est parti.
+    et le résultat retourné dit exactement ce qui est parti. Ça ne vaut que
+    pour l'intégration : les données de jeu (`is_game_data`) sont validées par
+    `paths_safety` juste avant leur `rmtree`, et un refus de sûreté interrompt
+    au lieu d'être avalé — voir `paths_safety.validate_wipe_target`.
     """
     removed: list[Removal] = []
     for removal in plan.present:
+        path = removal.path
+        if removal.is_game_data:
+            # Résolu puis validé une seule fois, juste avant le `rmtree` :
+            # c'est exactement ce chemin-là qui est supprimé, sans second
+            # `resolve()` qui rouvrirait la fenêtre TOCTOU.
+            path = paths_safety.validate_wipe_target(path)
         try:
-            if removal.path.is_symlink() or removal.path.is_file():
-                removal.path.unlink()
+            if path.is_symlink() or path.is_file():
+                path.unlink()
             else:
-                shutil.rmtree(removal.path)
+                shutil.rmtree(path)
         except OSError:
             continue
+        if removal.is_game_data and (path.exists() or path.is_symlink()):
+            raise UnsafeWipeTargetError(
+                path, _("still present after removal — refusing to report success")
+            )
         removed.append(removal)
     return tuple(removed)
 
@@ -143,12 +157,15 @@ def run_uninstall(
     game_data: bool = False,
     dry_run: bool = False,
     venv_hint: bool = True,
+    assume_yes: bool = False,
 ) -> int:
     """Commande CLI `uninstall`. Retourne 0 même s'il n'y avait rien à faire.
 
     `venv_hint=False` quand `install.sh --uninstall` nous appelle : il retire le
     venv lui-même juste après, et lui dire « il est toujours là, supprimez-le à
-    la main » serait faux.
+    la main » serait faux. `assume_yes=True` (`--yes`) saute la confirmation
+    interactive de `--game-data` — nécessaire pour un usage scripté, dont
+    `install.sh --uninstall` lui-même.
     """
     from stalker_gamma_linux import output
 
@@ -159,10 +176,40 @@ def run_uninstall(
         output.success(_("Nothing to remove — already clean."))
         return 0
 
+    # Validé dès qu'il y a réellement quelque chose à effacer — avant même
+    # `--dry-run` — pour échouer bruyamment sur une cible dangereuse plutôt
+    # que d'attendre le `apply_plan` réel. Rien n'est validé si les données de
+    # jeu n'existent pas (déjà effacées à la main) : `build_plan`/`.present`
+    # l'ont déjà filtré, pas la peine de bloquer le reste du nettoyage.
+    game_data_removal = next((r for r in plan.present if r.is_game_data), None)
+    resolved_game_data_target: Path | None = None
+    if game_data_removal is not None:
+        try:
+            resolved_game_data_target = paths_safety.validate_wipe_target(game_data_removal.path)
+        except UnsafeWipeTargetError as error:
+            output.error(str(error))
+            return 1
+
     if dry_run:
         output.header(_("Dry run — nothing will be deleted."))
         output.progress(format_plan(plan))
         return 0
+
+    if resolved_game_data_target is not None and not assume_yes:
+        output.warn(
+            _(
+                "\nThis will permanently delete: {path}\n"
+                "Estimated size: ~{size} GiB (Anomaly, mods, cache, Proton prefix, "
+                "and your saves). This cannot be undone."
+            ).format(path=resolved_game_data_target, size=sizing.TOTAL_INSTALL_GIB)
+        )
+        try:
+            answer = input(_("Type 'yes' to confirm: "))
+        except EOFError:
+            answer = ""
+        if answer.strip().lower() != "yes":
+            output.warn(_("Cancelled — nothing was removed."))
+            return 1
 
     output.progress(format_removed(apply_plan(plan)))
     if not game_data:

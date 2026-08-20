@@ -86,6 +86,10 @@ stalker-gamma-linux uninstall --game-data    # irreversible: Anomaly, mods, cach
 stalker-gamma-linux uninstall --dry-run      # shows exactly what would go, deletes nothing
 ```
 
+`--game-data` asks for an explicit `yes` before deleting (the resolved path
+and estimated size are shown first); add `--yes` to skip the prompt in
+scripts.
+
 `umu-run` is deliberately left in place: it is a general-purpose launcher that
 other games may rely on.
 
