@@ -36,6 +36,20 @@ mentionner dans le README principal le jour de la publication.
 Rien n'a été publié : déposer sur l'AUR engage un compte et réserve un nom sur
 un dépôt public. Ça ne fait pas partie d'une construction.
 
+> **Bloqué en amont depuis le 2026-08-22** : l'AUR a suspendu la création de
+> comptes (vague de créations automatisées). Sans compte, pas de clé SSH, donc
+> pas de dépôt — l'étape 1 ci-dessous est infaisable, et rien de ce qui est ici
+> n'est en cause. C'est temporaire et non spécifique à nous.
+>
+> Deux choses à ne pas confondre : la pause bloque la **publication**, pas la
+> **consommation** — installer depuis l'AUR (`paru`, `yay`, `git clone`) n'a
+> jamais demandé de compte. Aucun utilisateur Arch n'est bloqué en attendant :
+> `install.sh` couvre Arch, et la CI l'y exerce à chaque push.
+>
+> Les réouvertures sont annoncées sur la liste `aur-general` et le flux de news
+> Arch. Ne pas scripter de sondage de la page d'inscription : la demande est
+> explicite, et ça n'apprendra rien plus tôt que ces deux canaux.
+
 ```sh
 # 1. Clé SSH déclarée sur https://aur.archlinux.org (Account → My Account → SSH keys)
 # 2. La dépendance d'abord, sinon le paquet principal est ininstallable
