@@ -1,7 +1,7 @@
 # Maintainer: Florian Deruwez <florian.deruwez@outlook.com>
 
 pkgname=stalker-gamma-linux
-pkgver=0.5.0
+pkgver=0.6.0
 pkgrel=1
 pkgdesc="Install and launch S.T.A.L.K.E.R. G.A.M.M.A. on Linux (Mod Organizer 2 under Proton)"
 arch=('any')
@@ -29,7 +29,7 @@ optdepends=(
 )
 makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel' 'python-pytest')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
-sha256sums=('45bd817427ec3cd2ce16eb2cf56c8b8869cc8c86560ac280cf43a3651fccd34e')
+sha256sums=('695149f9455190ebb80dc8806b670b14767cf0f41294b15151f5d4f3a0b3a6dc')
 
 build() {
   cd "$pkgname-$pkgver"
