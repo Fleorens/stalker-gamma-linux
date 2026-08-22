@@ -98,7 +98,7 @@ gamma-launcher.
 | Le jeu démarre mais **sans contenu GAMMA** (menu/HUD vanilla) ; le log USVFS de l'instance n'affiche pas `proxy run successful` | **USVFS mort** : version de Proton incompatible, ou jeu lancé hors MO2 | 1) Vérifier qu'on lance bien via `moshortcut://` (mode `play`, pas l'exe direct). 2) Passer en **Proton 9.0/10.0 vanilla**. 3) Essayer **GE-Proton9-20**. 4) Dernier recours : **mode flat** (`play --flat`). |
 | MO2 s'ouvre mais **0 mod actif** | Mauvais dossier de jeu / profil, instance non configurée | Reconfigurer l'instance (`gamePath` → dossier Anomaly, profil `G.A.M.M.A`) — automatisé par `mo2/instance.py`. |
 | MO2 **ne démarre pas du tout**, journal de lancement mentionnant `concrt140.dll`, `msvcp140.dll` ou `vcruntime140.dll` | Runtimes VC++ 2015-2022 manquants dans le préfixe (verbs non posés, ou préfixe bricolé/partiellement réparé) | `stalker-gamma-linux prefix-doctor --repair` (repose les verbs manquants). |
-| Erreur Wine illisible au lancement : `wine client error:0: version mismatch`, `wrong wineserver`, `prefix has an invalid version`, `your wine binary was not upgraded correctly` | Le préfixe partagé a été construit par une **autre version de Proton** que celle configurée : wineserver refuse de démarrer dessus | `stalker-gamma-linux install --only prefix` (reconstruit le préfixe à partir de zéro avec le Proton actuellement configuré). |
+| Erreur Wine illisible au lancement : `wine client error:0: version mismatch`, `wrong wineserver`, `prefix has an invalid version`, `your wine binary was not upgraded correctly` | Le préfixe partagé a été construit par une **autre version de Proton** que celle configurée. Ce n'est **pas** un problème de sélection du `wineserver` (mesuré, cf. « `WINESERVER` sous umu ») : c'est le contrôle de version du préfixe par Proton | `stalker-gamma-linux install --only prefix` (reconstruit le préfixe à partir de zéro avec le Proton actuellement configuré). |
 | Perfs médiocres (gros mods shaders) | Surcoût USVFS + shaders lourds | Désactiver Screen Space Shaders / Shaders Cumulative Pack ; évaluer RadTux (`⚠ À VALIDER`). |
 
 Détection (`mo2/diagnostics.py`) : `diagnose_launch_log` lit le journal de
@@ -197,6 +197,120 @@ jeu, elle annonce le chemin du journal et rend la main immédiatement. Le
 diagnostic USVFS automatique après lancement (`--no-diagnose`) a été retiré
 en même temps — il n'avait plus de sens en mode détaché (voir plus haut).
 
+## `WINESERVER` sous umu — question tranchée (T16, 2026-08-22)
+
+**Question posée.** Quand MO2 lance le jeu à travers l'USVFS, un `wineserver`
+système (`/usr/bin/wineserver`, présent sur cette machine : `wine-core-11.0-3.fc44`)
+ou celui d'un Proton plus ancien peut-il être sélectionné à la place de celui du
+Proton du préfixe ? Un client et un serveur Wine dépareillés produisent exactement
+le `version mismatch` que le diagnostic de lancement apprend à reconnaître. La
+parade connue sur un `proton run` Steam direct est d'imposer
+`WINESERVER=<proton>/files/bin/wineserver` — mais ce n'est pas notre chemin : nous
+passons par `umu-run`, qui gère son propre runtime.
+
+**Réponse : non. Aucun découplage n'existe sur ce chemin, et `WINESERVER` n'a pas
+à être imposé.** `_prefix_environment` reste inchangé — c'est la question tranchée
+qui a de la valeur, pas un patch. Le détail ci-dessous documente *pourquoi* c'est
+structurel et pas une chance, pour qu'on n'ait pas à reposer la question.
+
+### Méthode de mesure (reproductible)
+
+Le point décisif est de **ne pas se fier aux variables d'environnement seules** :
+elles disent ce qui a été *demandé*, pas quel binaire a *gagné*. Pour chaque
+process de la chaîne dont `/proc/<pid>/environ` pointe sur le préfixe partagé, on
+relève donc les deux :
+
+- `WINESERVER`, `WINELOADER`, `PROTONPATH` (dans `/proc/<pid>/environ`) ;
+- **`readlink /proc/<pid>/exe`** — le binaire réellement exécuté, seul verdict.
+
+Trois lancements réels sur l'install de test (`/mnt/games_lexar/Games/GAMMA-test`,
+umu 1.4.1), chacun jusqu'à `AnomalyDX11.exe` vivant, en imposant `PROTONPATH` via
+le code du projet (`mo2.launch.launch_game`) — donc le vrai chemin MO2 →
+`moshortcut://` → USVFS → jeu, pas un banc synthétique. Le préfixe a été
+sauvegardé avant et restauré après (les lancements le réécrivent, voir plus bas).
+
+### Relevés
+
+Préfixe construit par **GE-Proton11-3**. `AnomalyDX11.exe` atteint dans les trois cas.
+
+| Lancement | Proton imposé | Base Wine | `WINESERVER` | `wineserver` réellement exécuté | Loader de MO2 **et** du jeu | `/usr/bin/wineserver` utilisé |
+|---|---|---|---|---|---|---|
+| 1 | GE-Proton11-3 (= celui du préfixe) | 11.0 | ∅ non posé | `GE-Proton11-3/files/bin/wineserver` | GE-Proton11-3 | non |
+| 2 | **GE-Proton9-20** (plus ancien que le préfixe) | 9.0 | ∅ non posé | `GE-Proton9-20/files/bin/wineserver` | GE-Proton9-20 | non |
+| 3 | GE-Proton11-1 (après le 9-20) | 11.0 | ∅ non posé | `GE-Proton11-1/files/bin/wineserver` | GE-Proton11-1 | non |
+
+Dans les trois cas, **un seul dist Proton dans toute la chaîne** (13, 11 et 14
+process respectivement : `wineserver`, `services.exe`, `explorer.exe`,
+`ModOrganizer.exe`, `AnomalyDX11.exe`…), et `WINESERVER` posé **nulle part** —
+y compris sur le process enfant du jeu, là où le découplage était supposé se
+produire. Aucun `version mismatch` ni `wrong wineserver` sur aucun des trois.
+
+`WINELOADER` : non posé sous GE-Proton11-x (build wow64), posé par Wine lui-même
+sous GE-Proton9-20 (`.../GE-Proton9-20/files/bin/wine64`) — cohérent avec le même
+dist dans les deux cas.
+
+### Pourquoi c'est structurel
+
+Quatre couches, aucune ne laisse la place au découplage :
+
+1. **umu ne pose jamais `WINESERVER`** : zéro occurrence de la chaîne dans
+   l'intégralité du zipapp umu-launcher 1.4.1 (177 entrées). L'hypothèse de départ
+   (« umu pose probablement déjà un `WINESERVER` cohérent ») est donc fausse dans
+   sa lettre — mais la conclusion tient pour une autre raison, la suivante.
+2. **Proton ne le pose pas non plus** : zéro occurrence de `WINESERVER` dans son
+   script `proton`. Il garde son `wineserver_bin` comme chemin interne
+   (`files/bin/wineserver` relatif à son propre dist) et se contente de préfixer
+   son `bin_dir` au `PATH`.
+3. **Wine le dérive de lui-même.** `WINESERVER` non posé, `ntdll.so` résout le
+   serveur **relativement au loader qui l'a chargé** (`server/wineserver` +
+   `getenv("WINESERVER")` en surcharge optionnelle, visibles dans les symboles de
+   `files/lib/wine/x86_64-unix/ntdll.so`). La `cmdline` du `wineserver` mesuré le
+   montre littéralement :
+   `…/GE-Proton11-3/files/lib/wine/../../bin/wineserver` — un chemin dérivé du
+   `ntdll.so` chargé, ni un `PATH` ni une variable. Client et serveur viennent du
+   même dist **par construction**.
+4. **Le conteneur rend le wine hôte inatteignable.** Dans la sandbox umu
+   (pressure-vessel, Steam Runtime 3/4), `/usr` de l'hôte est *remplacé* :
+   `/usr/bin/wineserver` n'existe pas, `wineserver` n'est pas sur le `PATH`
+   (`/usr/bin:/bin`). Le wine Fedora n'est visible qu'en `/run/host/usr/bin/wineserver`,
+   chemin qu'aucun loader Wine ne consulte. Le scénario « le wineserver système est
+   sélectionné » est donc **impossible** sous umu, pas seulement improbable.
+
+### Pourquoi il ne faut pas poser `WINESERVER` « par sécurité »
+
+Ce serait au mieux redondant, au pire nuisible : umu **réécrit** `PROTONPATH` dans
+plusieurs cas (nom de code type `GE-Proton`, repli `UMU-Latest`, résolution du
+runtime conteneur — `umu_run.py`, résolution de `PROTONPATH` avant lancement). Un
+`WINESERVER` dérivé du `PROTONPATH` que *nous* passons pointerait alors sur un
+autre dist que celui qu'umu finit par monter — ce qui **créerait** le découplage
+que la variable était censée prévenir. La sélection actuelle est correcte parce
+qu'elle est dérivée en bout de chaîne, par le loader effectivement chargé.
+
+### Effet de bord mesuré : `Prefix has an invalid version?!` n'est pas fatal
+
+Les lancements 2 et 3 ont fait tourner un Proton sur un préfixe construit par un
+autre. Proton l'a détecté, l'a annoncé, puis **a continué** :
+
+```
+Proton: Upgrading prefix from GE-Proton11-3 to GE-Proton9-20 (…/prefix/)
+Proton: Prefix has an invalid version?! You may want to back up user files and delete this prefix.
+```
+
+…et le jeu s'est lancé quand même, USVFS compris, en réécrivant le `version` du
+préfixe au passage (d'où la sauvegarde/restauration dans la méthode). Deux
+conséquences :
+
+- Le `version mismatch` que reconnaît le diagnostic de lancement relève de la
+  **version du préfixe**, pas de la sélection du `wineserver` : imposer
+  `WINESERVER` n'y changerait rien. Le remède de la table ci-dessus
+  (`install --only prefix`) reste le bon — un préfixe réécrit d'une base Wine à
+  l'autre garde ses verbs et ses overrides posés pour l'autre.
+- `prefix has an invalid version` fait partie des marqueurs de
+  `mo2/diagnostics.py` (`_PREFIX_VERSION_MARKERS`), or il apparaît ici sur des
+  lancements **réussis** : lu après coup, le diagnostic conclurait à un échec de
+  préfixe alors que la partie a démarré. Faux positif connu, à traiter côté T14 —
+  hors périmètre de cette tâche, qui ne touche pas au code.
+
 ## Sources
 
 - MO2 — fil de compatibilité Linux/Wine USVFS (issue #372) :
@@ -226,5 +340,14 @@ en même temps — il n'avait plus de sens en mode détaché (voir plus haut).
   `proxy run successful` des guides Nexus/STEP ne s'y trouve pas.
 - RadTux — VFS natif Linux expérimental pour MO2 :
   https://www.nexusmods.com/fallout4/mods/105285
+- Sélection du `wineserver` sous umu (T16) : relevés `/proc/<pid>/environ` +
+  `/proc/<pid>/exe` sur trois lancements réels (GE-Proton11-3, GE-Proton9-20,
+  GE-Proton11-1) de l'install de test, 2026-08-22 — voir la section dédiée
+  ci-dessus. Sources croisées : absence de `WINESERVER` dans le zipapp
+  umu-launcher 1.4.1 et dans le script `proton` de GE-Proton11-3 ; résolution
+  auto-relative du serveur par `ntdll.so`.
+- pressure-vessel / Steam Runtime (le conteneur qui remplace `/usr` et rend le
+  wine hôte inatteignable) :
+  https://gitlab.steamos.cloud/steamrt/steam-runtime-tools/-/tree/main/pressure-vessel
 </content>
 </invoke>

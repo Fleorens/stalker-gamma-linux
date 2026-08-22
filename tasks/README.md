@@ -26,7 +26,7 @@ adapté :
 | T13 | Verrou « MO2 / préfixe occupé » | **Sonnet 5** | T04, T05 | 🟠 perte de données |
 | T14 | Diagnostic runtime/préfixe du log de lancement | **Sonnet 5** | T05 | 🟡 support |
 | T15 | `play` détaché du terminal — ⚠ à qualifier d'abord | **Sonnet 5** | T05 | 🟡 confort |
-| T16 | Épinglage `WINESERVER` sous umu — ⚠ investigation | **Fable 5** | T04, T05 | 🔵 à trancher |
+| T16 | Épinglage `WINESERVER` sous umu — ✅ tranché (2026-08-22) : aucun découplage, pas de patch | **Fable 5** | T04, T05 | 🔵 tranché |
 
 Ces six tâches sont issues d'une revue d'état de l'art menée le 2026-08-17
 (autres outils de l'écosystème Linux/GAMMA). Quatre autres pistes examinées à
