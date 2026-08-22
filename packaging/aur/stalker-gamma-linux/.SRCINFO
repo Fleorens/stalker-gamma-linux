@@ -1,6 +1,6 @@
 pkgbase = stalker-gamma-linux
 	pkgdesc = Install and launch S.T.A.L.K.E.R. G.A.M.M.A. on Linux (Mod Organizer 2 under Proton)
-	pkgver = 0.5.0
+	pkgver = 0.6.0
 	pkgrel = 1
 	url = https://github.com/Fleorens/stalker-gamma-linux
 	arch = any
@@ -24,7 +24,7 @@ pkgbase = stalker-gamma-linux
 	optdepends = lib32-gamemode: same, for the 32-bit wine processes
 	optdepends = steam: Steam Input, Gaming Mode on the Steam Deck
 	optdepends = protontricks: manual prefix troubleshooting
-	source = stalker-gamma-linux-0.5.0.tar.gz::https://github.com/Fleorens/stalker-gamma-linux/archive/v0.5.0.tar.gz
-	sha256sums = 45bd817427ec3cd2ce16eb2cf56c8b8869cc8c86560ac280cf43a3651fccd34e
+	source = stalker-gamma-linux-0.6.0.tar.gz::https://github.com/Fleorens/stalker-gamma-linux/archive/v0.6.0.tar.gz
+	sha256sums = 695149f9455190ebb80dc8806b670b14767cf0f41294b15151f5d4f3a0b3a6dc
 
 pkgname = stalker-gamma-linux
