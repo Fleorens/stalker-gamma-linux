@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-16 20:24+0200\n"
+"POT-Creation-Date: 2026-08-22 06:58+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -141,6 +141,18 @@ msgid ""
 "gamma-linux-report.txt. Use `-` for stdout"
 msgstr ""
 
+msgid ""
+"Checks the mods installed on disk against a reference fingerprint "
+"(detects a corrupted or overwritten mod file)"
+msgstr ""
+
+msgid ""
+"Repairs the damaged mods that come from the modpack: removes them (folder"
+" + cached archive), then reruns the engine, which reinstalls the whole "
+"modpack over your mods folder — other mods may be updated in passing. "
+"Files you added are never deleted"
+msgstr ""
+
 msgid "Checks the shared Proton prefix status (Proton, verbs, DXVK)"
 msgstr ""
 
@@ -194,6 +206,9 @@ msgid ""
 msgstr ""
 
 msgid "Shows exactly what would be removed, without deleting anything"
+msgstr ""
+
+msgid "Skips the --game-data confirmation prompt — for scripted use"
 msgstr ""
 
 msgid ""
@@ -331,6 +346,71 @@ msgstr ""
 msgid "Error"
 msgstr ""
 
+#, python-brace-format
+msgid "Refusing to delete {path}: {reason}"
+msgstr ""
+
+msgid "relative path"
+msgstr ""
+
+msgid "path contains '..'"
+msgstr ""
+
+msgid "symlink — deleting through it would remove an unrelated directory"
+msgstr ""
+
+msgid "a protected system directory"
+msgstr ""
+
+msgid "your home directory"
+msgstr ""
+
+msgid "the parent of your home directory"
+msgstr ""
+
+msgid "a sibling of your home directory"
+msgstr ""
+
+msgid "the current working directory"
+msgstr ""
+
+msgid "the repository this tool is running from"
+msgstr ""
+
+msgid "the virtual environment this tool is running from"
+msgstr ""
+
+msgid "too shallow to be a real install directory"
+msgstr ""
+
+msgid "does not exist"
+msgstr ""
+
+msgid ""
+"does not contain a GAMMA install marker (anomaly/, gamma/, mods/, "
+"prefix/, or an install state file)"
+msgstr ""
+
+msgid "target does not exist"
+msgstr ""
+
+msgid "empty name"
+msgstr ""
+
+msgid "'.' or '..'"
+msgstr ""
+
+msgid "contains a path separator"
+msgstr ""
+
+#, python-brace-format
+msgid "cannot be resolved: {error}"
+msgstr ""
+
+#, python-brace-format
+msgid "not a direct child of {parent}"
+msgstr ""
+
 msgid "unknown (not installed as a package)"
 msgstr ""
 
@@ -436,6 +516,9 @@ msgstr ""
 msgid "game data (Anomaly, mods, cache, Proton prefix)"
 msgstr ""
 
+msgid "still present after removal — refusing to report success"
+msgstr ""
+
 msgid "The following will be removed:"
 msgstr ""
 
@@ -446,6 +529,20 @@ msgid "Removed:"
 msgstr ""
 
 msgid "Dry run — nothing will be deleted."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"\n"
+"This will permanently delete: {path}\n"
+"Estimated size: ~{size} GiB (Anomaly, mods, cache, Proton prefix, and "
+"your saves). This cannot be undone."
+msgstr ""
+
+msgid "Type 'yes' to confirm: "
+msgstr ""
+
+msgid "Cancelled — nothing was removed."
 msgstr ""
 
 #, python-brace-format
@@ -696,8 +793,7 @@ msgid ""
 "Fedora: RPM Fusion nonfree repo required — enable it first if needed: "
 "sudo dnf install https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-"
 "nonfree-release-$(rpm -E %fedora).noarch.rpm · Debian/Ubuntu: non-"
-"free/multiverse component required; on Debian 12 the package is called "
-"libunrar5"
+"free/multiverse component required"
 msgstr ""
 
 msgid "unknown distribution"
@@ -799,6 +895,46 @@ msgid "outside the pipeline (install already present)"
 msgstr ""
 
 msgid "Not done yet"
+msgstr ""
+
+msgid "Installed mods"
+msgstr ""
+
+msgid ""
+"Compares the mod files on disk against a reference fingerprint. The first"
+" run records that reference; later runs report what changed since. Files "
+"you added yourself are never touched."
+msgstr ""
+
+msgid "Check integrity"
+msgstr ""
+
+msgid "Reads every mod file — several minutes on a full install"
+msgstr ""
+
+msgid "Repair"
+msgstr ""
+
+msgid "Check"
+msgstr ""
+
+msgid ""
+"Removes the damaged mods that come from the modpack and reinstalls them —"
+" this re-downloads them and takes a while"
+msgstr ""
+
+msgid "Repair the damaged mods?"
+msgstr ""
+
+msgid ""
+"The damaged mods that come from the modpack will be removed (folder + "
+"cached archive) and downloaded again. The engine then reinstalls the "
+"whole modpack over your mods folder, so other mods may be updated in "
+"passing. Nothing you added is deleted — neither your own mods, nor a file"
+" you dropped inside one."
+msgstr ""
+
+msgid "Cancel"
 msgstr ""
 
 msgid "Copy the command"
@@ -963,9 +1099,6 @@ msgid ""
 "<target>/backups/ first."
 msgstr ""
 
-msgid "Cancel"
-msgstr ""
-
 msgid "Choose the folder holding your GAMMA install"
 msgstr ""
 
@@ -1008,6 +1141,12 @@ msgstr ""
 
 #, python-brace-format
 msgid "{count} item(s) removed. Close the window to finish."
+msgstr ""
+
+msgid "Repairing the mods"
+msgstr ""
+
+msgid "Checking the mods"
 msgstr ""
 
 msgid "Launching the game"
@@ -1087,6 +1226,204 @@ msgid "Cancelled — will resume where it left off."
 msgstr ""
 
 msgid "Failed."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"No mods directory at {path}.\n"
+"→ Nothing to check yet: install GAMMA first (`stalker-gamma-linux "
+"install`), or point --target at the right install directory."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Could not read the reference fingerprint {path}: {error}.\n"
+"→ Check the file's permissions, or delete it to record a new reference on"
+" the next run."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Could not write the reference fingerprint {path}: {error}.\n"
+"→ The previous reference, if any, is left untouched. Free some space or "
+"check permissions, then run the check again."
+msgstr ""
+
+msgid "Integrity check cancelled — the reference was left untouched."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Could not repair « {mod} »: {reason}.\n"
+"→ The repair stopped there and the engine was not re-run. Check the "
+"permissions on the mods and downloads directories, then run the repair "
+"again."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"No local modpack definition at {path}.\n"
+"→ Without the upstream mod list, no mod folder can be told apart from one"
+" you added yourself, so nothing is repaired. Run `stalker-gamma-linux "
+"update` once to fetch it."
+msgstr ""
+
+msgid "loose files directly under mods/, not part of any mod"
+msgstr ""
+
+msgid ""
+"not found in the local modpack definition — either a mod you added, or "
+"one installed from a Git resource. Left untouched either way"
+msgstr ""
+
+msgid "contains files you added — repairing would delete them along with the mod"
+msgstr ""
+
+msgid "To repair (removed, then reinstalled by the engine):"
+msgstr ""
+
+msgid "Left untouched:"
+msgstr ""
+
+msgid "mods/"
+msgstr ""
+
+#, python-brace-format
+msgid "  removed {path}"
+msgstr ""
+
+#, python-brace-format
+msgid "  {name}: folder already gone, it will be reinstalled"
+msgstr ""
+
+#, python-brace-format
+msgid "  removed cached archive {path}"
+msgstr ""
+
+#, python-brace-format
+msgid "Scanned: {files} files, {size} GiB in {path}"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"[WARNING] {count} unreadable line(s) in the reference were ignored — the "
+"files they described are reported as removed."
+msgstr ""
+
+msgid "[ OK ] Unchanged — the install matches its reference exactly."
+msgstr ""
+
+msgid "[CHANGED]"
+msgstr ""
+
+msgid "Modified"
+msgstr ""
+
+msgid "Missing"
+msgstr ""
+
+msgid "Added (yours — left alone)"
+msgstr ""
+
+msgid "[UNREADABLE]"
+msgstr ""
+
+msgid "Unreadable"
+msgstr ""
+
+msgid "Mods affected:"
+msgstr ""
+
+#, python-brace-format
+msgid "  - {name}: {changed} modified, {removed} missing"
+msgstr ""
+
+msgid "(loose files under mods/)"
+msgstr ""
+
+#, python-brace-format
+msgid "{label} {title}: {count}"
+msgstr ""
+
+#, python-brace-format
+msgid "    … and {count} more"
+msgstr ""
+
+#, python-brace-format
+msgid "  {files} files checked, {size} GiB read…"
+msgstr ""
+
+msgid "Hashing installed mods"
+msgstr ""
+
+msgid "Removing the damaged mods"
+msgstr ""
+
+msgid "Reinstalling them with the engine"
+msgstr ""
+
+msgid "Recording the new reference (second scan)"
+msgstr ""
+
+#, python-brace-format
+msgid "Checking installed mods in {path}"
+msgstr ""
+
+msgid "Cancelled — the previous reference was left untouched."
+msgstr ""
+
+msgid "Hashing installed mods (this takes a few minutes)…"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Damaged files detected. Repair the affected mods with:\n"
+"  stalker-gamma-linux verify --repair --target {root}"
+msgstr ""
+
+msgid ""
+"Run this check again after an update, or the day the game starts "
+"misbehaving — that is when the comparison is worth something."
+msgstr ""
+
+msgid ""
+"Nothing damaged — the only differences are files you added, and they stay"
+" put."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"{count} file(s) could not be read — they are neither fingerprinted nor "
+"compared:\n"
+"{details}"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Reference recorded: {files} files, {size} GiB ({path}).\n"
+"No comparison was made this time — there was nothing to compare against.\n"
+"Run the check again to detect changes since now."
+msgstr ""
+
+msgid ""
+"Nothing can be repaired automatically: none of the damaged mods comes "
+"from the modpack, or they hold files you added. They are listed above, "
+"untouched — repair them from Mod Organizer 2."
+msgstr ""
+
+msgid "Removing the damaged mods…"
+msgstr ""
+
+msgid "Reinstalling them with the engine…"
+msgstr ""
+
+msgid "Recording the new reference (second scan)…"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"{count} mod(s) repaired and the reference re-recorded.\n"
+"Repaired: {names}"
 msgstr ""
 
 #, python-brace-format

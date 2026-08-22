@@ -174,3 +174,73 @@ class TestValidateWipeTarget:
         target = _install(home)
 
         assert paths_safety.validate_wipe_target(target) == target.resolve()
+
+
+class TestUnsafeChildNameReason:
+    """Validation pure du **nom** d'une entrée à supprimer (T12, `verify --repair`)."""
+
+    @pytest.mark.parametrize("name", ["", "   ", ".", "..", "../etc", "a/b", "a\\b", "a\0b"])
+    def test_noms_qui_sechappent_refuses(self, name: str) -> None:
+        assert paths_safety.unsafe_child_name_reason(name) is not None
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "312- Gunslinger Guns for Anomaly - Teivazcz & Gunslinger Team",
+            "..dossier-qui-commence-par-des-points",
+            "mod.7z",
+        ],
+    )
+    def test_noms_de_mods_legitimes_acceptes(self, name: str) -> None:
+        assert paths_safety.unsafe_child_name_reason(name) is None
+
+
+class TestValidateRemovableChild:
+    @pytest.fixture
+    def mods(self, tmp_path: Path) -> Path:
+        mods_dir = tmp_path / "gamma" / "mods"
+        mods_dir.mkdir(parents=True)
+        return mods_dir
+
+    def test_cas_nominal_retourne_le_chemin_resolu(self, mods: Path) -> None:
+        (mods / "101- Un mod").mkdir()
+
+        resolved = paths_safety.validate_removable_child(mods, "101- Un mod")
+
+        assert resolved == (mods / "101- Un mod").resolve()
+
+    def test_entree_absente_retourne_none(self, mods: Path) -> None:
+        assert paths_safety.validate_removable_child(mods, "jamais-installe") is None
+
+    @pytest.mark.parametrize("name", ["..", "../..", "sous/dossier", "..\\ailleurs"])
+    def test_nom_qui_sechappe_leve(self, mods: Path, name: str) -> None:
+        with pytest.raises(paths_safety.UnsafeWipeTargetError):
+            paths_safety.validate_removable_child(mods, name)
+
+    def test_lien_symbolique_leve(self, mods: Path, tmp_path: Path) -> None:
+        ailleurs = tmp_path / "precieux"
+        ailleurs.mkdir()
+        (mods / "faux-mod").symlink_to(ailleurs)
+
+        with pytest.raises(paths_safety.UnsafeWipeTargetError):
+            paths_safety.validate_removable_child(mods, "faux-mod")
+
+    def test_lien_symbolique_casse_leve_au_lieu_de_none(self, mods: Path, tmp_path: Path) -> None:
+        """`exists()` répond False sur un lien cassé : le refus doit primer."""
+        (mods / "lien-casse").symlink_to(tmp_path / "disparu")
+
+        with pytest.raises(paths_safety.UnsafeWipeTargetError):
+            paths_safety.validate_removable_child(mods, "lien-casse")
+
+    def test_parent_lui_meme_symlink_reste_accepte(self, tmp_path: Path) -> None:
+        """`downloads/` est souvent un lien vers `cache/` : le parent, lui, peut l'être."""
+        real = tmp_path / "cache"
+        real.mkdir()
+        (real / "mod.7z").write_bytes(b"x")
+        downloads = tmp_path / "downloads"
+        downloads.symlink_to(real)
+
+        assert (
+            paths_safety.validate_removable_child(downloads, "mod.7z")
+            == (real / "mod.7z").resolve()
+        )

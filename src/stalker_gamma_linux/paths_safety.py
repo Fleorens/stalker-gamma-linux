@@ -1,16 +1,26 @@
-"""Garde-fous de chemin pour `uninstall --game-data`.
+"""Garde-fous de chemin avant toute suppression (`uninstall --game-data`, `verify --repair`).
 
-`--target` est fourni par l'utilisateur sans aucune contrainte de forme : une
-faute de frappe (`~` au lieu du bon dossier, un `..` de trop, un lien
-symbolique qui pointe ailleurs) ne doit jamais pouvoir faire disparaître autre
-chose qu'une install GAMMA réelle. Le refus doit être structurel — un ensemble
-de règles qu'aucune valeur de `--target` ne peut contourner — et non une
-convention d'interface (`--dry-run`, l'affichage du plan) que l'utilisateur
-peut accepter par réflexe. Voir `tasks/T11-securite-suppression-chemins.md`.
+Deux familles de cibles, deux niveaux de garde :
+
+1. **La racine d'installation** (`--target` d'`uninstall --game-data`) est
+   fournie par l'utilisateur sans aucune contrainte de forme : une faute de
+   frappe (`~` au lieu du bon dossier, un `..` de trop, un lien symbolique qui
+   pointe ailleurs) ne doit jamais pouvoir faire disparaître autre chose qu'une
+   install GAMMA réelle. Voir `tasks/T11-securite-suppression-chemins.md`.
+2. **Une entrée nommée sous un dossier connu** (le dossier d'un mod sous
+   `gamma/mods/`, son archive sous `gamma/downloads/`) ne vient pas non plus de
+   nous : le nom sort de la liste modpack amont ou du `meta.ini` écrit par le
+   moteur. Un `..`, un séparateur de chemin ou un lien symbolique suffirait à
+   faire sortir le `rmtree` du dossier prévu. Voir
+   `tasks/T12-integrite-mods-installes.md`.
+
+Dans les deux cas le refus doit être **structurel** — un ensemble de règles
+qu'aucune valeur ne peut contourner — et non une convention d'interface
+(`--dry-run`, l'affichage du plan) que l'utilisateur peut accepter par réflexe.
 
 Toutes les fonctions de décision ci-dessous sont pures et testables sans
-toucher au disque au-delà de `resolve`/`is_symlink`/`is_dir` : aucune lecture
-de contenu de fichier, aucun parcours d'arborescence.
+toucher au disque au-delà de `resolve`/`is_symlink`/`is_dir`/`exists` : aucune
+lecture de contenu de fichier, aucun parcours d'arborescence.
 """
 
 from __future__ import annotations
@@ -157,4 +167,72 @@ def validate_wipe_target(raw: Path) -> Path:
     reason = unsafe_reason(raw, resolved)
     if reason is not None:
         raise UnsafeWipeTargetError(resolved, reason)
+    return resolved
+
+
+# Caractères qui font sortir un nom de son dossier parent. `\` n'a rien de
+# spécial sous Linux, mais les noms qu'on reçoit viennent d'un modpack Windows :
+# le tolérer reviendrait à accepter un séparateur de chemin déguisé.
+_PATH_SEPARATOR_CHARS: tuple[str, ...] = ("/", "\\", "\0")
+
+
+def unsafe_child_name_reason(name: str) -> str | None:
+    """Motif de refus d'un `name` comme entrée à supprimer, ou `None` s'il est sûr.
+
+    Pure : ne regarde que la chaîne. Un nom qui passe ici désigne forcément une
+    entrée *dans* le dossier parent — reste à vérifier sur le disque qu'il n'y a
+    pas de lien symbolique en travers (`validate_removable_child`).
+    """
+    if not name or not name.strip():
+        return _("empty name")
+    if name in (".", ".."):
+        return _("'.' or '..'")
+    if any(char in name for char in _PATH_SEPARATOR_CHARS):
+        return _("contains a path separator")
+    return None
+
+
+def validate_removable_child(parent: Path, name: str) -> Path | None:
+    """Chemin résolu de `<parent>/<name>`, garanti enfant **direct** de `parent`.
+
+    Retourne `None` si l'entrée n'existe pas — supprimer ce qui est déjà parti
+    n'est pas une erreur (archive déjà purgée, mod déjà retiré à la main). Lève
+    `UnsafeWipeTargetError` dès que le nom, ou ce qu'il désigne réellement sur
+    le disque, sortirait de `parent` :
+
+    - nom vide, `.`/`..`, ou contenant un séparateur de chemin ;
+    - lien symbolique : `resolve()` l'a déjà suivi, supprimer à travers
+      emporterait une arborescence qui n'a rien à voir avec `parent` ;
+    - cible dont le parent résolu n'est pas `parent` résolu (dernier filet,
+      indépendant de la forme du nom).
+
+    Comme `validate_wipe_target`, le chemin retourné est **exactement** celui
+    qu'il faut supprimer : ne jamais re-résoudre entre ce contrôle et le
+    `rmtree`/`unlink`.
+    """
+    reason = unsafe_child_name_reason(name)
+    if reason is not None:
+        raise UnsafeWipeTargetError(parent / name, reason)
+
+    candidate = parent / name
+    if candidate.is_symlink():
+        # Testé avant `exists()` : un lien cassé doit être refusé, pas confondu
+        # avec « rien à supprimer » (`exists()` suit le lien et répond False).
+        raise UnsafeWipeTargetError(
+            candidate, _("symlink — deleting through it would remove an unrelated directory")
+        )
+    if not candidate.exists():
+        return None
+
+    try:
+        resolved = candidate.resolve(strict=True)
+        resolved_parent = parent.resolve(strict=True)
+    except OSError as error:
+        raise UnsafeWipeTargetError(
+            candidate, _("cannot be resolved: {error}").format(error=error)
+        ) from error
+    if resolved.parent != resolved_parent:
+        raise UnsafeWipeTargetError(
+            resolved, _("not a direct child of {parent}").format(parent=resolved_parent)
+        )
     return resolved

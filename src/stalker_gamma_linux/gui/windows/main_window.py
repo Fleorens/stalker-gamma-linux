@@ -21,7 +21,7 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
-from stalker_gamma_linux import adopt, orchestrator, uninstall, updates  # noqa: E402
+from stalker_gamma_linux import adopt, integrity, orchestrator, uninstall, updates  # noqa: E402
 from stalker_gamma_linux import state as state_module  # noqa: E402
 from stalker_gamma_linux.environment.report import build_report  # noqa: E402
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE  # noqa: E402
@@ -366,7 +366,11 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _push_doctor(self) -> None:
         self._nav_view.push(
-            DoctorPage(target=self._preferences.install_path, show_toast=self._show_toast)
+            DoctorPage(
+                target=self._preferences.install_path,
+                show_toast=self._show_toast,
+                on_verify=self._start_verify,
+            )
         )
 
     def _on_show_preferences(self, _action: Gio.SimpleAction, _param: None) -> None:
@@ -469,6 +473,28 @@ class MainWindow(Adw.ApplicationWindow):
             return orchestrator.run_update(target, reporter=reporter, cancel_event=cancel_event)
 
         self._push_task(_("Update"), job, cancellable=True, phase_labels=_UPDATE_PHASES)
+
+    def _start_verify(self, repair: bool) -> None:
+        """Vérification d'intégrité des mods installés, depuis la vue Diagnostic.
+
+        Comme partout ailleurs : la GUI ne fait que fournir un `Reporter` et un
+        `cancel_event` à `integrity.run_verify` — le scan, le diff et la
+        réparation sont exactement ceux de `stalker-gamma-linux verify`.
+        """
+        target = self._preferences.install_path
+
+        def job(events: queue.Queue[WorkerEvent], cancel_event: threading.Event) -> int:
+            reporter = QueueReporter(events)
+            return integrity.run_verify(
+                target, repair_damaged=repair, reporter=reporter, cancel_event=cancel_event
+            )
+
+        self._push_task(
+            _("Repairing the mods") if repair else _("Checking the mods"),
+            job,
+            cancellable=True,
+            phase_labels=integrity.verify_phase_labels(repair_damaged=repair),
+        )
 
     def _start_play(self) -> None:
         target = self._preferences.install_path

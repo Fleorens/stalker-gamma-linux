@@ -151,6 +151,36 @@ def test_main_dispatches_to_prefix_doctor(monkeypatch: pytest.MonkeyPatch) -> No
     assert calls == [(Path("/tmp/game"), True)]
 
 
+def test_build_parser_verify_defaults() -> None:
+    args = cli.build_parser().parse_args(["verify"])
+
+    assert args.command == "verify"
+    assert args.target is None
+    assert args.repair is False
+
+
+def test_build_parser_verify_flags() -> None:
+    args = cli.build_parser().parse_args(["verify", "--target", "/tmp/game", "--repair"])
+
+    assert args.target == Path("/tmp/game")
+    assert args.repair is True
+
+
+def test_main_dispatches_to_verify(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[Path | None, bool]] = []
+
+    def fake_run_verify(target: Path | None, *, repair_damaged: bool) -> int:
+        calls.append((target, repair_damaged))
+        return 0
+
+    monkeypatch.setattr(cli, "run_verify", fake_run_verify)
+
+    exit_code = cli.main(["verify", "--target", "/tmp/game", "--repair"])
+
+    assert exit_code == 0
+    assert calls == [(Path("/tmp/game"), True)]
+
+
 def test_build_parser_mo2_default_target() -> None:
     args = cli.build_parser().parse_args(["mo2"])
 

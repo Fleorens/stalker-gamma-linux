@@ -21,6 +21,52 @@ from stalker_gamma_linux.logging_setup import LOGGER_NAME
 os.environ["LANGUAGE"] = "en"
 
 
+class RecordingReporter:
+    """`output.Reporter` de test : enregistre les événements au lieu de les imprimer.
+
+    Partagé par les suites qui pilotent une commande orchestrée (`integrity`,
+    et tout ce qui prendra `reporter=` par la suite) : redéfinir la même classe
+    dans chaque fichier finissait par diverger d'un test à l'autre.
+    """
+
+    def __init__(self) -> None:
+        self.events: list[tuple[str, str]] = []
+
+    def header(self, message: str) -> None:
+        self.events.append(("header", message))
+
+    def step(self, index: str, message: str) -> None:
+        self.events.append(("step", f"{index} {message}"))
+
+    def skip(self, index: str, message: str) -> None:
+        self.events.append(("skip", f"{index} {message}"))
+
+    def progress(self, message: str) -> None:
+        self.events.append(("progress", message))
+
+    def success(self, message: str) -> None:
+        self.events.append(("success", message))
+
+    def warn(self, message: str) -> None:
+        self.events.append(("warn", message))
+
+    def error(self, message: str, *, hint: str | None = None) -> None:
+        self.events.append(("error", message))
+
+    def of_kind(self, kind: str) -> list[str]:
+        return [message for recorded_kind, message in self.events if recorded_kind == kind]
+
+    @property
+    def text(self) -> str:
+        """Tout ce qui a été rapporté, pour une assertion « ça a été dit quelque part »."""
+        return "\n".join(message for _kind, message in self.events)
+
+
+@pytest.fixture
+def reporter() -> RecordingReporter:
+    return RecordingReporter()
+
+
 @pytest.fixture(autouse=True)
 def _isolate_xdg_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))

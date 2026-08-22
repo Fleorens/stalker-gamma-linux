@@ -55,6 +55,11 @@ src = ["src"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "N"]
 
+[tool.ruff.lint.isort]
+# `tests` héberge des outils partagés (`conftest.RecordingReporter`) : sans
+# ça, isort les rangeait avec les dépendances tierces.
+known-first-party = ["stalker_gamma_linux", "tests"]
+
 [tool.mypy]
 python_version = "3.11"
 mypy_path = "src"

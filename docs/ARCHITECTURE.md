@@ -511,6 +511,115 @@ de ce groupe (`gui` en extra séparé) — `stalker-gamma-linux-gui`
 un message actionnable (par distribution) si absent, au lieu d'un
 `ModuleNotFoundError` brut.
 
+## Intégrité des mods installés (T12)
+
+`engine.verify` (`check-md5` du moteur) répond à « le téléchargement était-il
+correct » : il compare les **archives** de `gamma/downloads` aux sommes
+publiées. Il ne dit rien de ce qui est réellement posé sur le disque. Le
+paquet `integrity/` couvre l'autre moitié — « l'install est-elle encore
+intacte » — c'est-à-dire le premier symptôme que remonte un joueur (« le jeu
+crashe depuis hier », après qu'un autre outil a écrasé un fichier ou qu'un
+disque plein en a tronqué un). Commande `verify [--repair]`, plus deux boutons
+dans la vue Diagnostic de la GUI ; `integrity.run_verify` est le seul point
+d'entrée, partagé mot pour mot par les deux (`Reporter` + `cancel_event`).
+
+Six décisions qui ne se lisent pas dans le code :
+
+1. **La référence est un fichier texte à côté de l'install**
+   (`<install>/gamma-md5.txt`, format `md5sum`), pas un état sous
+   `~/.config`. Elle décrit *cette* installation : elle doit la suivre si elle
+   est déplacée ou sauvegardée, et rester lisible à la main. Le parsing
+   découpe **après le hash** au lieu de trancher à l'offset 32 : un fichier
+   produit par `md5sum -b` (préfixe `*`) ou retabulé continue d'être relu, et
+   toute ligne qui ne se relit pas est rapportée à l'utilisateur — jamais
+   avalée, parce qu'elle produit de faux « supprimé ».
+2. **Premier passage = enregistrement, pas vérification.** Sans référence
+   antérieure il n'y a rien à comparer ; annoncer « aucun écart » ferait
+   croire à une vérification. On enregistre, on le dit, et la reprise de
+   référence après réparation est une **étape à part entière** (un second scan
+   complet, annoncé comme tel) — sans elle, les mods qu'on vient de remettre
+   en état ressortiraient « modifiés » au passage suivant.
+3. **Un scan annulé ne peut pas atteindre l'écriture de la référence.** Ce
+   n'est pas une convention d'appel : `scan.scan_tree` **lève**
+   `IntegrityCancelledError` au lieu de retourner un résultat partiel. Une
+   install potentiellement cassée ne peut donc pas être figée comme nouvelle
+   référence par un Ctrl-C ou un bouton Annuler.
+4. **« Venir du modpack » ne se lit pas dans un seul fichier.** C'est le
+   piège que seule une install réelle a révélé : `full-install` peuple
+   `mods/` depuis **trois** sources, et `modlist.txt` n'en est qu'une.
+   - `modlist.txt`, séparateurs compris — `mo2/modlist.py` les écarte à
+     raison pour qui compte des mods, mais gamma-launcher en crée de vrais
+     dossiers avec un `meta.ini` (`SeparatorInstaller.install`) : 28 sur
+     l'install de test ;
+   - `modpack_addons/` — 388 dossiers livrés en clair, copiés tels quels par
+     `_copy_gamma_modpack`, **absents de `modlist.txt`** ;
+   - les ressources Git (`gamma_large_files_v2`,
+     `teivaz_anomaly_gunslinger`), dont les dossiers ne sont connus qu'après
+     clonage.
+
+   On réunit les deux premières, qui se lisent hors ligne. La troisième reste
+   hors de portée sans plomberie Git : ses mods tombent dans « source
+   inconnue » et sont signalés puis **laissés intacts** — le bon échec, le
+   doute devant toujours empêcher une suppression. Sur l'install de test, le
+   nombre de dossiers non reconnus est passé de 43 à 5, dont 3 relèvent de ce
+   dernier cas ; le message ne prétend donc plus que le joueur les a ajoutés.
+
+   Corollaire mesuré : comme la réparation délègue à `full-install`, qui
+   ré-extrait **tous** les mods par-dessus l'existant, elle ne se limite pas
+   au mod visé — 478 fichiers d'autres mods ont changé, et 43 sont apparus,
+   sur une install réelle. Rien n'a disparu, et les fichiers ajoutés par le
+   joueur ont été préservés (`copytree(dirs_exist_ok=True)` recouvre, ne
+   supprime pas). Effet secondaire utile : les mods écartés de la réparation
+   voient quand même leurs fichiers abîmés restaurés en place. La commande le
+   dit maintenant explicitement plutôt que de laisser croire à une opération
+   strictement chirurgicale.
+5. **Les fichiers `added` ne sont jamais réparés — et le dossier qui les
+   contient non plus.** Réparer, c'est `rmtree` sur le dossier du mod : un
+   `.ltx` retouché ou un patch déposé dedans partirait avec. Épargner le
+   fichier au moment du diff ne suffit donc pas, il faut épargner son dossier.
+   Un mod abîmé qui contient des ajouts est signalé avec sa raison et laissé
+   intact, comme les mods sans source amont (extras du joueur). La liste qui
+   fait autorité est le `modlist.txt` de `modpack_data/` déposé par
+   gamma-launcher, entrées désactivées comprises — désactivé dans MO2 ne veut
+   pas dire absent du disque.
+6. **« Réinstaller ce sous-ensemble » n'existe pas côté moteur.**
+   gamma-launcher v3.1 n'a aucune option pour n'installer qu'un mod
+   (`FullInstall._install_mods` parcourt toute la liste). Ce qu'on contrôle,
+   c'est le sous-ensemble **retéléchargé** : en retirant le dossier du mod
+   *et* son archive, seuls ces mods-là repartent du réseau, le reste étant
+   réutilisé depuis le cache (`use_cached=True`). La correspondance dossier →
+   archive se lit dans le `meta.ini` que le moteur écrit à l'installation
+   (`installationFile=`) : c'est la seule disponible **hors ligne**, le nom de
+   fichier réel d'un téléchargement ModDB n'étant connu qu'en interrogeant la
+   page ModDB.
+
+Deux points d'implémentation qui ont une raison précise :
+
+- **La progression est cadencée au temps écoulé, jamais à l'index.** Les
+  fichiers de mods vont de quelques octets à plusieurs gigaoctets : un
+  `i % 500 == 0` fige l'interface pendant de longues secondes sur les gros
+  puis noie la console sur les petits. Le compteur est aussi rafraîchi *entre
+  deux blocs* d'un même fichier, et c'est au même endroit que l'annulation est
+  vérifiée — un `cancel_event` levé au milieu d'un fichier de 4 Gio rend la
+  main tout de suite. L'horloge est injectable, ce qui rend la cadence
+  testable sans `sleep`.
+- **Les noms de mods sont validés avant tout `rmtree`/`unlink`**, par les
+  mêmes fonctions que T11 (`paths_safety.validate_removable_child`) : ils
+  viennent de la liste amont et de `meta.ini`, pas de nous. Un `..`, un
+  séparateur de chemin ou un lien symbolique fait tout refuser — et le refus
+  intervient **avant** la moindre suppression, pour qu'un `meta.ini` douteux
+  ne laisse pas un mod à moitié retiré.
+
+### Effet de bord corrigé au passage : `output.py` échappait le balisage `rich`
+
+Les messages passés à `output.progress`/`warn`/… étaient rendus tels quels par
+`rich.Console.print`, donc interprétés comme du balisage. Un nom de dossier de
+mod comme `101- Mod A [pack]` — les crochets sont courants dans le modpack —
+**disparaissait** de l'affichage, et une chaîne contenant `[/…]` levait
+`MarkupError` en pleine installation. Les couleurs sont maintenant posées
+autour d'un message échappé. L'échappement ne concerne que le rendu console :
+le logger et le `Reporter` de la GUI reçoivent toujours le message brut.
+
 ## Dimensionnement disque (`sizing.py`)
 
 Le volume qu'exige une installation est une donnée **unique**, dans

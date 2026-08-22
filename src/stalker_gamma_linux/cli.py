@@ -13,6 +13,7 @@ from stalker_gamma_linux.desktop import run_shortcut
 from stalker_gamma_linux.doctor import run_doctor
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE
 from stalker_gamma_linux.i18n import _
+from stalker_gamma_linux.integrity import run_verify
 from stalker_gamma_linux.mo2 import run_mo2, run_play
 from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
 from stalker_gamma_linux.orchestrator import run_install, run_update
@@ -110,6 +111,25 @@ def build_parser() -> argparse.ArgumentParser:
             "Writes a full diagnostic report to attach to an issue "
             "(prerequisites + prefix + end of log, paths anonymized). "
             "Without a filename: stalker-gamma-linux-report.txt. Use `-` for stdout"
+        ),
+    )
+
+    verify_parser = subparsers.add_parser(
+        "verify",
+        help=_(
+            "Checks the mods installed on disk against a reference fingerprint "
+            "(detects a corrupted or overwritten mod file)"
+        ),
+    )
+    verify_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
+    verify_parser.add_argument(
+        "--repair",
+        action="store_true",
+        help=_(
+            "Repairs the damaged mods that come from the modpack: removes them "
+            "(folder + cached archive), then reruns the engine, which reinstalls "
+            "the whole modpack over your mods folder — other mods may be updated "
+            "in passing. Files you added are never deleted"
         ),
     )
 
@@ -239,6 +259,8 @@ def _dispatch(args: argparse.Namespace) -> int:
             destination = None if str(args.report) == "-" else args.report
             return run_report(args.target, destination)
         return run_doctor(args.target)
+    if args.command == "verify":
+        return run_verify(args.target, repair_damaged=args.repair)
     if args.command == "prefix-doctor":
         return run_prefix_doctor(args.target, repair=args.repair)
     if args.command == "mo2":

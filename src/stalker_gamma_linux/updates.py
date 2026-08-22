@@ -46,6 +46,9 @@ _RAW_BASE = "https://raw.githubusercontent.com"
 # Déposé par gamma-launcher lors de l'installation, à l'intérieur de `<gamma>`.
 _INSTALLER_DIR = Path(".Grok's Modpack Installer")
 _MODPACK_DATA_DIR = _INSTALLER_DIR / "G.A.M.M.A" / "modpack_data"
+# Mods livrés en clair par le modpack, copiés tels quels dans `mods/` par
+# `FullInstall._copy_gamma_modpack` — ils ne figurent pas dans `modlist.txt`.
+_MODPACK_ADDONS_DIR = _INSTALLER_DIR / "G.A.M.M.A" / "modpack_addons"
 
 # Numéro de définition publié par Grokitach : le signal qui fait autorité.
 VERSION_FILE = "G.A.M.M.A_definition_version.txt"
@@ -100,6 +103,11 @@ class UpdateCheck:
 
 def local_definition_dir(gamma_dir: Path) -> Path:
     return gamma_dir / _MODPACK_DATA_DIR
+
+
+def local_addons_dir(gamma_dir: Path) -> Path:
+    """Dossier des mods livrés en clair par le modpack (voir `_MODPACK_ADDONS_DIR`)."""
+    return gamma_dir / _MODPACK_ADDONS_DIR
 
 
 def local_version_file(gamma_dir: Path) -> Path:

@@ -16,14 +16,13 @@ from stalker_gamma_linux.engine.process import ProgressCallback, run
 
 
 def _gamma_downloads(paths: InstallPaths) -> Path:
-    """Dossier où `full-install` dépose les archives de mods : `<gamma>/downloads`.
+    """Dossier de dépôt des archives de mods (`InstallPaths.downloads`).
 
-    Codé en dur côté amont (`FullInstall._dl_dir = self._gamma_dir / "downloads"`)
-    et c'est bien celui-ci qu'il faut nommer à l'utilisateur pour un dépôt
+    C'est bien celui-ci qu'il faut nommer à l'utilisateur pour un dépôt
     manuel — pas `cache/`, que cette sous-commande n'utilise pas (on ne lui
     passe volontairement pas `--cache-directory`, voir `install_gamma`).
     """
-    return paths.gamma / "downloads"
+    return paths.downloads
 
 
 def _extract_tmpdir(paths: InstallPaths) -> Path:

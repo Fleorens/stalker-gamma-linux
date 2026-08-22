@@ -4,6 +4,15 @@ Rendu console via `rich` (progression lisible) doublé d'un enregistrement dans
 le logger applicatif (`logging_setup.py`) : la console montre toujours la
 progression normale, le fichier de log garde une trace complète quel que soit
 `--verbose`.
+
+**Les messages sont du texte, jamais du balisage `rich`.** Les couleurs sont
+posées ici, autour du message ; le message lui-même est échappé avant d'être
+rendu. Sans ça, un nom de mod comme `101- Mod A [pack]` (les crochets sont
+courants dans les dossiers du modpack) disparaissait purement et simplement de
+l'affichage — `rich` le lisait comme une balise de style — et une chaîne
+contenant `[/…]` faisait carrément lever `MarkupError` en pleine installation.
+L'échappement ne concerne que le rendu console : le logger et le `Reporter` de
+la GUI reçoivent le message brut.
 """
 
 from __future__ import annotations
@@ -12,6 +21,7 @@ import logging
 from typing import Protocol
 
 from rich.console import Console
+from rich.markup import escape
 
 from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.logging_setup import LOGGER_NAME
@@ -40,40 +50,41 @@ class Reporter(Protocol):
 
 
 def header(message: str) -> None:
-    console.print(f"[bold]{message}[/bold]")
+    console.print(f"[bold]{escape(message)}[/bold]")
     _logger.info(message)
 
 
 def step(index: str, message: str) -> None:
-    console.print(f"[cyan]→ {index}[/cyan] {message}")
+    console.print(f"[cyan]→ {escape(index)}[/cyan] {escape(message)}")
     _logger.info("step %s: %s", index, message)
 
 
 def skip(index: str, message: str) -> None:
-    console.print(f"[dim]↷ {index} {message} " + _("(already done — resuming)") + "[/dim]")
+    already_done = _("(already done — resuming)")
+    console.print(f"[dim]↷ {escape(index)} {escape(message)} {escape(already_done)}[/dim]")
     _logger.debug("skipped step %s: %s", index, message)
 
 
 def progress(message: str) -> None:
-    console.print(message)
+    console.print(escape(message))
     _logger.debug(message)
 
 
 def success(message: str) -> None:
-    console.print(f"[bold green]{message}[/bold green]")
+    console.print(f"[bold green]{escape(message)}[/bold green]")
     _logger.info(message)
 
 
 def warn(message: str) -> None:
-    console.print(f"[yellow]{message}[/yellow]")
+    console.print(f"[yellow]{escape(message)}[/yellow]")
     _logger.warning(message)
 
 
 def error(message: str, *, hint: str | None = None) -> None:
-    console.print(f"[bold red]{_('Error')}[/bold red]: {message}")
+    console.print(f"[bold red]{_('Error')}[/bold red]: {escape(message)}")
     _logger.error(message)
     if hint is not None:
-        console.print(f"[yellow]→ {hint}[/yellow]")
+        console.print(f"[yellow]→ {escape(hint)}[/yellow]")
         _logger.info("hint: %s", hint)
 
 

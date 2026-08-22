@@ -33,9 +33,19 @@ from stalker_gamma_linux.report_bundle import build_bundle  # noqa: E402
 
 
 class DoctorPage(Adw.NavigationPage):
-    def __init__(self, *, target: Path | None, show_toast: Callable[[str], None]) -> None:
+    def __init__(
+        self,
+        *,
+        target: Path | None,
+        show_toast: Callable[[str], None],
+        on_verify: Callable[[bool], None] | None = None,
+    ) -> None:
         self._target = target
         self._show_toast = show_toast
+        # `on_verify(repair)` : la fenêtre principale pousse la tâche sur sa
+        # vue progression. Rien de la vérification elle-même n'est décidé ici —
+        # elle vit dans `integrity.run_verify`, partagée avec la CLI.
+        self._on_verify = on_verify
         self._groups: list[Adw.PreferencesGroup] = []
 
         # `Gtk.Spinner` et non `Adw.Spinner` : ce dernier n'existe qu'à partir de
@@ -109,6 +119,8 @@ class DoctorPage(Adw.NavigationPage):
                 self._build_install_group(report.install, report.installed_on_disk),
             )
         )
+        if self._on_verify is not None:
+            groups.append(self._build_integrity_group())
         self._groups = groups
         for group in self._groups:
             self._preferences_page.add(group)
@@ -231,6 +243,73 @@ class DoctorPage(Adw.NavigationPage):
             row.add_prefix(_status_icon(icon_status))
             group.add(row)
         return group
+
+    def _build_integrity_group(self) -> Adw.PreferencesGroup:
+        """« Le jeu crashe depuis hier » : le seul écran où poser la question.
+
+        Deux boutons plutôt qu'un, parce que les deux gestes n'ont pas le même
+        prix : vérifier ne fait que lire, réparer retélécharge les mods abîmés.
+        """
+        group = Adw.PreferencesGroup(
+            title=_("Installed mods"),
+            description=_(
+                "Compares the mod files on disk against a reference fingerprint. "
+                "The first run records that reference; later runs report what "
+                "changed since. Files you added yourself are never touched."
+            ),
+        )
+        row = Adw.ActionRow(
+            title=_("Check integrity"),
+            subtitle=_("Reads every mod file — several minutes on a full install"),
+        )
+        row.set_subtitle_lines(2)
+        row.add_suffix(self._verify_button(_("Repair"), repair=True))
+        row.add_suffix(self._verify_button(_("Check"), repair=False))
+        group.add(row)
+        return group
+
+    def _verify_button(self, label: str, *, repair: bool) -> Gtk.Button:
+        button = Gtk.Button(label=label, valign=Gtk.Align.CENTER)
+        if repair:
+            button.add_css_class("destructive-action")
+            button.set_tooltip_text(
+                _(
+                    "Removes the damaged mods that come from the modpack and "
+                    "reinstalls them — this re-downloads them and takes a while"
+                )
+            )
+        else:
+            button.add_css_class("suggested-action")
+        button.connect("clicked", lambda _b: self._start_verify(repair=repair))
+        return button
+
+    def _start_verify(self, *, repair: bool) -> None:
+        if self._on_verify is None:
+            return
+        if not repair:
+            self._on_verify(False)
+            return
+        dialog = Adw.AlertDialog(
+            heading=_("Repair the damaged mods?"),
+            body=_(
+                "The damaged mods that come from the modpack will be removed "
+                "(folder + cached archive) and downloaded again. The engine then "
+                "reinstalls the whole modpack over your mods folder, so other "
+                "mods may be updated in passing. Nothing you added is deleted — "
+                "neither your own mods, nor a file you dropped inside one."
+            ),
+        )
+        dialog.add_response("cancel", _("Cancel"))
+        dialog.add_response("repair", _("Repair"))
+        dialog.set_response_appearance("repair", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_default_response("cancel")
+        dialog.set_close_response("cancel")
+        dialog.connect("response", self._on_repair_response)
+        dialog.present(self)
+
+    def _on_repair_response(self, _dialog: Adw.AlertDialog, response: str) -> None:
+        if response == "repair" and self._on_verify is not None:
+            self._on_verify(True)
 
     def _copy_button(self, command: str) -> Gtk.Button:
         button = Gtk.Button(

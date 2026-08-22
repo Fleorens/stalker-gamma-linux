@@ -105,6 +105,13 @@ def test_vue_diagnostic() -> None:
     DoctorPage(target=None, show_toast=lambda _t: None)
 
 
+def test_vue_diagnostic_avec_verification_integrite() -> None:
+    """Le groupe « Mods installés » n'apparaît que si un `on_verify` est branché."""
+    from stalker_gamma_linux.gui.windows.doctor_view import DoctorPage
+
+    DoctorPage(target=None, show_toast=lambda _t: None, on_verify=lambda _repair: None)
+
+
 def test_vue_progression_pipeline() -> None:
     from stalker_gamma_linux.gui.windows.progress_view import ProgressPage
 

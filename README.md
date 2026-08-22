@@ -144,6 +144,8 @@ stalker-gamma-linux mo2                          # open Mod Organizer 2 itself (
 stalker-gamma-linux update                       # update the modpack, re-verify, remove ReShade again if needed
 stalker-gamma-linux shortcut                     # (re)create the .desktop menu entry
 stalker-gamma-linux install --only prefix        # replay one step (troubleshooting), even if done
+stalker-gamma-linux verify                       # check the installed mods against their reference fingerprint
+stalker-gamma-linux verify --repair              # + reinstall the damaged modpack mods (yours are never touched)
 stalker-gamma-linux prefix-doctor --repair        # repair the shared Proton prefix in place
 stalker-gamma-linux uninstall                    # remove shortcuts/settings/logs (keeps the game)
 stalker-gamma-linux doctor --report              # write a report to attach to an issue
@@ -158,6 +160,21 @@ shortcut. Works for a manual install, a folder shared with a Windows dual-boot,
 and for the [GOG one-click GAMMA that gets stuck in
 Heroic](https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/issues/5063)
 after downloading its 130 GB. Add `--dry-run` to see what it would adopt.
+
+**Game crashing since yesterday, and nothing changed?** `stalker-gamma-linux
+verify` hashes every file under `gamma/mods` and compares it to a reference
+recorded on its first run (`gamma-md5.txt`, next to the install). It reports
+what was modified, what disappeared and what you added, and attributes each
+finding to the mod it belongs to. `--repair` then removes just the damaged mods
+that come from the modpack — folder plus cached archive — reruns the engine and
+records a new reference. Only those mods are re-downloaded, but the engine
+reinstalls the whole modpack over your mods folder, so other mods may be
+updated in passing (measured on a real install: nothing removed, files you
+added preserved). Files you added yourself are never deleted, and neither is a
+mod folder that holds any of them: it is reported instead, for you to sort out
+from Mod Organizer 2. The same two buttons are in the GUI's
+Diagnostic view. Note this is a different check from `update`'s: that one
+verifies the downloaded **archives**, this one the files actually on disk.
 
 **Reporting a problem?** Run `stalker-gamma-linux doctor --report` (or click the
 save icon in the GUI's Diagnostic view). It writes a single file with your
@@ -196,7 +213,9 @@ prerequisites missing" chip that opens the full Diagnostic view.
   console with the full engine log. Cancelling is clean and resuming skips
   validated steps.
 - **Diagnostic** — same data as `doctor`, one glance verdict on top,
-  copy-paste remediation commands per distro.
+  copy-paste remediation commands per distro, and an **Installed mods** check
+  that compares the mod files on disk to their reference fingerprint
+  (*Check*), with a confirmed *Repair* for the damaged modpack mods.
 
 It needs GTK4 + libadwaita + PyGObject from your distribution (not
 pip-installable — no manylinux wheel exists for PyGObject); running the

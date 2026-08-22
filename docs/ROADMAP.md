@@ -61,11 +61,14 @@ couvertes chez nous ; six deviennent des tâches.
   ajoute `--target` à la liste des suppressions **sans validation**, et
   `apply_plan()` fait `rmtree` dessus sans confirmation interactive : une faute
   de frappe (`--target ~`) suffit. À corriger avant tout le reste.
-- **T12** 🟠 Intégrité MD5 des **mods installés** + réparation ciblée. Nous
-  vérifions les archives (`check-md5` du moteur), pas le contenu sur le disque :
-  un fichier de mod corrompu après l'installation est aujourd'hui indétectable.
-  Baseline, diff, réparation des seuls mods officiels abîmés, ajouts de
-  l'utilisateur jamais touchés.
+- **T12** ✅ Intégrité MD5 des **mods installés** + réparation ciblée
+  (`integrity/`, commande `verify [--repair]` + bouton dans la vue Diagnostic).
+  Nous ne vérifiions que les archives (`check-md5` du moteur), pas le contenu
+  sur le disque : un fichier de mod corrompu après l'installation était
+  indétectable. Référence `gamma-md5.txt`, diff en quatre catégories,
+  réparation des seuls mods amont abîmés, ajouts de l'utilisateur jamais
+  touchés — y compris le dossier de mod qui en contient. Voir
+  docs/ARCHITECTURE.md « Intégrité des mods installés ».
 - **T13** 🟠 Verrou « préfixe occupé ». Rien n'empêche `prefix-doctor --repair`,
   `update` ou `install --only prefix` de travailler sur un préfixe pendant que
   MO2 ou le jeu tournent dedans.
