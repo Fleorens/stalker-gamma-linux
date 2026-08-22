@@ -101,15 +101,24 @@ gamma-launcher.
 | Erreur Wine illisible au lancement : `wine client error:0: version mismatch`, `wrong wineserver`, `prefix has an invalid version`, `your wine binary was not upgraded correctly` | Le préfixe partagé a été construit par une **autre version de Proton** que celle configurée : wineserver refuse de démarrer dessus | `stalker-gamma-linux install --only prefix` (reconstruit le préfixe à partir de zéro avec le Proton actuellement configuré). |
 | Perfs médiocres (gros mods shaders) | Surcoût USVFS + shaders lourds | Désactiver Screen Space Shaders / Shaders Cumulative Pack ; évaluer RadTux (`⚠ À VALIDER`). |
 
-Détection automatisée (`mo2/diagnostics.py`) : après un lancement via `play`,
-on lit d'abord le journal de lancement umu-run (`prefix.process`, fichier
-`logs/mo2-game-*.log` de l'install) à la recherche des deux échecs **en amont**
-de l'USVFS ci-dessus (runtime VC++ manquant, préfixe d'une autre version de
-Proton) — recherche insensible à la casse. Si l'un des deux est reconnu, son
-message de remède est affiché **à la place** du diagnostic USVFS (un utilisateur
-à qui on annonce deux problèmes n'en corrige aucun) : ces échecs empêchent le
-process cible de démarrer, donc l'USVFS n'a de toute façon jamais eu la moindre
-chance de monter.
+Détection (`mo2/diagnostics.py`) : `diagnose_launch_log` lit le journal de
+lancement umu-run (`prefix.process`, `logs/mo2-game.log` de l'install — voir
+« Lancement détaché du terminal » ci-dessous pour ce nom fixe) à la recherche
+des deux échecs **en amont** de l'USVFS ci-dessus (runtime VC++ manquant,
+préfixe d'une autre version de Proton) — recherche insensible à la casse. Si
+l'un des deux est reconnu, son message de remède doit être affiché **à la
+place** du diagnostic USVFS (un utilisateur à qui on annonce deux problèmes
+n'en corrige aucun) : ces échecs empêchent le process cible de démarrer, donc
+l'USVFS n'a de toute façon jamais eu la moindre chance de monter.
+
+> Depuis T15 (`play` détaché, voir plus bas), `run_play` **n'appelle plus ces
+> fonctions automatiquement** : le jeu tourne encore quand `play` rend la
+> main, donc les lire à ce moment-là serait un faux négatif systématique
+> (rien n'a encore eu le temps de s'écrire). `diagnose_launch_log`/
+> `diagnose_usvfs` restent utilisables **après coup**, une fois le jeu fermé
+> (T14 de `docs/ROADMAP.md`, pas encore câblé en commande dédiée) — c'est
+> pour ça que `play` annonce désormais le chemin du journal au lieu de le
+> diagnostiquer lui-même.
 
 Sinon, on lit le dernier `logs/usvfs-*.log` de l'instance et on cherche les
 marqueurs d'un **VFS vivant** relevés sur un vrai run qui fonctionne (usvfs
@@ -122,6 +131,49 @@ s'est lancé). On vérifie aussi que le profil `G.A.M.M.A` a des mods activés
 > Le marqueur `proxy run successful` cité par des guides de forum **n'existe
 > pas** dans usvfs 0.5.6.1 : l'avoir utilisé donnait un faux négatif (constaté
 > en réel le 2026-07-22).
+
+## Lancement détaché du terminal (T15, 2026-08-22)
+
+**Qualification.** Trois chemins de lancement du jeu, examinés séparément :
+
+1. Entrée `.desktop` « Play GAMMA (direct) » (`desktop/entry.py`) : `Terminal=false`,
+   pas de terminal contrôleur à fermer — **non concernée**, par construction.
+2. GUI (`gui/worker.py`) : l'opération tourne dans un thread démon **du même
+   process** que la fenêtre GTK ; fermer la fenêtre ne signale rien au
+   process enfant (umu-run/Wine), qui n'est de toute façon lancé sans
+   terminal contrôleur quand la GUI part de son `.desktop` — **non concernée**.
+3. `stalker-gamma-linux play` en ligne de commande : **c'était le cas
+   problématique**. `prefix.process.run_in_prefix` lançait `Popen` sans
+   `start_new_session` : l'enfant héritait de la session/du groupe de
+   processus du terminal appelant. Reproduit avec un pseudo-terminal
+   (`os.forkpty` + fermeture du côté maître, qui envoie SIGHUP au groupe de
+   processus au premier plan de la session — même mécanisme qu'un terminal
+   qu'on ferme) : le process enfant **mourait** dans la seconde.
+
+**Correctif.** `prefix.process.run_detached()` (nouvelle fonction sœur de
+`run_in_prefix`, dédiée aux lancements de *jeu*) : `start_new_session=True`,
+sortie redirigée directement dans un fichier de log unique par lancement
+(`logs/mo2-game.log` / `logs/flat-game.log`, plus d'horodatage par lancement),
+tourné (1 backup `.log.1`) au-delà de 5 Mio, descripteur refermé côté parent
+dès le retour de `Popen`. `mo2.launch.launch_game` et `mo2.flat.launch_flat`
+l'utilisent désormais ; `mo2.launch.launch_mo2` (interface MO2 seule, commande
+`mo2`) et tout le pipeline d'installation (`engine`/`prefix.provision`)
+restent sur `run_in_prefix`, bloquant avec progression/`cancel_event` — deux
+modes explicites, jamais un mode qui devine lequel il est.
+
+Revalidé avec le correctif appliqué, même méthode (`forkpty` + fermeture du
+côté maître) mais cette fois contre le vrai `process.run_detached` (umu-run
+remplacé par un faux binaire qui journalise un battement de cœur) : le
+process survit à la fermeture simulée du terminal, et le fichier de log
+continue de recevoir la sortie après le retour du process appelant. **Non
+revalidé avec le vrai jeu/MO2 sous Proton** (pas d'installation GAMMA dans cet
+environnement) — à confirmer en conditions réelles : lancer `play` depuis un
+terminal, fermer ce terminal, vérifier que le jeu continue.
+
+Conséquence sur `play` : la commande ne bloque plus jusqu'à la fermeture du
+jeu, elle annonce le chemin du journal et rend la main immédiatement. Le
+diagnostic USVFS automatique après lancement (`--no-diagnose`) a été retiré
+en même temps — il n'avait plus de sens en mode détaché (voir plus haut).
 
 ## Sources
 

@@ -35,6 +35,13 @@ _UMU_BINARY = "umu-run"
 _OUTPUT_TAIL_LINES = 20
 _TERMINATE_GRACE_SECONDS = 5
 
+# Taille au-delà de laquelle le journal de lancement détaché (`run_detached`)
+# est tourné (1 backup) plutôt que de croître indéfiniment : contrairement à
+# `run_in_prefix`, ce journal est unique par `log_label` et ré-ouvert en
+# append à chaque lancement (append-only entre les sessions, cf. docstring).
+_DETACHED_LOG_MAX_BYTES = 5 * 1024 * 1024
+_DETACHED_BACKUP_SUFFIX = ".1"
+
 
 def _noop(_: str) -> None:
     return None
@@ -151,4 +158,78 @@ def run_in_prefix(
         raise PrefixCancelledError(" ".join(command))
     if returncode != 0:
         raise PrefixCommandError(" ".join(command), returncode, log_path, "\n".join(tail))
+    return log_path
+
+
+def _rotate_detached_log(log_path: Path, max_bytes: int) -> None:
+    """Renomme `log_path` en backup s'il dépasse `max_bytes` (1 seul backup, écrasé)."""
+    if not log_path.exists() or log_path.stat().st_size < max_bytes:
+        return
+    backup = log_path.with_name(log_path.name + _DETACHED_BACKUP_SUFFIX)
+    backup.unlink(missing_ok=True)
+    log_path.rename(backup)
+
+
+def run_detached(
+    exe: Path | str,
+    args: Sequence[str] = (),
+    *,
+    paths: PrefixPaths,
+    proton_path: Path,
+    env: Mapping[str, str] | None = None,
+    log_label: str | None = None,
+    gamemode: bool = False,
+) -> Path:
+    """Lance `umu-run <exe> <args>` **détaché** du terminal appelant (survit à
+    sa fermeture) : c'est le mode dédié aux lancements de *jeu* (`play`), par
+    opposition à `run_in_prefix` que garde le pipeline d'installation
+    (progression, `cancel_event`, sortie pompée ligne à ligne).
+
+    Trois différences avec `run_in_prefix`, toutes liées au même constat — une
+    fois cette fonction revenue, plus personne ne lit la sortie du process ni
+    n'attend sa fin :
+    1. `start_new_session=True` : le process rejoint sa propre session/groupe
+       de processus au lieu d'hériter de celui de l'appelant, donc un SIGHUP
+       envoyé au terminal (fermeture de la fenêtre) ne l'atteint plus.
+    2. La sortie est redirigée **directement** dans le fichier de log (pas de
+       pompage ligne à ligne, donc pas de `on_progress`/`cancel_event` : rien
+       ne serait plus là pour les consommer). Le descripteur est refermé côté
+       parent dès le retour de `Popen` — l'enfant a dupliqué le sien, il garde
+       la sortie ; sans cette fermeture, le fd fuirait dans ce process à
+       chaque lancement.
+    3. Le journal n'est pas horodaté par lancement : un seul fichier par
+       `log_label`, ouvert en append et tourné (1 backup) au-delà de
+       `_DETACHED_LOG_MAX_BYTES`, pour rester exploitable après plusieurs
+       sessions sans grossir sans limite.
+
+    Retourne le chemin du journal immédiatement (le process tourne encore) :
+    à afficher côté `play`, et à lire après coup pour diagnostic (voir
+    `mo2.diagnostics`). Lève `UmuNotFoundError` si umu-run est absent du PATH.
+    Ne lève rien sur le code de retour du jeu : personne ne l'attend ici.
+    """
+    binary = system.which(_UMU_BINARY)
+    if binary is None:
+        raise UmuNotFoundError
+
+    paths.ensure_directories()
+    label = log_label or _slug(exe)
+    log_path = paths.logs / f"{label}.log"
+    _rotate_detached_log(log_path, _DETACHED_LOG_MAX_BYTES)
+    command = [binary, str(exe), *args]
+    if gamemode:
+        command = gamemode_tool.wrap(command)
+
+    log_file = log_path.open("a", encoding="utf-8")
+    try:
+        log_file.write(f"$ {' '.join(command)}\n")
+        log_file.flush()
+        subprocess.Popen(  # noqa: S603
+            command,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            env=_prefix_environment(paths, proton_path, env),
+            start_new_session=True,
+        )
+    finally:
+        log_file.close()
     return log_path

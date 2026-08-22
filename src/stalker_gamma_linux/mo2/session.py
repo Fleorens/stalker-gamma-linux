@@ -1,7 +1,7 @@
 """Orchestration des commandes utilisateur `mo2` et `play`.
 
 Enchaîne : préfixe prêt (T04) → instance MO2 configurée → lancement (MO2 ou
-jeu via USVFS) → diagnostic post-lancement. Le mode flat est le fallback
+jeu via USVFS, détaché du terminal appelant). Le mode flat est le fallback
 explicite (`play --flat`).
 """
 
@@ -19,7 +19,7 @@ from stalker_gamma_linux.environment.distro import detect_distro
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE
 from stalker_gamma_linux.i18n import _
-from stalker_gamma_linux.mo2 import diagnostics, flat, instance, launch, merge
+from stalker_gamma_linux.mo2 import flat, instance, launch, merge
 from stalker_gamma_linux.mo2.errors import AnomalyNotFoundError, Mo2Error
 from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
 from stalker_gamma_linux.mo2.paths import Mo2Paths
@@ -120,13 +120,21 @@ def run_play(
     *,
     flat_mode: bool = False,
     executable: str = DEFAULT_EXECUTABLE,
-    diagnose: bool = True,
     use_gamemode: bool = True,
     search_dirs: Sequence[Path] | None = None,
     on_progress: ProgressCallback | None = None,
     cancel_event: threading.Event | None = None,
 ) -> int:
-    """Lance le jeu. Mode nominal : via MO2 (USVFS) + diagnostic. `flat_mode` : fallback.
+    """Lance le jeu, détaché du terminal appelant (`launch.launch_game`/
+    `flat.launch_flat` : `process.run_detached`, voir sa docstring) — fermer
+    le terminal ne tue plus le jeu. Mode nominal : via MO2 (USVFS). `flat_mode` :
+    fallback.
+
+    `run_play` retourne dès le lancement, jeu encore en cours : contrairement
+    à l'ancien mode bloquant, il n'y a plus de diagnostic USVFS ici (il faudrait
+    attendre la fin de la session pour qu'il ait un sens — cf. `mo2.diagnostics`,
+    T14 de la roadmap, prévu pour un usage après coup). On se contente
+    d'annoncer le journal de lancement.
 
     `use_gamemode` (défaut : actif) enveloppe le lancement dans `gamemoderun`
     quand GameMode est installé ; sans effet sinon (cf. `environment.gamemode`).
@@ -152,22 +160,14 @@ def run_play(
             build.path,
             executable=executable,
             gamemode=use_gamemode,
-            on_progress=progress,
         )
     except (PrefixError, EngineError, Mo2Error) as error:
         progress(_("Error: {error}").format(error=error))
         return 1
 
-    # Le jeu s'est lancé : c'est un succès. Le diagnostic USVFS est **indicatif**
-    # (heuristique sur des logs qui varient selon les versions) — on l'affiche
-    # sans faire échouer `play` sur un faux négatif. Un échec runtime/préfixe
-    # (concrt140 manquant, préfixe d'une autre version de Proton) survient EN
-    # AMONT de l'USVFS : s'il est reconnu dans le journal de lancement, on
-    # l'affiche à sa place — les deux ensemble n'aideraient pas l'utilisateur.
-    if diagnose:
-        launch_failure = diagnostics.diagnose_launch_log(game_log)
-        message = launch_failure or diagnostics.diagnose_usvfs(mo2).message
-        progress(f"\n{message}")
+    progress(
+        _("Game launched, detached from this terminal. Launch log: {log}").format(log=game_log)
+    )
     return 0
 
 
@@ -211,12 +211,13 @@ def _run_flat(
         cancel_event=cancel_event,
     )
     on_progress(_("Launching the flat install…"))
-    flat.launch_flat(
+    flat_log = flat.launch_flat(
         final,
         prefix,
         build.path,
         gamemode=use_gamemode,
-        on_progress=on_progress,
-        cancel_event=cancel_event,
+    )
+    on_progress(
+        _("Game launched, detached from this terminal. Launch log: {log}").format(log=flat_log)
     )
     return 0

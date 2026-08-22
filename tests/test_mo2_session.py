@@ -4,8 +4,7 @@ from typing import Any
 import pytest
 
 from stalker_gamma_linux.engine.paths import InstallPaths
-from stalker_gamma_linux.mo2 import diagnostics, flat, instance, launch, merge, session
-from stalker_gamma_linux.mo2.diagnostics import UsvfsDiagnosis
+from stalker_gamma_linux.mo2 import flat, instance, launch, merge, session
 from stalker_gamma_linux.mo2.errors import AnomalyNotFoundError
 from stalker_gamma_linux.mo2.paths import Mo2Paths
 from stalker_gamma_linux.prefix import provision
@@ -52,10 +51,6 @@ def _patch_prefix(monkeypatch: pytest.MonkeyPatch, fake_build: ProtonBuild) -> N
     monkeypatch.setattr(provision, "ensure_prefix", lambda *a, **k: fake_build)
 
 
-def _diagnosis(active: bool) -> UsvfsDiagnosis:
-    return UsvfsDiagnosis(active=active, checked_log=None, enabled_mod_count=3, message="msg")
-
-
 def _recorder(events: list[str], label: str, result: Any = None) -> Any:
     def record(*a: Any, **k: Any) -> Any:
         events.append(label)
@@ -64,13 +59,12 @@ def _recorder(events: list[str], label: str, result: Any = None) -> Any:
     return record
 
 
-def test_run_play_nominal_configures_launches_and_diagnoses(
+def test_run_play_nominal_configures_and_launches_detached(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     events: list[str] = []
     monkeypatch.setattr(instance, "configure_instance", _recorder(events, "configure"))
     monkeypatch.setattr(launch, "launch_game", _recorder(events, "launch", Path("/l")))
-    monkeypatch.setattr(diagnostics, "diagnose_usvfs", lambda *a, **k: _diagnosis(True))
 
     code = session.run_play(tmp_path)
 
@@ -78,37 +72,18 @@ def test_run_play_nominal_configures_launches_and_diagnoses(
     assert events == ["configure", "launch"]
 
 
-def test_run_play_succeeds_even_when_usvfs_diagnosis_negative(
+def test_run_play_announces_launch_log_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Le diagnostic est indicatif : un faux négatif ne doit pas faire échouer play.
+    # `launch_game` est détaché : il rend la main tout de suite, jeu encore en
+    # cours — `play` n'a plus qu'à annoncer où se trouve le journal.
     printed: list[str] = []
     monkeypatch.setattr(instance, "configure_instance", lambda *a, **k: None)
-    monkeypatch.setattr(launch, "launch_game", lambda *a, **k: Path("/l"))
-    monkeypatch.setattr(diagnostics, "diagnose_usvfs", lambda *a, **k: _diagnosis(False))
+    monkeypatch.setattr(launch, "launch_game", lambda *a, **k: Path("/logs/mo2-game.log"))
     monkeypatch.setattr("builtins.print", lambda *a, **k: printed.append(" ".join(map(str, a))))
 
     assert session.run_play(tmp_path) == 0
-    assert any("msg" in line for line in printed)  # le message du diagnostic est affiché
-
-
-def test_run_play_shows_launch_failure_instead_of_usvfs_message(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Un échec runtime/préfixe amont masque le diagnostic USVFS (un seul message)."""
-    printed: list[str] = []
-    monkeypatch.setattr(instance, "configure_instance", lambda *a, **k: None)
-    monkeypatch.setattr(launch, "launch_game", lambda *a, **k: Path("/l"))
-    monkeypatch.setattr(diagnostics, "diagnose_launch_log", lambda *a, **k: "runtime remedy")
-
-    def fail_usvfs(*a: Any, **k: Any) -> UsvfsDiagnosis:
-        raise AssertionError("le diagnostic USVFS ne doit pas être appelé")
-
-    monkeypatch.setattr(diagnostics, "diagnose_usvfs", fail_usvfs)
-    monkeypatch.setattr("builtins.print", lambda *a, **k: printed.append(" ".join(map(str, a))))
-
-    assert session.run_play(tmp_path) == 0
-    assert any("runtime remedy" in line for line in printed)
+    assert any("/logs/mo2-game.log" in line for line in printed)
 
 
 def test_run_play_forwards_executable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -120,25 +95,10 @@ def test_run_play_forwards_executable(tmp_path: Path, monkeypatch: pytest.Monkey
 
     monkeypatch.setattr(instance, "configure_instance", lambda *a, **k: None)
     monkeypatch.setattr(launch, "launch_game", fake_launch)
-    monkeypatch.setattr(diagnostics, "diagnose_usvfs", lambda *a, **k: _diagnosis(True))
 
     session.run_play(tmp_path, executable="Anomaly (DX10)")
 
     assert captured["executable"] == "Anomaly (DX10)"
-
-
-def test_run_play_no_diagnose_skips_diagnosis(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(instance, "configure_instance", lambda *a, **k: None)
-    monkeypatch.setattr(launch, "launch_game", lambda *a, **k: Path("/l"))
-
-    def fail_diagnose(*a: Any, **k: Any) -> UsvfsDiagnosis:
-        raise AssertionError("diagnostic ne doit pas être appelé")
-
-    monkeypatch.setattr(diagnostics, "diagnose_usvfs", fail_diagnose)
-
-    assert session.run_play(tmp_path, diagnose=False) == 0
 
 
 def test_run_play_flat_builds_and_launches_flat(
@@ -157,6 +117,19 @@ def test_run_play_flat_builds_and_launches_flat(
 
     assert code == 0
     assert events == ["build", "launch"]
+
+
+def test_run_play_flat_announces_launch_log_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    printed: list[str] = []
+    monkeypatch.setattr(instance, "configure_instance", lambda *a, **k: None)
+    monkeypatch.setattr(merge, "build_merged_install", lambda *a, **k: None)
+    monkeypatch.setattr(flat, "launch_flat", lambda *a, **k: Path("/logs/flat-game.log"))
+    monkeypatch.setattr("builtins.print", lambda *a, **k: printed.append(" ".join(map(str, a))))
+
+    assert session.run_play(tmp_path, flat_mode=True) == 0
+    assert any("/logs/flat-game.log" in line for line in printed)
 
 
 def test_run_play_reports_prefix_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

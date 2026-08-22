@@ -207,7 +207,6 @@ def test_build_parser_play_defaults() -> None:
     assert args.command == "play"
     assert args.target is None
     assert args.flat is False
-    assert args.no_diagnose is False
     assert args.executable == "Anomaly (DX11)"
 
 
@@ -219,14 +218,12 @@ def test_main_dispatches_to_play_with_flags(monkeypatch: pytest.MonkeyPatch) -> 
         *,
         flat_mode: bool,
         executable: str,
-        diagnose: bool,
         use_gamemode: bool,
     ) -> int:
         captured.update(
             target=target,
             flat_mode=flat_mode,
             executable=executable,
-            diagnose=diagnose,
             use_gamemode=use_gamemode,
         )
         return 0
@@ -241,7 +238,6 @@ def test_main_dispatches_to_play_with_flags(monkeypatch: pytest.MonkeyPatch) -> 
             "--flat",
             "--executable",
             "Anomaly (DX10)",
-            "--no-diagnose",
             "--no-gamemode",
         ]
     )
@@ -251,7 +247,6 @@ def test_main_dispatches_to_play_with_flags(monkeypatch: pytest.MonkeyPatch) -> 
         "target": Path("/tmp/g"),
         "flat_mode": True,
         "executable": "Anomaly (DX10)",
-        "diagnose": False,
         "use_gamemode": False,
     }
 

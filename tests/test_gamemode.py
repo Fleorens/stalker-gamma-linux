@@ -143,7 +143,7 @@ def test_launch_game_asks_for_gamemode_by_default(
 ) -> None:
     mo2, prefix = _installed_instance(tmp_path)
     recorder = _Recorder()
-    monkeypatch.setattr(process, "run_in_prefix", recorder)
+    monkeypatch.setattr(process, "run_detached", recorder)
 
     launch.launch_game(mo2, prefix, tmp_path / "GE")
 
@@ -153,7 +153,7 @@ def test_launch_game_asks_for_gamemode_by_default(
 def test_launch_game_honours_opt_out(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mo2, prefix = _installed_instance(tmp_path)
     recorder = _Recorder()
-    monkeypatch.setattr(process, "run_in_prefix", recorder)
+    monkeypatch.setattr(process, "run_detached", recorder)
 
     launch.launch_game(mo2, prefix, tmp_path / "GE", gamemode=False)
 
@@ -180,7 +180,7 @@ def test_flat_launch_asks_for_gamemode_by_default(
     final.mkdir()
     (final / flat.FLAT_LAUNCHER).write_text("", encoding="utf-8")
     recorder = _Recorder()
-    monkeypatch.setattr(process, "run_in_prefix", recorder)
+    monkeypatch.setattr(process, "run_detached", recorder)
 
     flat.launch_flat(final, PrefixPaths.under(tmp_path), tmp_path / "GE")
 

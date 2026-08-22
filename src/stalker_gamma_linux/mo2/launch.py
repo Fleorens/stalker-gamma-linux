@@ -61,11 +61,12 @@ def launch_game(
     *,
     executable: str = DEFAULT_EXECUTABLE,
     gamemode: bool = True,
-    on_progress: ProgressCallback | None = None,
-    cancel_event: threading.Event | None = None,
 ) -> Path:
-    """Lance le jeu via MO2 (`moshortcut://`) pour monter l'USVFS. Bloque jusqu'à
-    la fermeture du jeu ; retourne le chemin du journal.
+    """Lance le jeu via MO2 (`moshortcut://`) pour monter l'USVFS, **détaché**
+    du terminal appelant (`process.run_detached`) : la fermeture du terminal
+    ne tue plus le jeu. Retourne immédiatement le chemin du journal — le jeu
+    tourne encore à ce moment-là (pas de `on_progress`/`cancel_event` : plus
+    personne ne consommerait la sortie ligne à ligne).
 
     `gamemode` (par défaut actif) enveloppe le lancement dans `gamemoderun` :
     MO2 démarre le jeu comme processus fils, et le `LD_PRELOAD` posé par
@@ -73,13 +74,11 @@ def launch_game(
     profite, pas seulement l'interface de MO2 (cf. `environment.gamemode`).
     """
     _require_executable(mo2)
-    return process.run_in_prefix(
+    return process.run_detached(
         mo2.executable,
         [moshortcut(executable)],
         paths=prefix,
         proton_path=proton_path,
         log_label="mo2-game",
         gamemode=gamemode,
-        on_progress=on_progress,
-        cancel_event=cancel_event,
     )

@@ -10,7 +10,6 @@ directement `AnomalyLauncher.exe` du dossier fusionné dans le préfixe.
 
 from __future__ import annotations
 
-import threading
 from pathlib import Path
 
 from stalker_gamma_linux.environment import system
@@ -18,7 +17,6 @@ from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.mo2.errors import Mo2InstanceError
 from stalker_gamma_linux.prefix import process
 from stalker_gamma_linux.prefix.paths import PrefixPaths
-from stalker_gamma_linux.prefix.process import ProgressCallback
 
 # Exécutable lancé dans l'install fusionnée (racine du dossier flat).
 FLAT_LAUNCHER = "AnomalyLauncher.exe"
@@ -36,13 +34,12 @@ def launch_flat(
     *,
     launcher: str = FLAT_LAUNCHER,
     gamemode: bool = True,
-    on_progress: ProgressCallback | None = None,
-    cancel_event: threading.Event | None = None,
 ) -> Path:
-    """Lance l'install flat dans le préfixe. Lève `Mo2InstanceError` si elle est absente.
+    """Lance l'install flat dans le préfixe, **détaché** du terminal appelant.
+    Lève `Mo2InstanceError` si elle est absente.
 
-    `gamemode` : voir `launch.launch_game` — même traitement, c'est un lancement
-    de jeu.
+    `gamemode` : voir `launch.launch_game` — même traitement, c'est un
+    lancement de jeu, y compris le détachement (`process.run_detached`).
     """
     executable = final_dir / launcher
     if not system.path_exists(executable):
@@ -53,12 +50,10 @@ def launch_flat(
                 "what `play --flat` does before launching."
             ).format(executable=executable)
         )
-    return process.run_in_prefix(
+    return process.run_detached(
         executable,
         paths=prefix,
         proton_path=proton_path,
         log_label="flat-game",
         gamemode=gamemode,
-        on_progress=on_progress,
-        cancel_event=cancel_event,
     )

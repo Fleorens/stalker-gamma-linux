@@ -53,7 +53,7 @@ def test_launch_mo2_runs_executable_without_args(
 def test_launch_game_passes_moshortcut(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mo2, prefix = _installed_instance(tmp_path)
     recorder = _Recorder()
-    monkeypatch.setattr(process, "run_in_prefix", recorder)
+    monkeypatch.setattr(process, "run_detached", recorder)
 
     launch.launch_game(mo2, prefix, tmp_path / "GE")
 
@@ -65,7 +65,7 @@ def test_launch_game_passes_moshortcut(tmp_path: Path, monkeypatch: pytest.Monke
 def test_launch_game_custom_executable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mo2, prefix = _installed_instance(tmp_path)
     recorder = _Recorder()
-    monkeypatch.setattr(process, "run_in_prefix", recorder)
+    monkeypatch.setattr(process, "run_detached", recorder)
 
     launch.launch_game(mo2, prefix, tmp_path / "GE", executable="Anomaly (DX10)")
 
@@ -75,7 +75,7 @@ def test_launch_game_custom_executable(tmp_path: Path, monkeypatch: pytest.Monke
 def test_launch_requires_installed_mo2(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     mo2 = Mo2Paths.under(tmp_path)  # ModOrganizer.exe absent
     prefix = PrefixPaths.under(tmp_path)
-    monkeypatch.setattr(process, "run_in_prefix", _Recorder())
+    monkeypatch.setattr(process, "run_detached", _Recorder())
 
     with pytest.raises(Mo2NotInstalledError):
         launch.launch_game(mo2, prefix, tmp_path / "GE")

@@ -160,7 +160,8 @@ def build_parser() -> argparse.ArgumentParser:
     mo2_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
 
     play_parser = subparsers.add_parser(
-        "play", help=_("Launches Anomaly through MO2 (USVFS active) and diagnoses the mods")
+        "play",
+        help=_("Launches Anomaly through MO2 (USVFS active), detached from this terminal"),
     )
     play_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
     play_parser.add_argument(
@@ -177,11 +178,6 @@ def build_parser() -> argparse.ArgumentParser:
             "Fallback without MO2: merged install (usvfs-workaround). "
             "LOSES mod flexibility — only use if USVFS doesn't mount"
         ),
-    )
-    play_parser.add_argument(
-        "--no-diagnose",
-        action="store_true",
-        help=_("Doesn't run the USVFS diagnostic after launch"),
     )
     play_parser.add_argument(
         "--no-gamemode",
@@ -288,7 +284,6 @@ def _dispatch(args: argparse.Namespace) -> int:
             args.target,
             flat_mode=args.flat,
             executable=args.executable,
-            diagnose=not args.no_diagnose,
             use_gamemode=not args.no_gamemode,
         )
     if args.command == "import":

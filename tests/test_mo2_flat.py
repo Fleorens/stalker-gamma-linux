@@ -25,7 +25,7 @@ def test_launch_flat_runs_launcher(tmp_path: Path, monkeypatch: pytest.MonkeyPat
         calls.append({"exe": str(exe), "log_label": log_label})
         return Path("/logs/flat.log")
 
-    monkeypatch.setattr(process, "run_in_prefix", fake_run)
+    monkeypatch.setattr(process, "run_detached", fake_run)
 
     flat.launch_flat(final, prefix, tmp_path / "GE")
 
@@ -36,7 +36,7 @@ def test_launch_flat_runs_launcher(tmp_path: Path, monkeypatch: pytest.MonkeyPat
 def test_launch_flat_missing_install_raises(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(process, "run_in_prefix", lambda *a, **k: Path("/x"))
+    monkeypatch.setattr(process, "run_detached", lambda *a, **k: Path("/x"))
 
     with pytest.raises(Mo2InstanceError):
         flat.launch_flat(tmp_path / "flat", PrefixPaths.under(tmp_path), tmp_path / "GE")
