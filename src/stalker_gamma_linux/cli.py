@@ -94,6 +94,11 @@ def build_parser() -> argparse.ArgumentParser:
             "anything (your MO2 mod list is left untouched)"
         ),
     )
+    update_parser.add_argument(
+        "--force",
+        action="store_true",
+        help=_("Updates even if Mod Organizer 2 or the game are still using the prefix"),
+    )
 
     doctor_parser = subparsers.add_parser(
         "doctor",
@@ -142,6 +147,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--repair",
         action="store_true",
         help=_("Repairs: downloads Proton-GE, creates the prefix, applies missing verbs"),
+    )
+    prefix_doctor_parser.add_argument(
+        "--force",
+        action="store_true",
+        help=_("Repairs even if Mod Organizer 2 or the game are still using the prefix"),
     )
 
     mo2_parser = subparsers.add_parser(
@@ -230,6 +240,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=_("Skips the --game-data confirmation prompt — for scripted use"),
     )
+    uninstall_parser.add_argument(
+        "--force",
+        action="store_true",
+        help=_(
+            "Deletes game data even if Mod Organizer 2 or the game are still "
+            "using the shared prefix"
+        ),
+    )
     # Contrat interne avec `install.sh --uninstall`, qui retire le venv lui-même
     # juste après nous : sans ça on lui conseillerait de supprimer à la main un
     # répertoire déjà parti. Masqué de l'aide, ce n'est pas un choix utilisateur.
@@ -252,7 +270,7 @@ def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "update":
         if args.check:
             return run_update_check(args.target)
-        return run_update(args.target)
+        return run_update(args.target, force=args.force)
     if args.command == "doctor":
         if args.report is not None:
             # `-` = sortie standard, pour un `| xclip` ou une redirection.
@@ -262,7 +280,7 @@ def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "verify":
         return run_verify(args.target, repair_damaged=args.repair)
     if args.command == "prefix-doctor":
-        return run_prefix_doctor(args.target, repair=args.repair)
+        return run_prefix_doctor(args.target, repair=args.repair, force=args.force)
     if args.command == "mo2":
         return run_mo2(args.target)
     if args.command == "play":
@@ -286,6 +304,7 @@ def _dispatch(args: argparse.Namespace) -> int:
             dry_run=args.dry_run,
             venv_hint=not args.no_venv_hint,
             assume_yes=args.yes,
+            force=args.force,
         )
     raise AssertionError(f"unknown command: {args.command}")
 

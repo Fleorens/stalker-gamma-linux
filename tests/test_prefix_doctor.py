@@ -5,7 +5,7 @@ import pytest
 
 from stalker_gamma_linux.environment import system
 from stalker_gamma_linux.environment.models import Status
-from stalker_gamma_linux.prefix import doctor, provision
+from stalker_gamma_linux.prefix import doctor, provision, session
 from stalker_gamma_linux.prefix.errors import UmuNotFoundError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 from stalker_gamma_linux.prefix.verbs import REQUIRED_VERBS
@@ -140,3 +140,85 @@ def test_run_prefix_doctor_repair_reports_typed_failure(
 
     assert exit_code == 1
     assert "Repair failed" in capsys.readouterr().out
+
+
+def test_run_prefix_doctor_repair_refuses_when_mo2_is_running(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(system, "which", lambda cmd: None)
+    monkeypatch.setattr(
+        session,
+        "prefix_in_use",
+        lambda paths: session.ProcessHold(pid=12345, name="Mod Organizer 2", what_to_close="it"),
+    )
+    repairs: list[PrefixPaths] = []
+    monkeypatch.setattr(
+        provision, "ensure_prefix", lambda paths, **kwargs: repairs.append(paths)
+    )
+
+    exit_code = doctor.run_prefix_doctor(tmp_path / "install", repair=True, search_dirs=[])
+
+    assert exit_code == 1
+    assert repairs == []
+    output = capsys.readouterr().out
+    assert "12345" in output
+    assert "Mod Organizer 2" in output
+    assert "--force" in output
+
+
+def test_run_prefix_doctor_repair_force_bypasses_busy_prefix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/umu-run")
+    root = tmp_path / "install"
+    compat = _make_proton_dir(tmp_path)
+    monkeypatch.setattr(
+        session,
+        "prefix_in_use",
+        lambda paths: session.ProcessHold(pid=1, name="Mod Organizer 2", what_to_close="it"),
+    )
+    repairs: list[PrefixPaths] = []
+
+    def fake_ensure_prefix(paths: PrefixPaths, **kwargs: Any) -> None:
+        repairs.append(paths)
+        _make_healthy_prefix(root)
+
+    monkeypatch.setattr(provision, "ensure_prefix", fake_ensure_prefix)
+
+    exit_code = doctor.run_prefix_doctor(
+        root, repair=True, force=True, search_dirs=[compat]
+    )
+
+    assert exit_code == 0
+    assert len(repairs) == 1
+
+
+def test_build_prefix_report_exposes_session_hold(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(system, "which", lambda cmd: None)
+    hold = session.ProcessHold(pid=99, name="the game (Anomaly)", what_to_close="it")
+    monkeypatch.setattr(session, "prefix_in_use", lambda paths: hold)
+    paths = PrefixPaths.under(tmp_path / "install")
+
+    report = doctor.build_prefix_report(paths, [])
+
+    assert report.hold is hold
+    formatted = doctor.format_prefix_report(report)
+    assert "busy" in formatted.lower()
+    assert "the game (Anomaly)" in formatted
+
+
+def test_build_prefix_report_free_prefix_line(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(system, "which", lambda cmd: None)
+    monkeypatch.setattr(session, "prefix_in_use", lambda paths: None)
+    paths = PrefixPaths.under(tmp_path / "install")
+
+    formatted = doctor.format_prefix_report(doctor.build_prefix_report(paths, []))
+
+    assert "free" in formatted.lower()

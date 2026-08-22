@@ -63,7 +63,7 @@ def test_build_parser_update_default_target() -> None:
 def test_main_dispatches_to_update(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[Path | None] = []
 
-    def fake_run_update(target: Path | None) -> int:
+    def fake_run_update(target: Path | None, *, force: bool) -> int:
         calls.append(target)
         return 0
 
@@ -139,7 +139,7 @@ def test_build_parser_prefix_doctor_flags() -> None:
 def test_main_dispatches_to_prefix_doctor(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[Path | None, bool]] = []
 
-    def fake_run_prefix_doctor(target: Path | None, *, repair: bool) -> int:
+    def fake_run_prefix_doctor(target: Path | None, *, repair: bool, force: bool) -> int:
         calls.append((target, repair))
         return 0
 

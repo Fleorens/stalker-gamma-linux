@@ -34,6 +34,9 @@ from stalker_gamma_linux.desktop.paths import DesktopPaths
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
 from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.paths_safety import UnsafeWipeTargetError
+from stalker_gamma_linux.prefix import session
+from stalker_gamma_linux.prefix.errors import PrefixBusyError
+from stalker_gamma_linux.prefix.paths import PrefixPaths
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,6 +161,7 @@ def run_uninstall(
     dry_run: bool = False,
     venv_hint: bool = True,
     assume_yes: bool = False,
+    force: bool = False,
 ) -> int:
     """Commande CLI `uninstall`. Retourne 0 même s'il n'y avait rien à faire.
 
@@ -165,7 +169,9 @@ def run_uninstall(
     venv lui-même juste après, et lui dire « il est toujours là, supprimez-le à
     la main » serait faux. `assume_yes=True` (`--yes`) saute la confirmation
     interactive de `--game-data` — nécessaire pour un usage scripté, dont
-    `install.sh --uninstall` lui-même.
+    `install.sh --uninstall` lui-même. `--game-data` refuse de supprimer le
+    préfixe partagé si MO2 ou le jeu l'utilisent encore (`force` passe outre) —
+    voir `prefix.session`.
     """
     from stalker_gamma_linux import output
 
@@ -194,6 +200,15 @@ def run_uninstall(
         output.header(_("Dry run — nothing will be deleted."))
         output.progress(format_plan(plan))
         return 0
+
+    if resolved_game_data_target is not None:
+        try:
+            session.require_free(
+                PrefixPaths.under(root), action=_("deleting game data"), force=force
+            )
+        except PrefixBusyError as error:
+            output.error(str(error))
+            return 1
 
     if resolved_game_data_target is not None and not assume_yes:
         output.warn(

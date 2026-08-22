@@ -14,7 +14,7 @@ from stalker_gamma_linux.environment.models import (
     Status,
 )
 from stalker_gamma_linux.mo2 import instance
-from stalker_gamma_linux.prefix import provision
+from stalker_gamma_linux.prefix import provision, session
 from stalker_gamma_linux.prefix.proton import ProtonBuild
 
 
@@ -220,6 +220,91 @@ def test_run_update_warns_on_unverifiable_archives_but_succeeds(
     assert len(warnings) == 1
     assert "no local corruption" in warnings[0]
     assert "Could not find Filename in https://moddb/x" in warnings[0]
+
+
+def test_run_update_refuses_when_mo2_is_running(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        session,
+        "prefix_in_use",
+        lambda paths: session.ProcessHold(pid=42, name="Mod Organizer 2", what_to_close="it"),
+    )
+    for name in ("update_gamma", "remove_reshade", "purge_shader_cache", "verify"):
+        monkeypatch.setattr(engine, name, lambda *a, **k: None)
+    reporter = _RecordingReporter()
+
+    code = orchestrator.run_update(tmp_path, reporter=reporter)
+
+    assert code == 1
+    errors = [message for kind, message in reporter.events if kind == "error"]
+    assert len(errors) == 1
+    assert "42" in errors[0]
+    assert "Mod Organizer 2" in errors[0]
+
+
+def test_run_update_force_bypasses_busy_prefix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        session,
+        "prefix_in_use",
+        lambda paths: session.ProcessHold(pid=42, name="Mod Organizer 2", what_to_close="it"),
+    )
+    events: list[str] = []
+    for name in ("update_gamma", "remove_reshade", "purge_shader_cache", "verify"):
+        monkeypatch.setattr(
+            engine,
+            name,
+            (lambda label: lambda *a, **k: events.append(label))(name),
+        )
+
+    code = orchestrator.run_update(tmp_path, force=True)
+
+    assert code == 0
+    assert events == ["update_gamma", "remove_reshade", "purge_shader_cache", "verify"]
+
+
+def test_run_install_only_prefix_refuses_when_mo2_is_running(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    events: list[str] = []
+    _patch_all(monkeypatch, events)
+    monkeypatch.setattr(
+        session,
+        "prefix_in_use",
+        lambda paths: session.ProcessHold(pid=7, name="the game (Anomaly)", what_to_close="it"),
+    )
+    state.mark_done(tmp_path, "anomaly")
+    state.mark_done(tmp_path, "gamma")
+    state.mark_done(tmp_path, "reshade")
+    state.mark_done(tmp_path, "mo2")
+
+    code = orchestrator.run_install(tmp_path, only=["prefix"])
+
+    assert code == 1
+    assert "ensure_prefix" not in events
+
+
+def test_run_install_only_prefix_force_bypasses_busy_prefix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    events: list[str] = []
+    _patch_all(monkeypatch, events)
+    monkeypatch.setattr(
+        session,
+        "prefix_in_use",
+        lambda paths: session.ProcessHold(pid=7, name="the game (Anomaly)", what_to_close="it"),
+    )
+    state.mark_done(tmp_path, "anomaly")
+    state.mark_done(tmp_path, "gamma")
+    state.mark_done(tmp_path, "reshade")
+    state.mark_done(tmp_path, "mo2")
+
+    code = orchestrator.run_install(tmp_path, only=["prefix"], force=True)
+
+    assert code == 0
+    assert "ensure_prefix" in events
 
 
 class _RecordingReporter:

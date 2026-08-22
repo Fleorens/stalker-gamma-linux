@@ -110,6 +110,28 @@ class ChecksumMismatchError(ProtonDownloadError):
         )
 
 
+class PrefixBusyError(PrefixError):
+    """Le préfixe partagé est occupé (MO2, le jeu ou wineserver) — opération refusée.
+
+    Voir `prefix.session.require_free` : ce garde protège toute opération
+    destructrice sur le préfixe (`prefix-doctor --repair`, `update`,
+    `install --only prefix`, `uninstall --game-data`) contre une corruption
+    silencieuse, sinon diagnostiquée plus tard comme un bug Proton.
+    """
+
+    def __init__(self, pid: int, name: str, what_to_close: str, *, action: str) -> None:
+        self.pid = pid
+        self.name = name
+        self.what_to_close = what_to_close
+        self.action = action
+        super().__init__(
+            _(
+                "{name} is still running (pid {pid}) — close {what} before {action}.\n"
+                "→ Sure it's safe anyway? Rerun with --force."
+            ).format(name=name, pid=pid, what=what_to_close, action=action)
+        )
+
+
 class PrefixCancelledError(PrefixError):
     """Une opération de préfixe a été annulée via `cancel_event` (GUI)."""
 

@@ -9,6 +9,7 @@ import pytest
 
 from stalker_gamma_linux import logging_setup, state, uninstall
 from stalker_gamma_linux.desktop.paths import DesktopPaths
+from stalker_gamma_linux.prefix import session
 
 
 @pytest.fixture
@@ -205,3 +206,42 @@ class TestRunUninstallGameData:
 
         assert uninstall.run_uninstall(target, game_data=True) == 0
         assert not desktop.desktop_file.exists()
+
+    def test_refuse_quand_mo2_tourne_encore(
+        self, home: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        desktop, target = _populate(home)
+        monkeypatch.setattr(
+            session,
+            "prefix_in_use",
+            lambda paths: session.ProcessHold(pid=321, name="Mod Organizer 2", what_to_close="it"),
+        )
+
+        assert uninstall.run_uninstall(target, game_data=True, assume_yes=True) == 1
+
+        assert target.exists()
+        assert desktop.desktop_file.exists()
+        output = capsys.readouterr().out
+        assert "321" in output
+        assert "Mod Organizer 2" in output
+
+    def test_force_passe_outre_mo2_en_cours(
+        self, home: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _, target = _populate(home)
+        monkeypatch.setattr(
+            session,
+            "prefix_in_use",
+            lambda paths: session.ProcessHold(pid=321, name="Mod Organizer 2", what_to_close="it"),
+        )
+
+        assert uninstall.run_uninstall(target, game_data=True, assume_yes=True, force=True) == 0
+        assert not target.exists()
+
+    def test_le_garde_ne_sapplique_pas_sans_game_data(self, home: Path) -> None:
+        """Sans `--game-data`, le préfixe n'est jamais touché — pas la peine de bloquer."""
+        desktop, target = _populate(home)
+
+        assert uninstall.run_uninstall(target) == 0
+        assert not desktop.desktop_file.exists()
+        assert target.exists()

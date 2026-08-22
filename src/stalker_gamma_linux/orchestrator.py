@@ -41,8 +41,8 @@ from stalker_gamma_linux.mo2 import instance
 from stalker_gamma_linux.mo2.errors import Mo2Error
 from stalker_gamma_linux.mo2.paths import Mo2Paths
 from stalker_gamma_linux.mo2.session import resolve_anomaly
-from stalker_gamma_linux.prefix import provision
-from stalker_gamma_linux.prefix.errors import PrefixCancelledError, PrefixError
+from stalker_gamma_linux.prefix import provision, session
+from stalker_gamma_linux.prefix.errors import PrefixBusyError, PrefixCancelledError, PrefixError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 
 _RESUME_HINT_TEMPLATE = _(
@@ -152,6 +152,11 @@ def run_install(
         engine.purge_shader_cache(install, on_progress=reporter.progress, cancel_event=cancel_event)
 
     def ensure_prefix() -> None:
+        # Le rejeu ciblé (`install --only prefix`) est l'usage de dépannage visé
+        # ici, mais le garde s'applique à toute exécution de cette étape : sans
+        # danger sur une install neuve, indispensable sur un rejeu. Voir
+        # `prefix.session`.
+        session.require_free(prefix_paths, action=_("provisioning the prefix"), force=force)
         provision.ensure_prefix(
             prefix_paths,
             search_dirs=search_dirs,
@@ -232,18 +237,27 @@ def run_update(
     *,
     reporter: output.Reporter = output.console_reporter,
     cancel_event: threading.Event | None = None,
+    force: bool = False,
 ) -> int:
     """Met à jour le modpack GAMMA, retire ReShade et re-vérifie l'installation.
 
     `full-install` (via `update_gamma`, alias documenté) ne retélécharge que ce
     qui a changé en amont ; `verify` re-contrôle l'intégrité des archives de
     mods (`check-md5`). Retourne 0 au succès, 1 si une étape échoue,
-    `CANCELLED_EXIT_CODE` si `cancel_event` (GUI) a été levé.
+    `CANCELLED_EXIT_CODE` si `cancel_event` (GUI) a été levé. Refuse de démarrer
+    si MO2 ou le jeu tournent dans le préfixe partagé (`force` passe outre) —
+    voir `prefix.session`.
     """
     root = target if target is not None else DEFAULT_INSTALL_TARGET
     install = InstallPaths.under(root)
 
     reporter.header(_("Updating S.T.A.L.K.E.R. G.A.M.M.A. in {root}").format(root=root))
+
+    try:
+        session.require_free(PrefixPaths.under(root), action=_("updating"), force=force)
+    except PrefixBusyError as error:
+        reporter.error(str(error))
+        return 1
 
     try:
         backup = backup_mo2_profiles(root)

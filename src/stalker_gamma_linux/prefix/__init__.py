@@ -20,6 +20,7 @@ from stalker_gamma_linux.prefix.download import (
 )
 from stalker_gamma_linux.prefix.errors import (
     ChecksumMismatchError,
+    PrefixBusyError,
     PrefixCancelledError,
     PrefixCommandError,
     PrefixError,
@@ -37,6 +38,7 @@ from stalker_gamma_linux.prefix.proton import (
     select_proton_build,
 )
 from stalker_gamma_linux.prefix.provision import create_prefix, ensure_prefix, is_initialized
+from stalker_gamma_linux.prefix.session import ProcessHold, prefix_in_use, require_free
 from stalker_gamma_linux.prefix.verbs import (
     REQUIRED_VERBS,
     apply_missing_verbs,
@@ -52,9 +54,11 @@ __all__ = [
     "ChecksumMismatchError",
     "PrefixCancelledError",
     "PrefixCommandError",
+    "PrefixBusyError",
     "PrefixError",
     "PrefixPaths",
     "PrefixReport",
+    "ProcessHold",
     "ProtonBuild",
     "ProtonDownloadError",
     "UmuNotFoundError",
@@ -70,6 +74,8 @@ __all__ = [
     "installed_verbs",
     "is_initialized",
     "missing_verbs",
+    "prefix_in_use",
+    "require_free",
     "resolve_latest_ge_release",
     "run_in_prefix",
     "run_prefix_doctor",

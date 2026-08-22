@@ -10,9 +10,10 @@ from stalker_gamma_linux.environment import system
 from stalker_gamma_linux.environment.models import Requirement, Status
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
 from stalker_gamma_linux.i18n import _
-from stalker_gamma_linux.prefix import proton, provision, verbs
+from stalker_gamma_linux.prefix import proton, provision, session, verbs
 from stalker_gamma_linux.prefix.errors import PrefixError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
+from stalker_gamma_linux.prefix.session import ProcessHold
 
 _REPAIR_HINT = "stalker-gamma-linux prefix-doctor --repair"
 
@@ -30,6 +31,10 @@ _DXVK_DLLS = ("d3d11.dll", "dxgi.dll")
 @dataclass(frozen=True, slots=True)
 class PrefixReport:
     requirements: tuple[Requirement, ...]
+    # Occupation en cours (MO2/le jeu/wineserver) : purement informatif, ne
+    # rentre pas dans `is_healthy` — un préfixe occupé n'est pas un préfixe
+    # cassé, voir `prefix.session`.
+    hold: ProcessHold | None = None
 
     @property
     def is_healthy(self) -> bool:
@@ -139,12 +144,19 @@ def build_prefix_report(
             _check_prefix(paths),
             _check_verbs(paths),
             _check_dxvk(paths),
-        )
+        ),
+        hold=session.prefix_in_use(paths),
     )
 
 
+def _hold_line(hold: ProcessHold | None) -> str:
+    if hold is None:
+        return _("Prefix session: free")
+    return _("Prefix session: busy — {name} (pid {pid})").format(name=hold.name, pid=hold.pid)
+
+
 def format_prefix_report(report: PrefixReport) -> str:
-    lines = []
+    lines = [_hold_line(report.hold), ""]
     for requirement in report.requirements:
         label = _STATUS_LABEL[requirement.status]
         lines.append(f"{label} {requirement.name} — {requirement.detail}")
@@ -162,12 +174,15 @@ def run_prefix_doctor(
     target: Path | None = None,
     *,
     repair: bool = False,
+    force: bool = False,
     search_dirs: Sequence[Path] | None = None,
 ) -> int:
     """Vérifie l'état du préfixe partagé ; avec `repair`, le remet à l'état nominal.
 
     Réparer = rejouer le provisioning idempotent : seuls le Proton, la création
-    du préfixe ou les verbs réellement manquants sont refaits.
+    du préfixe ou les verbs réellement manquants sont refaits. Refuse de réparer
+    si MO2 ou le jeu utilisent le préfixe (`force` passe outre) — voir
+    `prefix.session`.
     """
     root = target if target is not None else DEFAULT_INSTALL_TARGET
     paths = PrefixPaths.under(root)
@@ -175,6 +190,7 @@ def run_prefix_doctor(
 
     if repair and not report.is_healthy:
         try:
+            session.require_free(paths, action=_("repairing the prefix"), force=force)
             provision.ensure_prefix(paths, search_dirs=search_dirs, on_progress=print)
         except PrefixError as error:
             print(format_prefix_report(report))
