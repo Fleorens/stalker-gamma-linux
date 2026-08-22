@@ -1,4 +1,14 @@
-"""Diagnostic « USVFS mort » : le jeu a-t-il démarré avec les mods, ou en vanilla ?
+"""Diagnostics post-lancement : runtime/préfixe en amont, puis USVFS mort.
+
+Deux familles de diagnostics, dans l'ordre où les échecs surviennent réellement :
+
+0. **En amont de l'USVFS** : le processus cible ne démarre même pas.
+   `launch_failure_diagnosis`/`diagnose_launch_log` reconnaissent, sur le
+   journal de lancement umu-run (`prefix.process.run_in_prefix`), un runtime
+   VC++ manquant (concrt140/msvcp140/vcruntime140) ou un préfixe construit par
+   une autre version de Proton (wineserver refuse de démarrer). Ces échecs
+   masquent tout diagnostic USVFS ultérieur : `session.run_play` les affiche
+   **à la place** du message USVFS générique, jamais en plus.
 
 Le symptôme n°1 du mode MO2 sous Proton est un jeu qui se lance **sans contenu
 GAMMA** parce que le VFS n'a pas été monté (version de Proton incompatible, ou
@@ -22,6 +32,7 @@ avertissement si les marqueurs de VFS vivant manquent. Les remèdes renvoient ve
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -41,6 +52,74 @@ _INITHOOKS_OK_RE = re.compile(r"inithooks in process \d+ successful")
 _VFS_MAPPING_MARKER = "mapping file in vfs:"
 
 _COMPAT_DOC = "docs/MO2-PROTON-COMPAT.md"
+
+# Ces deux échecs surviennent EN AMONT de l'USVFS (le process cible ne démarre
+# même pas) : les marqueurs viennent du journal de lancement umu-run capturé
+# par `prefix.process.run_in_prefix` (fichier `mo2-game-*.log`), pas du journal
+# usvfs. Recherche insensible à la casse : voir `launch_failure_diagnosis`.
+_VCRUNTIME_DLL_MARKERS = ("concrt140.dll", "msvcp140.dll", "vcruntime140.dll")
+_PREFIX_VERSION_MARKERS = (
+    "version mismatch",
+    "wrong wineserver",
+    "prefix has an invalid version",
+    "wine binary was not upgraded correctly",
+)
+
+
+def _vcruntime_missing_message() -> str:
+    return _(
+        "⚠ Missing VC++ runtime in the shared prefix (concrt140.dll / "
+        "msvcp140.dll / vcruntime140.dll not found): this fails before USVFS "
+        "even gets a chance to mount.\n"
+        "→ `stalker-gamma-linux prefix-doctor --repair` (reinstalls the "
+        "missing verbs). See {doc}."
+    ).format(doc=_COMPAT_DOC)
+
+
+def _prefix_version_mismatch_message() -> str:
+    return _(
+        "⚠ This prefix was built by a different Proton/Wine build than the one "
+        "currently configured: wineserver refuses to run against it (version "
+        "mismatch) — this fails before USVFS even gets a chance to mount.\n"
+        "→ `stalker-gamma-linux install --only prefix` (rebuilds the shared "
+        "prefix from scratch with the configured Proton build). See {doc}."
+    ).format(doc=_COMPAT_DOC)
+
+
+# Ordre = ordre de vérification ; le premier marqueur trouvé gagne (un seul
+# diagnostic principal à la fois, cf. `launch_failure_diagnosis`).
+_LAUNCH_FAILURE_RULES: tuple[tuple[tuple[str, ...], Callable[[], str]], ...] = (
+    (_VCRUNTIME_DLL_MARKERS, _vcruntime_missing_message),
+    (_PREFIX_VERSION_MARKERS, _prefix_version_mismatch_message),
+)
+
+
+def launch_failure_diagnosis(log_text: str) -> str | None:
+    """Diagnostic amont (runtime VC++ manquant / préfixe incompatible) sur le
+    journal de lancement umu-run (recherche insensible à la casse).
+
+    Retourne le message de remède si un échec connu est reconnu, sinon None.
+    Ces échecs se produisent avant que l'USVFS ait la moindre chance de
+    monter : l'appelant (`session.run_play`) doit afficher ce message **à la
+    place** du diagnostic USVFS générique, jamais en plus.
+    """
+    lowered = log_text.lower()
+    for markers, build_message in _LAUNCH_FAILURE_RULES:
+        if any(marker in lowered for marker in markers):
+            return build_message()
+    return None
+
+
+def diagnose_launch_log(log_path: Path | None) -> str | None:
+    """Lit `log_path` (déjà écrit par `prefix.process.run_in_prefix`) et y
+    cherche un échec runtime/préfixe connu. None si le chemin est absent ou
+    illisible — pas de faux diagnostic sur un journal introuvable."""
+    if log_path is None:
+        return None
+    text = system.read_text(log_path)
+    if text is None:
+        return None
+    return launch_failure_diagnosis(text)
 
 
 @dataclass(frozen=True, slots=True)

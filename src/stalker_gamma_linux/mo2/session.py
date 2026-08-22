@@ -146,7 +146,7 @@ def run_play(
         progress(
             _("Launching Anomaly via MO2 (« {executable} », USVFS)…").format(executable=executable)
         )
-        launch.launch_game(
+        game_log = launch.launch_game(
             mo2,
             prefix,
             build.path,
@@ -160,9 +160,14 @@ def run_play(
 
     # Le jeu s'est lancé : c'est un succès. Le diagnostic USVFS est **indicatif**
     # (heuristique sur des logs qui varient selon les versions) — on l'affiche
-    # sans faire échouer `play` sur un faux négatif.
+    # sans faire échouer `play` sur un faux négatif. Un échec runtime/préfixe
+    # (concrt140 manquant, préfixe d'une autre version de Proton) survient EN
+    # AMONT de l'USVFS : s'il est reconnu dans le journal de lancement, on
+    # l'affiche à sa place — les deux ensemble n'aideraient pas l'utilisateur.
     if diagnose:
-        progress(f"\n{diagnostics.diagnose_usvfs(mo2).message}")
+        launch_failure = diagnostics.diagnose_launch_log(game_log)
+        message = launch_failure or diagnostics.diagnose_usvfs(mo2).message
+        progress(f"\n{message}")
     return 0
 
 

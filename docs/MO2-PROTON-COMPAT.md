@@ -97,14 +97,24 @@ gamma-launcher.
 |---|---|---|
 | Le jeu démarre mais **sans contenu GAMMA** (menu/HUD vanilla) ; le log USVFS de l'instance n'affiche pas `proxy run successful` | **USVFS mort** : version de Proton incompatible, ou jeu lancé hors MO2 | 1) Vérifier qu'on lance bien via `moshortcut://` (mode `play`, pas l'exe direct). 2) Passer en **Proton 9.0/10.0 vanilla**. 3) Essayer **GE-Proton9-20**. 4) Dernier recours : **mode flat** (`play --flat`). |
 | MO2 s'ouvre mais **0 mod actif** | Mauvais dossier de jeu / profil, instance non configurée | Reconfigurer l'instance (`gamePath` → dossier Anomaly, profil `G.A.M.M.A`) — automatisé par `mo2/instance.py`. |
-| MO2 **ne démarre pas du tout** | Verbs manquants dans le préfixe (vcrun2022…) | `stalker-gamma-linux prefix-doctor --repair` (T04). |
+| MO2 **ne démarre pas du tout**, journal de lancement mentionnant `concrt140.dll`, `msvcp140.dll` ou `vcruntime140.dll` | Runtimes VC++ 2015-2022 manquants dans le préfixe (verbs non posés, ou préfixe bricolé/partiellement réparé) | `stalker-gamma-linux prefix-doctor --repair` (repose les verbs manquants). |
+| Erreur Wine illisible au lancement : `wine client error:0: version mismatch`, `wrong wineserver`, `prefix has an invalid version`, `your wine binary was not upgraded correctly` | Le préfixe partagé a été construit par une **autre version de Proton** que celle configurée : wineserver refuse de démarrer dessus | `stalker-gamma-linux install --only prefix` (reconstruit le préfixe à partir de zéro avec le Proton actuellement configuré). |
 | Perfs médiocres (gros mods shaders) | Surcoût USVFS + shaders lourds | Désactiver Screen Space Shaders / Shaders Cumulative Pack ; évaluer RadTux (`⚠ À VALIDER`). |
 
 Détection automatisée (`mo2/diagnostics.py`) : après un lancement via `play`,
-on lit le dernier `logs/usvfs-*.log` de l'instance et on cherche les marqueurs
-d'un **VFS vivant** relevés sur un vrai run qui fonctionne (usvfs 0.5.6.1,
-GE-Proton11-1) : `inithooks in process <pid> successful` (hooks posés dans le
-process du jeu) et `mapping file in vfs:` (le VFS sert effectivement des
+on lit d'abord le journal de lancement umu-run (`prefix.process`, fichier
+`logs/mo2-game-*.log` de l'install) à la recherche des deux échecs **en amont**
+de l'USVFS ci-dessus (runtime VC++ manquant, préfixe d'une autre version de
+Proton) — recherche insensible à la casse. Si l'un des deux est reconnu, son
+message de remède est affiché **à la place** du diagnostic USVFS (un utilisateur
+à qui on annonce deux problèmes n'en corrige aucun) : ces échecs empêchent le
+process cible de démarrer, donc l'USVFS n'a de toute façon jamais eu la moindre
+chance de monter.
+
+Sinon, on lit le dernier `logs/usvfs-*.log` de l'instance et on cherche les
+marqueurs d'un **VFS vivant** relevés sur un vrai run qui fonctionne (usvfs
+0.5.6.1, GE-Proton11-1) : `inithooks in process <pid> successful` (hooks posés
+dans le process du jeu) et `mapping file in vfs:` (le VFS sert effectivement des
 fichiers). Absents ⇒ avertissement (pas un échec : `play` réussit si le jeu
 s'est lancé). On vérifie aussi que le profil `G.A.M.M.A` a des mods activés
 (`modlist.txt`, lignes `+`).

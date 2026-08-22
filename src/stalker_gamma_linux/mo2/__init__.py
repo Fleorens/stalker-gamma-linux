@@ -14,8 +14,10 @@ C'est la raison d'être du projet côté jeu : préserver la flexibilité des mo
 
 from stalker_gamma_linux.mo2.diagnostics import (
     UsvfsDiagnosis,
+    diagnose_launch_log,
     diagnose_usvfs,
     latest_usvfs_log,
+    launch_failure_diagnosis,
     usvfs_active_in,
 )
 from stalker_gamma_linux.mo2.errors import (
@@ -60,11 +62,13 @@ __all__ = [
     "Mo2Paths",
     "UsvfsDiagnosis",
     "configure_instance",
+    "diagnose_launch_log",
     "diagnose_usvfs",
     "enabled_mods",
     "flat_dir",
     "is_configured",
     "latest_usvfs_log",
+    "launch_failure_diagnosis",
     "launch_flat",
     "launch_game",
     "launch_mo2",

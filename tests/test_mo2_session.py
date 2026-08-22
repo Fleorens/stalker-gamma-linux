@@ -92,6 +92,25 @@ def test_run_play_succeeds_even_when_usvfs_diagnosis_negative(
     assert any("msg" in line for line in printed)  # le message du diagnostic est affiché
 
 
+def test_run_play_shows_launch_failure_instead_of_usvfs_message(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Un échec runtime/préfixe amont masque le diagnostic USVFS (un seul message)."""
+    printed: list[str] = []
+    monkeypatch.setattr(instance, "configure_instance", lambda *a, **k: None)
+    monkeypatch.setattr(launch, "launch_game", lambda *a, **k: Path("/l"))
+    monkeypatch.setattr(diagnostics, "diagnose_launch_log", lambda *a, **k: "runtime remedy")
+
+    def fail_usvfs(*a: Any, **k: Any) -> UsvfsDiagnosis:
+        raise AssertionError("le diagnostic USVFS ne doit pas être appelé")
+
+    monkeypatch.setattr(diagnostics, "diagnose_usvfs", fail_usvfs)
+    monkeypatch.setattr("builtins.print", lambda *a, **k: printed.append(" ".join(map(str, a))))
+
+    assert session.run_play(tmp_path) == 0
+    assert any("runtime remedy" in line for line in printed)
+
+
 def test_run_play_forwards_executable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, Any] = {}
 
