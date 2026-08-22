@@ -72,6 +72,11 @@ disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# La racine du repo sur le `sys.path` de pytest : trois modules de tests
+# importent des utilitaires partagés via `from tests.conftest import ...`.
+# Sans ça, seul `python -m pytest` (qui ajoute le cwd) collecte — le `pytest`
+# nu de la CI échoue à l'import, `tests` n'étant pas un paquet installé.
+pythonpath = ["."]
 addopts = "-ra -m \"not network\""
 markers = [
     "network: exercises the real gamma-launcher binary and/or network access (excluded by default)",

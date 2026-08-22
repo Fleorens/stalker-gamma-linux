@@ -135,9 +135,7 @@ class TestPgrepSignals:
         assert hold.pid == 555
         assert "Mod Organizer 2" in hold.name
 
-    def test_detects_game_executable(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_detects_game_executable(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         paths = PrefixPaths.under(tmp_path / "install")
         _no_proc(monkeypatch, tmp_path)
         monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/pgrep")

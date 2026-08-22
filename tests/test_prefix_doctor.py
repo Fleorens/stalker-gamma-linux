@@ -154,9 +154,7 @@ def test_run_prefix_doctor_repair_refuses_when_mo2_is_running(
         lambda paths: session.ProcessHold(pid=12345, name="Mod Organizer 2", what_to_close="it"),
     )
     repairs: list[PrefixPaths] = []
-    monkeypatch.setattr(
-        provision, "ensure_prefix", lambda paths, **kwargs: repairs.append(paths)
-    )
+    monkeypatch.setattr(provision, "ensure_prefix", lambda paths, **kwargs: repairs.append(paths))
 
     exit_code = doctor.run_prefix_doctor(tmp_path / "install", repair=True, search_dirs=[])
 
@@ -188,9 +186,7 @@ def test_run_prefix_doctor_repair_force_bypasses_busy_prefix(
 
     monkeypatch.setattr(provision, "ensure_prefix", fake_ensure_prefix)
 
-    exit_code = doctor.run_prefix_doctor(
-        root, repair=True, force=True, search_dirs=[compat]
-    )
+    exit_code = doctor.run_prefix_doctor(root, repair=True, force=True, search_dirs=[compat])
 
     assert exit_code == 0
     assert len(repairs) == 1

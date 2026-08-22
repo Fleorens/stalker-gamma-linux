@@ -185,7 +185,7 @@ def run_detached(
     opposition à `run_in_prefix` que garde le pipeline d'installation
     (progression, `cancel_event`, sortie pompée ligne à ligne).
 
-Quatre différences avec `run_in_prefix`, la plupart liées au même constat —
+    Quatre différences avec `run_in_prefix`, la plupart liées au même constat —
     une fois cette fonction revenue, plus personne ne lit la sortie du process
     ni n'attend sa fin :
     1. `start_new_session=True` : le process rejoint sa propre session/groupe
