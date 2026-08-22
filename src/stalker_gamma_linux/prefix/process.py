@@ -185,19 +185,31 @@ def run_detached(
     opposition à `run_in_prefix` que garde le pipeline d'installation
     (progression, `cancel_event`, sortie pompée ligne à ligne).
 
-    Trois différences avec `run_in_prefix`, toutes liées au même constat — une
-    fois cette fonction revenue, plus personne ne lit la sortie du process ni
-    n'attend sa fin :
+Quatre différences avec `run_in_prefix`, la plupart liées au même constat —
+    une fois cette fonction revenue, plus personne ne lit la sortie du process
+    ni n'attend sa fin :
     1. `start_new_session=True` : le process rejoint sa propre session/groupe
        de processus au lieu d'hériter de celui de l'appelant, donc un SIGHUP
        envoyé au terminal (fermeture de la fenêtre) ne l'atteint plus.
-    2. La sortie est redirigée **directement** dans le fichier de log (pas de
+    2. `stdin=DEVNULL` : **nécessaire en plus de `start_new_session`, pas
+       redondant.** Constaté en réel (2026-08-22, install GAMMA de test,
+       umu 1.4.1 sous GE-Proton11-3) : sans ça, umu-run hérite quand même du
+       stdin du terminal appelant, et sa chaîne interne (steam-runtime /
+       `srt-bwrap`) fait elle-même un `setsid` puis reprend ce descriptor
+       comme **son propre** terminal de contrôle — la session d'origine étant
+       orpheline dès que `play` a rendu la main, rien n'empêche `bwrap` de se
+       l'approprier. Fermer le terminal envoie alors un SIGHUP à `bwrap`, qui
+       tue toute la sandbox en dessous (Proton, Wine, MO2, le jeu) — le
+       symptôme qu'on croyait avoir corrigé, un étage plus bas dans umu-run.
+       Sans fd stdin pointant vers le terminal à hériter, cette reprise ne
+       peut plus se produire.
+    3. La sortie est redirigée **directement** dans le fichier de log (pas de
        pompage ligne à ligne, donc pas de `on_progress`/`cancel_event` : rien
        ne serait plus là pour les consommer). Le descripteur est refermé côté
        parent dès le retour de `Popen` — l'enfant a dupliqué le sien, il garde
        la sortie ; sans cette fermeture, le fd fuirait dans ce process à
        chaque lancement.
-    3. Le journal n'est pas horodaté par lancement : un seul fichier par
+    4. Le journal n'est pas horodaté par lancement : un seul fichier par
        `log_label`, ouvert en append et tourné (1 backup) au-delà de
        `_DETACHED_LOG_MAX_BYTES`, pour rester exploitable après plusieurs
        sessions sans grossir sans limite.
@@ -225,6 +237,7 @@ def run_detached(
         log_file.flush()
         subprocess.Popen(  # noqa: S603
             command,
+            stdin=subprocess.DEVNULL,
             stdout=log_file,
             stderr=subprocess.STDOUT,
             env=_prefix_environment(paths, proton_path, env),

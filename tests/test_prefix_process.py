@@ -173,6 +173,7 @@ def test_run_detached_starts_new_session_and_closes_parent_fd(
     def factory(command: list[str], **kwargs: Any) -> _FakeDetachedProcess:
         captured["command"] = command
         captured["start_new_session"] = kwargs.get("start_new_session")
+        captured["stdin"] = kwargs.get("stdin")
         captured["env"] = kwargs["env"]
         stdout = kwargs["stdout"]
         captured["stdout"] = stdout
@@ -192,6 +193,14 @@ def test_run_detached_starts_new_session_and_closes_parent_fd(
     )
 
     assert captured["start_new_session"] is True
+    # Constaté en réel (2026-08-22) : sans stdin=DEVNULL, la sandbox interne
+    # d'umu-run (steam-runtime/bwrap) hérite du stdin du terminal et reprend
+    # ce descripteur comme SON PROPRE terminal de contrôle (la session
+    # d'origine devient orpheline dès que `play` a rendu la main) — fermer le
+    # terminal tue alors toute la sandbox (Proton/Wine/MO2/le jeu) malgré
+    # `start_new_session=True` sur ce Popen-ci. Voir la docstring de
+    # `run_detached`.
+    assert captured["stdin"] == subprocess.DEVNULL
     assert captured["command"] == [
         "/usr/bin/umu-run",
         "ModOrganizer.exe",

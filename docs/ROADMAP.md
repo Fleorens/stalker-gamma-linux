@@ -75,12 +75,17 @@ couvertes chez nous ; six deviennent des tâches.
 - **T14** 🟡 Diagnostic du log de lancement : `mo2/diagnostics.py` couvre
   l'USVFS mais pas les échecs qui surviennent en amont (`concrt140.dll`,
   `version mismatch` d'un préfixe construit par un autre Proton).
-- **T15** ✅ `play` détaché du terminal (2026-08-22) : qualifié (seul le
+- **T15** ✅ **validé en réel (2026-08-22, install de test complète, umu 1.4.1
+  + GE-Proton11-3)** `play` détaché du terminal : qualifié (seul le
   lancement direct en ligne de commande était concerné, ni le `.desktop`
   direct ni la GUI), confirmé par simulation SIGHUP (`forkpty`), corrigé
-  (`prefix.process.run_detached`, voir `docs/MO2-PROTON-COMPAT.md`). Pas
-  encore revalidé avec le vrai jeu/MO2 sous Proton (pas d'install GAMMA
-  disponible côté outillage).
+  (`prefix.process.run_detached` — `start_new_session=True` **et**
+  `stdin=DEVNULL`, voir `docs/MO2-PROTON-COMPAT.md`). Le premier essai
+  (`start_new_session` seul) échouait encore en réel : la sandbox interne
+  d'umu-run (`srt-bwrap`) reprenait le stdin hérité comme son propre terminal
+  de contrôle et se faisait tuer avec toute la chaîne en dessous — `stdin`
+  devait être coupé aussi. Rejoué avec le correctif complet : toute la chaîne
+  jusqu'à `AnomalyDX11.exe` survit à la fermeture du terminal.
 - **T16** 🔵 Épinglage `WINESERVER` sous umu — investigation à mener, patch
   seulement si un découplage est mesuré.
 

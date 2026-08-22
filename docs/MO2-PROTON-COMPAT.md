@@ -152,23 +152,45 @@ s'est lancé). On vérifie aussi que le profil `G.A.M.M.A` a des mods activés
 
 **Correctif.** `prefix.process.run_detached()` (nouvelle fonction sœur de
 `run_in_prefix`, dédiée aux lancements de *jeu*) : `start_new_session=True`,
-sortie redirigée directement dans un fichier de log unique par lancement
-(`logs/mo2-game.log` / `logs/flat-game.log`, plus d'horodatage par lancement),
-tourné (1 backup `.log.1`) au-delà de 5 Mio, descripteur refermé côté parent
-dès le retour de `Popen`. `mo2.launch.launch_game` et `mo2.flat.launch_flat`
-l'utilisent désormais ; `mo2.launch.launch_mo2` (interface MO2 seule, commande
-`mo2`) et tout le pipeline d'installation (`engine`/`prefix.provision`)
-restent sur `run_in_prefix`, bloquant avec progression/`cancel_event` — deux
-modes explicites, jamais un mode qui devine lequel il est.
+`stdin=DEVNULL`, sortie redirigée directement dans un fichier de log unique
+par lancement (`logs/mo2-game.log` / `logs/flat-game.log`, plus d'horodatage
+par lancement), tourné (1 backup `.log.1`) au-delà de 5 Mio, descripteur
+refermé côté parent dès le retour de `Popen`. `mo2.launch.launch_game` et
+`mo2.flat.launch_flat` l'utilisent désormais ; `mo2.launch.launch_mo2`
+(interface MO2 seule, commande `mo2`) et tout le pipeline d'installation
+(`engine`/`prefix.provision`) restent sur `run_in_prefix`, bloquant avec
+progression/`cancel_event` — deux modes explicites, jamais un mode qui devine
+lequel il est.
 
-Revalidé avec le correctif appliqué, même méthode (`forkpty` + fermeture du
-côté maître) mais cette fois contre le vrai `process.run_detached` (umu-run
-remplacé par un faux binaire qui journalise un battement de cœur) : le
-process survit à la fermeture simulée du terminal, et le fichier de log
-continue de recevoir la sortie après le retour du process appelant. **Non
-revalidé avec le vrai jeu/MO2 sous Proton** (pas d'installation GAMMA dans cet
-environnement) — à confirmer en conditions réelles : lancer `play` depuis un
-terminal, fermer ce terminal, vérifier que le jeu continue.
+**Revalidé en conditions réelles** (2026-08-22, install de test complète
+`/mnt/games_lexar/Games/GAMMA-test`, umu 1.4.1, GE-Proton11-3), même méthode
+que la qualification (`os.forkpty` + fermeture du côté maître = même
+mécanisme SIGHUP qu'un vrai terminal qu'on ferme), mais contre le vrai `play`
+lançant le vrai MO2/Anomaly :
+
+- **Premier essai, avec `start_new_session=True` seul (sans `stdin=DEVNULL`)** :
+  échec. `play` rend bien la main immédiatement (mode détaché OK), mais
+  fermer le terminal juste après a tué **toute** la sandbox umu-run
+  (`srt-bwrap`, Proton, wineserver, MO2, le jeu) quelques secondes après son
+  lancement. Cause identifiée par inspection des process (`ps -eo
+  pid,ppid,sid,pgid,tty,stat`) : `run_detached` héritait quand même du
+  `stdin` du terminal appelant (rien ne le redirigeait) ; la sandbox interne
+  d'umu-run (`srt-bwrap`, steam-runtime/pressure-vessel) fait elle-même un
+  `setsid()` puis reprend ce descripteur comme **son propre** terminal de
+  contrôle via `TIOCSCTTY` — possible car la session d'origine devient
+  orpheline dès que `play` a rendu la main (plus aucun process vivant dedans).
+  `bwrap` se retrouvait donc process de premier plan du pseudo-terminal :
+  fermer celui-ci lui envoyait SIGHUP, qui tuait toute la sandbox en dessous —
+  le symptôme qu'on croyait avoir corrigé, reproduit un étage plus bas, à
+  l'intérieur même d'umu-run.
+- **Avec le correctif complet (`stdin=subprocess.DEVNULL` ajouté)** : succès.
+  Même scénario rejoué à l'identique (même install, `play` relancé) : après
+  fermeture simulée du terminal, toute la chaîne (`umu-run` → `srt-bwrap` →
+  `pv-adverb` → `proton` → `wineserver` → `explorer.exe`/`ModOrganizer.exe`
+  (`main`) → **`AnomalyDX11.exe`**, le moteur du jeu) est restée vivante et a
+  continué à progresser (le jeu a fini de démarrer *après* la fermeture
+  simulée). Aucun process de la chaîne n'a plus de terminal de contrôle
+  (`tty=?` partout dans `ps`).
 
 Conséquence sur `play` : la commande ne bloque plus jusqu'à la fermeture du
 jeu, elle annonce le chemin du journal et rend la main immédiatement. Le
