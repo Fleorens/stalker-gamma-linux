@@ -26,6 +26,7 @@ from stalker_gamma_linux.integrity.errors import (
     ModsDirectoryMissingError,
     RepairFailedError,
 )
+from stalker_gamma_linux.integrity.fingerprint import FileStat, KnownFile
 from stalker_gamma_linux.integrity.repair import (
     RepairPlan,
     WithheldMod,
@@ -48,9 +49,11 @@ __all__ = [
     "BASELINE_FILENAME",
     "BaselineReadError",
     "BaselineWriteError",
+    "FileStat",
     "IntegrityCancelledError",
     "IntegrityError",
     "IntegrityReport",
+    "KnownFile",
     "ModFinding",
     "ModpackDefinitionMissingError",
     "ModsDirectoryMissingError",

@@ -9,6 +9,7 @@ détectée et attribuée, annulation sans réécriture de la référence.
 
 from __future__ import annotations
 
+import os
 import threading
 from pathlib import Path
 
@@ -74,6 +75,26 @@ def _modify(install: Path, mod: str) -> Path:
     path = Mo2Paths.under(install).mods / mod / "gamedata" / "configs" / "item.ltx"
     path.write_text("corrompu\n")
     return path
+
+
+def _modify_keeping_size_and_date(install: Path, mod: str) -> Path:
+    """La corruption que le mode par défaut ne peut pas voir : même taille, même date.
+
+    Il faut la fabriquer à la main (`os.utime`) — aucune écriture ordinaire ne
+    produit ça, ce qui est précisément l'argument du court-circuit.
+    """
+    path = Mo2Paths.under(install).mods / mod / "gamedata" / "configs" / "item.ltx"
+    before = path.stat()
+    path.write_bytes(b"x" * before.st_size)
+    os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+    return path
+
+
+def _downgrade_reference(install: Path) -> None:
+    """Réécrit la référence sans taille ni date — celle qu'une version antérieure laissait."""
+    parsed = baseline.read_baseline(install)
+    assert parsed is not None
+    baseline.write_baseline(install, parsed.digests)
 
 
 class TestFirstPass:
@@ -188,7 +209,8 @@ class TestRepair:
         self, install: Path, engine_calls: list[Path], reporter: RecordingReporter
     ) -> None:
         session.run_verify(install, reporter=RecordingReporter())
-        before = baseline.baseline_path(install).read_text()
+        before = baseline.read_baseline(install)
+        assert before is not None
         _modify(install, "101- Mod A")
 
         code = session.run_verify(install, repair_damaged=True, reporter=reporter)
@@ -196,7 +218,13 @@ class TestRepair:
         assert code == 0
         assert engine_calls == [install]
         # Réparé : le contenu d'origine est revenu, et la référence a été reprise.
-        assert baseline.baseline_path(install).read_text() == before
+        # Ce sont les **empreintes** qui doivent être revenues à l'identique, pas
+        # le fichier de référence octet pour octet : la date de modification des
+        # fichiers réinstallés a changé, et la référence la porte désormais.
+        after = baseline.read_baseline(install)
+        assert after is not None
+        assert after.digests == before.digests
+        assert set(after.known) == set(after.digests)
 
     def test_apres_reparation_le_passage_suivant_est_propre(
         self, install: Path, engine_calls: list[Path]
@@ -288,3 +316,150 @@ class TestPhaseLabels:
 
     def test_quatre_temps_avec_reparation(self) -> None:
         assert len(session.verify_phase_labels(repair_damaged=True)) == 4
+
+
+class TestShortCircuit:
+    """Le court-circuit taille/date de bout en bout : ce qu'il évite, ce qu'il coûte."""
+
+    def test_la_reference_ecrite_porte_taille_et_date(self, install: Path) -> None:
+        session.run_verify(install, reporter=RecordingReporter())
+
+        parsed = baseline.read_baseline(install)
+        assert parsed is not None
+        assert set(parsed.known) == set(parsed.digests)
+
+    def test_second_passage_ne_relit_pas_ce_qui_na_pas_bouge(
+        self, install: Path, reporter: RecordingReporter
+    ) -> None:
+        session.run_verify(install, reporter=RecordingReporter())
+
+        code = session.run_verify(install, reporter=reporter)
+
+        assert code == 0
+        # Le raccourci est dit dans le rapport, pas seulement dans la doc.
+        assert "were not reread" in reporter.text
+        assert "verify --full" in reporter.text
+
+    def test_modification_reelle_toujours_detectee(
+        self, install: Path, reporter: RecordingReporter
+    ) -> None:
+        """Une écriture ordinaire déplace la date : le court-circuit ne la couvre jamais."""
+        session.run_verify(install, reporter=RecordingReporter())
+        _modify(install, "101- Mod A")
+
+        code = session.run_verify(install, reporter=reporter)
+
+        assert code == 1
+        assert "101- Mod A/gamedata/configs/item.ltx" in reporter.text
+
+    def test_corruption_preservant_taille_et_date_echappe_au_defaut(
+        self, install: Path, reporter: RecordingReporter
+    ) -> None:
+        """La contrepartie, écrite noir sur blanc : ce mode-là ne la voit pas."""
+        session.run_verify(install, reporter=RecordingReporter())
+        _modify_keeping_size_and_date(install, "101- Mod A")
+
+        code = session.run_verify(install, reporter=reporter)
+
+        assert code == 0
+        assert "Unchanged" in reporter.text
+
+    def test_full_voit_ce_que_le_defaut_laisse_passer(
+        self, install: Path, reporter: RecordingReporter
+    ) -> None:
+        session.run_verify(install, reporter=RecordingReporter())
+        _modify_keeping_size_and_date(install, "101- Mod A")
+
+        code = session.run_verify(install, full_scan=True, reporter=reporter)
+
+        assert code == 1
+        assert "101- Mod A/gamedata/configs/item.ltx" in reporter.text
+        # Et le mode est annoncé avant le scan, pas déduit du résultat.
+        assert "Full scan" in reporter.text
+
+    def test_full_rehache_meme_ce_qui_na_pas_bouge(
+        self, install: Path, reporter: RecordingReporter
+    ) -> None:
+        session.run_verify(install, reporter=RecordingReporter())
+
+        code = session.run_verify(install, full_scan=True, reporter=reporter)
+
+        assert code == 0
+        assert "were not reread" not in reporter.text
+
+
+class TestOldReference:
+    """Référence d'avant la colonne taille/date : repli sûr, puis reprise prudente."""
+
+    def test_tout_est_rehache_et_lutilisateur_sait_pourquoi(
+        self, install: Path, reporter: RecordingReporter
+    ) -> None:
+        session.run_verify(install, reporter=RecordingReporter())
+        _downgrade_reference(install)
+        _modify_keeping_size_and_date(install, "101- Mod A")
+
+        code = session.run_verify(install, reporter=reporter)
+
+        # Rien à court-circuiter : la corruption la plus discrète est vue.
+        assert code == 1
+        assert "The reference predates size/date recording" in reporter.text
+
+    def test_la_reference_est_reprise_pour_le_passage_suivant(
+        self, install: Path, reporter: RecordingReporter
+    ) -> None:
+        """Sans cette reprise, une ancienne référence ferait tout rehacher à chaque fois."""
+        session.run_verify(install, reporter=RecordingReporter())
+        _downgrade_reference(install)
+
+        session.run_verify(install, reporter=RecordingReporter())
+        code = session.run_verify(install, reporter=reporter)
+
+        assert code == 0
+        assert "were not reread" in reporter.text
+
+    def test_la_reprise_nattache_jamais_taille_et_date_a_un_fichier_abime(
+        self, install: Path, reporter: RecordingReporter
+    ) -> None:
+        """L'invariant qui rend la reprise sûre : sinon l'avarie sortirait du rapport.
+
+        Le fichier abîmé conserve taille et date d'origine. Lui attacher les
+        siennes le ferait court-circuiter au passage suivant, avec l'empreinte
+        de la référence — l'avarie disparaîtrait sans avoir été réparée.
+        """
+        session.run_verify(install, reporter=RecordingReporter())
+        _downgrade_reference(install)
+        _modify_keeping_size_and_date(install, "101- Mod A")
+        session.run_verify(install, reporter=RecordingReporter())
+
+        code = session.run_verify(install, reporter=reporter)
+
+        assert code == 1
+        assert "101- Mod A/gamedata/configs/item.ltx" in reporter.text
+
+    def test_la_reprise_ne_fait_pas_entrer_les_ajouts_dans_la_reference(
+        self, install: Path, reporter: RecordingReporter
+    ) -> None:
+        """Un fichier de l'utilisateur reste « ajouté » : la reprise ne change que la forme."""
+        session.run_verify(install, reporter=RecordingReporter())
+        _downgrade_reference(install)
+        (Mo2Paths.under(install).mods / "101- Mod A" / "mon-tweak.ltx").write_text("à moi")
+        session.run_verify(install, reporter=RecordingReporter())
+
+        code = session.run_verify(install, reporter=reporter)
+
+        assert code == 0
+        assert "mon-tweak.ltx" in reporter.text
+        assert "left alone" in reporter.text
+
+    def test_les_empreintes_ne_bougent_pas_pendant_la_reprise(self, install: Path) -> None:
+        session.run_verify(install, reporter=RecordingReporter())
+        original = baseline.read_baseline(install)
+        assert original is not None
+        _downgrade_reference(install)
+
+        session.run_verify(install, reporter=RecordingReporter())
+
+        reprise = baseline.read_baseline(install)
+        assert reprise is not None
+        assert reprise.digests == original.digests
+        assert set(reprise.known) == set(original.digests)

@@ -70,6 +70,11 @@ class IntegrityReport:
     unreadable: tuple[UnreadableFile, ...] = ()
     scanned_files: int = 0
     scanned_bytes: int = 0
+    # Fichiers repris de la référence sans être relus (taille et date
+    # inchangées). Affiché tel quel : un contrôle qui n'a rien relu et un
+    # contrôle qui a tout relu ne valent pas la même chose, et c'est à
+    # l'utilisateur de le savoir, pas à lui de le deviner.
+    reused_files: int = 0
     # Lignes de la référence qu'on n'a pas su relire : elles produisent de faux
     # « supprimé », il faut pouvoir le dire au lieu de le laisser croire.
     unparsed_baseline_lines: tuple[str, ...] = ()
@@ -134,13 +139,20 @@ def _paths_of(mod: str, paths: Iterable[str]) -> tuple[str, ...]:
 def format_report(report: IntegrityReport) -> str:
     """Rendu texte du rapport, dans le vocabulaire de `doctor`."""
     lines = [
-        _("Scanned: {files} files, {size} GiB in {path}").format(
+        _("Scanned: {files} files, {size} GiB read in {path}").format(
             files=report.scanned_files,
             size=f"{report.scanned_bytes / sizing.GIB:.1f}",
             path=report.mods_dir,
         ),
-        "",
     ]
+    if report.reused_files:
+        lines.append(
+            _(
+                "Of those, {count} were unchanged in size and date and were not "
+                "reread — `verify --full` rehashes everything instead."
+            ).format(count=report.reused_files)
+        )
+    lines.append("")
     if report.unparsed_baseline_lines:
         lines.append(
             _(

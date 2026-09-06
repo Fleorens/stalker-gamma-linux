@@ -1,6 +1,6 @@
 """Parcours de `gamma/mods/` et calcul des empreintes MD5.
 
-Quatre contraintes dictent la forme de ce module, et elles viennent toutes de
+Cinq contraintes dictent la forme de ce module, et elles viennent toutes de
 la taille réelle d'une install GAMMA (~83 Gio de mods, plusieurs centaines de
 milliers de fichiers) :
 
@@ -17,7 +17,15 @@ milliers de fichiers) :
 3. **Un fichier illisible n'arrête pas le scan.** Droits cassés, secteur mort,
    fichier ouvert par un autre processus : c'est précisément ce qu'on cherche à
    détecter. On le range dans `unreadable` et on continue.
-4. **Hachage parallèle, résultat séquentiel.** Un seul fil ne tient que
+4. **On ne relit que ce qui a pu changer.** Le scan le plus fréquent est
+   celui où rien n'a bougé depuis la veille ; relire 83 Gio pour le
+   redécouvrir est le vrai coût de la commande, pas le MD5. Quand la référence
+   porte la taille et la date d'un fichier (`baseline`, `fingerprint`) et que
+   le disque les donne identiques, l'empreinte est reprise de la référence
+   sans ouvrir le fichier. `reference=None` — ce que passe `verify --full` —
+   rétablit le scan intégral. Le compromis exact, et ce qu'il laisse passer,
+   sont écrits dans `fingerprint`.
+5. **Hachage parallèle, résultat séquentiel.** Un seul fil ne tient que
    ~430 Mio/s sur une arborescence réaliste, là où MD5 seul rend ~840 Mio/s
    par cœur : le reste part en ouvertures de fichiers et en attente disque.
    `hashlib` libérant le GIL, quelques fils en récupèrent une bonne part
@@ -42,7 +50,7 @@ import time
 from collections import deque
 from collections.abc import Callable, Iterator, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
@@ -50,6 +58,7 @@ from stalker_gamma_linux import output, sizing
 from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.integrity import storage
 from stalker_gamma_linux.integrity.errors import IntegrityCancelledError
+from stalker_gamma_linux.integrity.fingerprint import FileStat, KnownFile
 
 # 1 Mio : assez grand pour que le coût par appel disparaisse, assez petit pour
 # que l'annulation et la progression restent réactives sur un gros fichier.
@@ -107,15 +116,37 @@ class UnreadableFile:
 
 @dataclass(frozen=True, slots=True)
 class ScanResult:
-    """Empreintes relevées, plus ce qui n'a pas pu être lu."""
+    """Empreintes relevées, plus ce qui n'a pas pu être lu.
+
+    `stats` couvre **tous** les fichiers de `digests`, court-circuités compris :
+    c'est ce qui permet à la référence suivante de porter la colonne
+    taille/mtime même pour des fichiers qu'on n'a pas relus. `reused` liste
+    ceux-là, parce qu'un scan qui n'a rien relu et un scan qui a tout relu ne
+    disent pas la même chose et que l'utilisateur doit voir lequel il a eu.
+    """
 
     digests: Mapping[str, str]
     unreadable: tuple[UnreadableFile, ...] = ()
     total_bytes: int = 0
+    stats: Mapping[str, FileStat] = field(default_factory=dict)
+    reused: tuple[str, ...] = ()
 
     @property
     def file_count(self) -> int:
         return len(self.digests)
+
+    @property
+    def reused_count(self) -> int:
+        return len(self.reused)
+
+
+@dataclass(frozen=True, slots=True)
+class _Fingerprint:
+    """Ce qu'un fil rend pour un fichier : son empreinte, son état disque, et s'il a été relu."""
+
+    digest: str
+    stat: FileStat
+    reused: bool
 
 
 class _ScanProgress:
@@ -301,12 +332,21 @@ def _unreadable_order(entry: UnreadableFile) -> tuple[str, str]:
 def scan_tree(
     root: Path,
     *,
+    reference: Mapping[str, KnownFile] | None = None,
     reporter: output.Reporter = output.console_reporter,
     cancel_event: threading.Event | None = None,
     clock: Clock = time.monotonic,
     workers: int | None = None,
 ) -> ScanResult:
-    """Hache tous les fichiers sous `root`. Lève `IntegrityCancelledError` si annulé.
+    """Hache les fichiers sous `root`. Lève `IntegrityCancelledError` si annulé.
+
+    `reference` : ce que la référence sait déjà de ces fichiers. Un fichier dont
+    la taille **et** la date de modification correspondent n'est pas relu — son
+    empreinte est reprise telle quelle et son chemin apparaît dans
+    `reused`. `None` (défaut) rehache tout, et c'est ce que passe
+    `verify --full` ; une référence à l'ancien format n'a aucune entrée, donc
+    produit le même effet. Ce que ce court-circuit laisse passer est écrit dans
+    `fingerprint`.
 
     `workers` : nombre de fils de hachage. `None` (défaut) le déduit du support
     qui porte `root` (`_default_workers`) ; `1` restaure un scan strictement
@@ -322,7 +362,10 @@ def scan_tree(
     `queue.Queue`).
     """
     worker_count = _resolve_workers(workers, root)
+    known: Mapping[str, KnownFile] = reference if reference is not None else {}
     digests: dict[str, str] = {}
+    stats: dict[str, FileStat] = {}
+    reused: list[str] = []
     unreadable: list[UnreadableFile] = []
     progress = _ScanProgress(reporter, clock=clock)
 
@@ -338,26 +381,46 @@ def scan_tree(
     abort = threading.Event()
     stop_signal = _AnySignal(cancel_event, abort)
 
-    def hash_one(path: Path) -> str:
-        digest, _size = hash_file(path, cancel_event=stop_signal, on_block=progress.add_bytes)
-        return digest
+    def fingerprint_one(path: Path, relative: str) -> _Fingerprint:
+        """Empreinte d'un fichier — reprise de la référence s'il n'a pas bougé.
 
-    def collect(relative: str, task: Future[str]) -> None:
+        Le `stat` est pris **avant** le hachage, et c'est structurel : une
+        modification survenue pendant la lecture donnera au fichier une date
+        plus récente que celle qu'on enregistre, donc un écart au passage
+        suivant. L'ordre inverse figerait une empreinte lue à cheval sur cette
+        modification en la déclarant à jour (voir `fingerprint`).
+
+        Le `stat` est fait ici, dans le fil de hachage, et non pendant le
+        parcours : sur 300 000 fichiers, ces appels système représentent
+        justement l'essentiel du travail restant quand plus rien n'est relu.
+        """
+        stat = FileStat.of(path)
+        entry = known.get(relative)
+        if entry is not None and entry.stat == stat:
+            return _Fingerprint(digest=entry.digest, stat=stat, reused=True)
+        digest, _size = hash_file(path, cancel_event=stop_signal, on_block=progress.add_bytes)
+        return _Fingerprint(digest=digest, stat=stat, reused=False)
+
+    def collect(relative: str, task: Future[_Fingerprint]) -> None:
         """Range le résultat d'un fichier — appelée dans l'ordre de soumission."""
         try:
-            digests[relative] = task.result()
+            outcome = task.result()
         except OSError as error:
             unreadable.append(UnreadableFile(relative=relative, reason=str(error)))
             return
+        digests[relative] = outcome.digest
+        stats[relative] = outcome.stat
+        if outcome.reused:
+            reused.append(relative)
         progress.add_file()
 
     executor = ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix="gamma-md5")
-    pending: deque[tuple[str, Future[str]]] = deque()
+    pending: deque[tuple[str, Future[_Fingerprint]]] = deque()
     window = worker_count * QUEUE_DEPTH_PER_WORKER
     try:
         for path, relative in _walk_files(root, on_walk_error):
             _raise_if_cancelled(cancel_event)
-            pending.append((relative, executor.submit(hash_one, path)))
+            pending.append((relative, executor.submit(fingerprint_one, path, relative)))
             if len(pending) >= window:
                 collect(*pending.popleft())
         while pending:
@@ -374,6 +437,8 @@ def scan_tree(
         digests=digests,
         unreadable=tuple(sorted(unreadable, key=_unreadable_order)),
         total_bytes=progress.total_bytes,
+        stats=stats,
+        reused=tuple(reused),
     )
 
 

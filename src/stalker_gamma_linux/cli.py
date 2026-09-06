@@ -129,6 +129,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
     verify_parser.add_argument(
+        "--full",
+        action="store_true",
+        help=_(
+            "Rereads and rehashes every file. By default, a file whose size and "
+            "modification date are unchanged since the reference is not reread: "
+            "that catches everything that writes through the filesystem — a "
+            "truncated write, a file overwritten by another tool, an interrupted "
+            "extraction — because all of those move the size or the date. Use "
+            "--full for what it cannot see: content altered underneath the "
+            "filesystem (bit rot, a failing cable or non-ECC RAM), which leaves "
+            "both untouched. Costs a full reread of the mods folder"
+        ),
+    )
+    verify_parser.add_argument(
         "--repair",
         action="store_true",
         help=_(
@@ -292,7 +306,7 @@ def _dispatch(args: argparse.Namespace) -> int:
             return run_report(args.target, destination)
         return run_doctor(args.target)
     if args.command == "verify":
-        return run_verify(args.target, repair_damaged=args.repair)
+        return run_verify(args.target, repair_damaged=args.repair, full_scan=args.full)
     if args.command == "prefix-doctor":
         return run_prefix_doctor(args.target, repair=args.repair, force=args.force)
     if args.command == "mo2":

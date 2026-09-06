@@ -1,4 +1,4 @@
-"""Commande `verify [--repair]` : enchaîne référence, scan, diff, réparation.
+"""Commande `verify [--repair] [--full]` : enchaîne référence, scan, diff, réparation.
 
 Seul point d'entrée de la fonctionnalité, partagé mot pour mot par la CLI et
 par la vue Diagnostic de la GUI (`output.Reporter` + `cancel_event`, comme le
@@ -15,14 +15,21 @@ Trois invariants portés ici :
    qu'après le scan — un `cancel_event` levé à mi-parcours laisse la référence
    précédente exactement où elle était.
 3. **La reprise de référence après réparation est une étape à part.** Elle
-   coûte un second scan complet et elle est annoncée comme telle. Sans elle,
-   les mods qu'on vient de remettre en état ressortiraient « modifiés » au
-   passage suivant, ce qui ruinerait la confiance dans la commande.
+   coûte un second scan et elle est annoncée comme telle. Sans elle, les mods
+   qu'on vient de remettre en état ressortiraient « modifiés » au passage
+   suivant, ce qui ruinerait la confiance dans la commande.
+4. **Le mode du scan est dit, jamais deviné.** Par défaut, un fichier dont la
+   taille et la date n'ont pas bougé depuis la référence n'est pas relu — c'est
+   ce qui fait passer une revérification de plusieurs minutes à quelques
+   secondes. Un raccourci qu'on ne dit pas est un raccourci caché : le nombre
+   de fichiers non relus figure dans le rapport, et `--full` (`full_scan=`)
+   redonne le scan intégral.
 """
 
 from __future__ import annotations
 
 import threading
+from collections.abc import Mapping
 from pathlib import Path
 
 from stalker_gamma_linux import output, sizing
@@ -37,6 +44,7 @@ from stalker_gamma_linux.integrity.errors import (
     IntegrityError,
     ModsDirectoryMissingError,
 )
+from stalker_gamma_linux.integrity.fingerprint import KnownFile
 from stalker_gamma_linux.mo2.paths import Mo2Paths
 from stalker_gamma_linux.paths_safety import UnsafeWipeTargetError
 
@@ -61,6 +69,7 @@ def run_verify(
     target: Path | None = None,
     *,
     repair_damaged: bool = False,
+    full_scan: bool = False,
     reporter: output.Reporter = output.console_reporter,
     cancel_event: threading.Event | None = None,
 ) -> int:
@@ -70,6 +79,11 @@ def run_verify(
     reposer par le moteur, puis réenregistre la référence — 0 si la réparation
     est allée à son terme. `CANCELLED_EXIT_CODE` si `cancel_event` a été levé,
     la référence précédente restant alors intacte.
+
+    `full_scan` : relit et rehache tout, sans se fier à la taille ni à la date
+    enregistrées. C'est la garantie forte — la seule qui voie une altération
+    survenue sous le système de fichiers (bitrot, câble ou RAM défaillants),
+    qui laisse taille et date inchangées.
     """
     root = target if target is not None else DEFAULT_INSTALL_TARGET
     mods_dir = Mo2Paths.under(root).mods
@@ -82,6 +96,7 @@ def run_verify(
             mods_dir,
             total=total,
             repair_damaged=repair_damaged,
+            full_scan=full_scan,
             reporter=reporter,
             cancel_event=cancel_event,
         )
@@ -99,6 +114,7 @@ def _verify(
     *,
     total: int,
     repair_damaged: bool,
+    full_scan: bool,
     reporter: output.Reporter,
     cancel_event: threading.Event | None,
 ) -> int:
@@ -106,14 +122,19 @@ def _verify(
         raise ModsDirectoryMissingError(mods_dir)
 
     previous = baseline.read_baseline(root)
+    reference = _reference_for(previous, full_scan=full_scan, reporter=reporter)
     reporter.step(f"1/{total}", _("Hashing installed mods (this takes a few minutes)…"))
-    scanned = scan.scan_tree(mods_dir, reporter=reporter, cancel_event=cancel_event)
+    scanned = scan.scan_tree(
+        mods_dir, reference=reference, reporter=reporter, cancel_event=cancel_event
+    )
     _warn_unreadable(scanned, reporter=reporter)
 
     if previous is None:
         return _record_first_reference(root, scanned, reporter=reporter)
 
     result = _build_report(mods_dir, previous, scanned)
+    if previous.predates_stats:
+        _upgrade_reference(root, previous, scanned, reporter=reporter)
     reporter.progress(report_module.format_report(result))
 
     if result.is_intact:
@@ -127,7 +148,49 @@ def _verify(
             ).format(root=root)
         )
         return 1
-    return _repair(root, result, total=total, reporter=reporter, cancel_event=cancel_event)
+    return _repair(
+        root,
+        result,
+        total=total,
+        reference=reference,
+        reporter=reporter,
+        cancel_event=cancel_event,
+    )
+
+
+def _reference_for(
+    previous: baseline.ParsedBaseline | None,
+    *,
+    full_scan: bool,
+    reporter: output.Reporter,
+) -> Mapping[str, KnownFile] | None:
+    """Ce que le scan a le droit de ne pas relire — et le mot qui va avec.
+
+    Les deux cas où l'on rehache tout sans que l'utilisateur l'ait demandé — pas
+    de référence du tout, référence d'avant la colonne taille/date — sont des
+    replis sûrs, mais un scan de plusieurs minutes qui succède à un scan de
+    quelques secondes doit s'expliquer, sinon il passe pour une régression.
+    """
+    if full_scan:
+        reporter.progress(
+            _(
+                "Full scan: every file is read and rehashed, nothing is taken on "
+                "trust from its size and date."
+            )
+        )
+        return None
+    if previous is None:
+        return None
+    if previous.predates_stats:
+        reporter.progress(
+            _(
+                "The reference predates size/date recording: everything is "
+                "rehashed this once, and the new reference will make the next "
+                "run much quicker."
+            )
+        )
+        return None
+    return previous.known
 
 
 def _intact_verdict(result: report_module.IntegrityReport) -> str:
@@ -166,7 +229,7 @@ def _record_first_reference(
     root: Path, scanned: scan.ScanResult, *, reporter: output.Reporter
 ) -> int:
     """Premier passage : on enregistre, et on dit clairement qu'on n'a rien vérifié."""
-    path = baseline.write_baseline(root, scanned.digests)
+    path = baseline.write_baseline(root, scanned.digests, scanned.stats)
     reporter.success(
         _(
             "Reference recorded: {files} files, {size} GiB ({path}).\n"
@@ -179,6 +242,46 @@ def _record_first_reference(
         )
     )
     return 0
+
+
+def _upgrade_reference(
+    root: Path,
+    previous: baseline.ParsedBaseline,
+    scanned: scan.ScanResult,
+    *,
+    reporter: output.Reporter,
+) -> None:
+    """Attache taille et date à une référence qui n'en avait pas, sans rien changer d'autre.
+
+    Sans cette reprise, une référence d'avant la colonne ferait tout rehacher à
+    *chaque* passage : on n'écrit une nouvelle référence qu'au premier passage
+    et après une réparation, jamais après une simple vérification.
+
+    Deux règles, et ce sont elles qui rendent l'opération sûre :
+
+    - seuls les chemins dont l'empreinte relue **égale** celle de la référence
+      reçoivent leur taille et leur date. En attacher à un fichier abîmé le
+      ferait court-circuiter au passage suivant : l'avarie sortirait du rapport
+      sans avoir été réparée, ce qui est exactement le contraire du but ;
+    - les empreintes, elles, ne bougent pas d'un iota — ni les chemins ajoutés
+      par l'utilisateur, qui restent hors de la référence, ni ceux qui ont
+      disparu, qui y restent. La référence dit toujours la même chose ; elle le
+      dit juste avec de quoi ne pas tout relire la prochaine fois.
+    """
+    stats = {
+        relative: stat
+        for relative, stat in scanned.stats.items()
+        if previous.digests.get(relative) == scanned.digests.get(relative)
+    }
+    if not stats:
+        return
+    baseline.write_baseline(root, previous.digests, stats)
+    reporter.progress(
+        _(
+            "Reference upgraded with each file's size and date ({count} files) — "
+            "the next check only rereads what moved."
+        ).format(count=len(stats))
+    )
 
 
 def _build_report(
@@ -194,6 +297,7 @@ def _build_report(
         scanned_files=scanned.file_count,
         scanned_bytes=scanned.total_bytes,
         unparsed_baseline_lines=previous.skipped,
+        reused_files=scanned.reused_count,
     )
 
 
@@ -202,6 +306,7 @@ def _repair(
     result: report_module.IntegrityReport,
     *,
     total: int,
+    reference: Mapping[str, KnownFile] | None,
     reporter: output.Reporter,
     cancel_event: threading.Event | None,
 ) -> int:
@@ -224,15 +329,21 @@ def _repair(
     reporter.step(f"3/{total}", _("Reinstalling them with the engine…"))
     repair.reinstall_mods(root, reporter=reporter, cancel_event=cancel_event)
 
-    # Étape à part entière, et coûteuse (un second scan complet) : sans elle,
-    # les mods qu'on vient de remettre en état ressortiraient « modifiés » au
-    # passage suivant.
+    # Étape à part entière : sans elle, les mods qu'on vient de remettre en état
+    # ressortiraient « modifiés » au passage suivant. Le second scan applique le
+    # même mode que le premier — les fichiers réinstallés ont forcément une date
+    # neuve, donc sont relus ; ceux auxquels la réparation n'a pas touché n'ont
+    # pas plus de raison d'être rehachés ici qu'à l'étape 1. `--full` vaut pour
+    # les deux scans.
     reporter.step(f"4/{total}", _("Recording the new reference (second scan)…"))
     rescanned = scan.scan_tree(
-        Mo2Paths.under(root).mods, reporter=reporter, cancel_event=cancel_event
+        Mo2Paths.under(root).mods,
+        reference=reference,
+        reporter=reporter,
+        cancel_event=cancel_event,
     )
     _warn_unreadable(rescanned, reporter=reporter)
-    baseline.write_baseline(root, rescanned.digests)
+    baseline.write_baseline(root, rescanned.digests, rescanned.stats)
 
     reporter.success(
         _("{count} mod(s) repaired and the reference re-recorded.\nRepaired: {names}").format(

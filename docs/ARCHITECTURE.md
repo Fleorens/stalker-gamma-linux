@@ -534,7 +534,7 @@ disque plein en a tronqué un). Commande `verify [--repair]`, plus deux boutons
 dans la vue Diagnostic de la GUI ; `integrity.run_verify` est le seul point
 d'entrée, partagé mot pour mot par les deux (`Reporter` + `cancel_event`).
 
-Six décisions qui ne se lisent pas dans le code :
+Sept décisions qui ne se lisent pas dans le code :
 
 1. **La référence est un fichier texte à côté de l'install**
    (`<install>/gamma-md5.txt`, format `md5sum`), pas un état sous
@@ -603,6 +603,30 @@ Six décisions qui ne se lisent pas dans le code :
    (`installationFile=`) : c'est la seule disponible **hors ligne**, le nom de
    fichier réel d'un téléchargement ModDB n'étant connu qu'en interrogeant la
    page ModDB.
+7. **Un fichier dont la taille et la date n'ont pas bougé n'est pas relu — et
+   on le dit.** La référence porte désormais une colonne `taille,mtime_ns`
+   (`<md5>  <taille>,<mtime_ns>  <chemin>`), ce qui permet à `scan_tree` de
+   reprendre une empreinte au lieu de rouvrir le fichier. Sans elle, deux
+   `verify` d'affilée relisaient les 83 Gio à l'identique — mesuré sur banc :
+   2,34 Gio passent de 0,84 s à 0,04 s, aucun octet lu, empreintes
+   identiques. Ce que ça coûte, dit franchement : une corruption qui
+   préserverait taille *et* date deviendrait invisible. Toutes celles que ce
+   module vise passent par une écriture ordinaire — troncature sur disque
+   plein, écrasement par un autre outil, extraction interrompue — et déplacent
+   donc l'une ou l'autre ; ce qui reste, c'est la réécriture suivie d'un
+   `os.utime` délibéré (un geste d'adversaire, et ce MD5 n'authentifie rien —
+   qui peut réécrire un mod peut réécrire `gamma-md5.txt`, fichier texte non
+   signé) et l'altération survenue *sous* le système de fichiers (bitrot,
+   câble ou RAM défaillants). C'est pour cette dernière qu'existe
+   `verify --full`, qui ignore la colonne et relit tout. Trois garde-fous
+   rendent le défaut tenable : le nombre de fichiers non relus figure **dans
+   le rapport**, pas en note de bas de page ; une référence d'ancien format
+   n'a aucune colonne, donc fait tout rehacher (le doute fait toujours relire,
+   jamais l'inverse) ; et la reprise qui ajoute la colonne à une telle
+   référence n'attache taille et date qu'aux fichiers dont l'empreinte relue
+   **égale** celle de la référence — en donner à un fichier abîmé le ferait
+   court-circuiter au passage suivant, et l'avarie sortirait du rapport sans
+   avoir été réparée.
 
 Trois points d'implémentation qui ont une raison précise :
 

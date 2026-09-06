@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-08-22 06:58+0200\n"
+"POT-Creation-Date: 2026-09-06 23:27+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -132,6 +132,9 @@ msgid ""
 "anything (your MO2 mod list is left untouched)"
 msgstr ""
 
+msgid "Updates even if Mod Organizer 2 or the game are still using the prefix"
+msgstr ""
+
 msgid "Full report: system prerequisites + prefix status + install status"
 msgstr ""
 
@@ -147,6 +150,17 @@ msgid ""
 msgstr ""
 
 msgid ""
+"Rereads and rehashes every file. By default, a file whose size and "
+"modification date are unchanged since the reference is not reread: that "
+"catches everything that writes through the filesystem — a truncated "
+"write, a file overwritten by another tool, an interrupted extraction — "
+"because all of those move the size or the date. Use --full for what it "
+"cannot see: content altered underneath the filesystem (bit rot, a failing"
+" cable or non-ECC RAM), which leaves both untouched. Costs a full reread "
+"of the mods folder"
+msgstr ""
+
+msgid ""
 "Repairs the damaged mods that come from the modpack: removes them (folder"
 " + cached archive), then reruns the engine, which reinstalls the whole "
 "modpack over your mods folder — other mods may be updated in passing. "
@@ -159,10 +173,13 @@ msgstr ""
 msgid "Repairs: downloads Proton-GE, creates the prefix, applies missing verbs"
 msgstr ""
 
+msgid "Repairs even if Mod Organizer 2 or the game are still using the prefix"
+msgstr ""
+
 msgid "Opens Mod Organizer 2 (prefix ready, GAMMA instance configured)"
 msgstr ""
 
-msgid "Launches Anomaly through MO2 (USVFS active) and diagnoses the mods"
+msgid "Launches Anomaly through MO2 (USVFS active), detached from this terminal"
 msgstr ""
 
 #, python-brace-format
@@ -172,9 +189,6 @@ msgstr ""
 msgid ""
 "Fallback without MO2: merged install (usvfs-workaround). LOSES mod "
 "flexibility — only use if USVFS doesn't mount"
-msgstr ""
-
-msgid "Doesn't run the USVFS diagnostic after launch"
 msgstr ""
 
 msgid ""
@@ -212,8 +226,18 @@ msgid "Skips the --game-data confirmation prompt — for scripted use"
 msgstr ""
 
 msgid ""
+"Deletes game data even if Mod Organizer 2 or the game are still using the"
+" shared prefix"
+msgstr ""
+
+msgid ""
 "Installs umu-launcher (official zipapp ~420 KiB) into ~/.local/bin — no "
 "sudo, the only prerequisite with no Fedora/Debian package"
+msgstr ""
+
+msgid ""
+"Choose an install directory without control characters (line break, tab, "
+"NUL) in its path."
 msgstr ""
 
 msgid ""
@@ -275,6 +299,9 @@ msgstr ""
 msgid "Missing prerequisites — steps depending on them may fail:\n"
 msgstr ""
 
+msgid "provisioning the prefix"
+msgstr ""
+
 msgid "Installation cancelled."
 msgstr ""
 
@@ -295,6 +322,9 @@ msgstr ""
 
 #, python-brace-format
 msgid "Updating S.T.A.L.K.E.R. G.A.M.M.A. in {root}"
+msgstr ""
+
+msgid "updating"
 msgstr ""
 
 #, python-brace-format
@@ -419,14 +449,6 @@ msgstr ""
 msgid "contains a control character ({escaped})"
 msgstr ""
 
-msgid ""
-"Choose an install directory without control characters (line break, tab, "
-"NUL) in its path."
-msgstr ""
-
-msgid "Unusable directory"
-msgstr ""
-
 msgid "unknown (not installed as a package)"
 msgstr ""
 
@@ -545,6 +567,9 @@ msgid "Removed:"
 msgstr ""
 
 msgid "Dry run — nothing will be deleted."
+msgstr ""
+
+msgid "deleting game data"
 msgstr ""
 
 #, python-brace-format
@@ -748,10 +773,14 @@ msgstr ""
 msgid "neither 7z nor 7zz found in PATH"
 msgstr ""
 
-msgid "libunrar detected"
+msgid "libunrar absent from the ldconfig cache"
 msgstr ""
 
-msgid "libunrar absent from the ldconfig cache"
+#, python-brace-format
+msgid ""
+"version {version} detected, vulnerable to CVE-2022-30333 (a .rar archive "
+"can write outside the extraction directory); sources {minimum}+ required "
+"(upstream UnRAR 6.12)"
 msgstr ""
 
 msgid "Vulkan GPU"
@@ -1058,6 +1087,12 @@ msgstr ""
 msgid "Choose the install directory"
 msgstr ""
 
+msgid "Unusable directory"
+msgstr ""
+
+msgid "OK"
+msgstr ""
+
 msgid "G.A.M.M.A modpack (incremental download)"
 msgstr ""
 
@@ -1131,9 +1166,6 @@ msgid "Import failed"
 msgstr ""
 
 msgid "Install adopted — press the main button to finish the setup."
-msgstr ""
-
-msgid "OK"
 msgstr ""
 
 msgid "Community project, not affiliated with GSC Game World"
@@ -1317,7 +1349,13 @@ msgid "  removed cached archive {path}"
 msgstr ""
 
 #, python-brace-format
-msgid "Scanned: {files} files, {size} GiB in {path}"
+msgid "Scanned: {files} files, {size} GiB read in {path}"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Of those, {count} were unchanged in size and date and were not reread — "
+"`verify --full` rehashes everything instead."
 msgstr ""
 
 #, python-brace-format
@@ -1398,6 +1436,16 @@ msgid ""
 msgstr ""
 
 msgid ""
+"Full scan: every file is read and rehashed, nothing is taken on trust "
+"from its size and date."
+msgstr ""
+
+msgid ""
+"The reference predates size/date recording: everything is rehashed this "
+"once, and the new reference will make the next run much quicker."
+msgstr ""
+
+msgid ""
 "Run this check again after an update, or the day the game starts "
 "misbehaving — that is when the comparison is worth something."
 msgstr ""
@@ -1421,6 +1469,12 @@ msgid ""
 "Run the check again to detect changes since now."
 msgstr ""
 
+#, python-brace-format
+msgid ""
+"Reference upgraded with each file's size and date ({count} files) — the "
+"next check only rereads what moved."
+msgstr ""
+
 msgid ""
 "Nothing can be repaired automatically: none of the damaged mods comes "
 "from the modpack, or they hold files you added. They are listed above, "
@@ -1440,6 +1494,24 @@ msgstr ""
 msgid ""
 "{count} mod(s) repaired and the reference re-recorded.\n"
 "Repaired: {names}"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"⚠ Missing VC++ runtime in the shared prefix (concrt140.dll / msvcp140.dll"
+" / vcruntime140.dll not found): this fails before USVFS even gets a "
+"chance to mount.\n"
+"→ `stalker-gamma-linux prefix-doctor --repair` (reinstalls the missing "
+"verbs). See {doc}."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"⚠ This prefix was built by a different Proton/Wine build than the one "
+"currently configured: wineserver refuses to run against it (version "
+"mismatch) — this fails before USVFS even gets a chance to mount.\n"
+"→ `stalker-gamma-linux install --only prefix` (rebuilds the shared prefix"
+" from scratch with the configured Proton build). See {doc}."
 msgstr ""
 
 #, python-brace-format
@@ -1560,6 +1632,10 @@ msgid "Launching Anomaly via MO2 (« {executable} », USVFS)…"
 msgstr ""
 
 #, python-brace-format
+msgid "Game launched, detached from this terminal. Launch log: {log}"
+msgstr ""
+
+#, python-brace-format
 msgid ""
 "Warning: {error}\n"
 "Opening MO2 without configuring the game path."
@@ -1648,10 +1724,20 @@ msgid ""
 "the Proton version."
 msgstr ""
 
+msgid "Prefix session: free"
+msgstr ""
+
+#, python-brace-format
+msgid "Prefix session: busy — {name} (pid {pid})"
+msgstr ""
+
 msgid "The prefix is healthy."
 msgstr ""
 
 msgid "The prefix needs repairing (--repair)."
+msgstr ""
+
+msgid "repairing the prefix"
 msgstr ""
 
 #, python-brace-format
@@ -1738,11 +1824,24 @@ msgstr ""
 
 #, python-brace-format
 msgid ""
+"Remote response too large for {url} (limit: {max_bytes} bytes).\n"
+"→ This URL is only expected to serve small metadata (checksum file, "
+"GitHub API JSON, modlist.txt). Aborted before buffering more into memory."
+msgstr ""
+
+#, python-brace-format
+msgid ""
 "Invalid SHA-512 checksum for {release}: archive rejected and deleted.\n"
 "Expected: {expected}\n"
 "Got:      {actual}\n"
 "→ Corrupted or tampered download. Retry; if the error persists, check "
 "your connection and the upstream release on GitHub."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"{name} is still running (pid {pid}) — close {what} before {action}.\n"
+"→ Sure it's safe anyway? Rerun with --force."
 msgstr ""
 
 #, python-brace-format
@@ -1784,6 +1883,21 @@ msgid ""
 "Log: {log}"
 msgstr ""
 
+msgid "a Wine process using this prefix"
+msgstr ""
+
+msgid "Mod Organizer 2 and/or the game"
+msgstr ""
+
+msgid "Mod Organizer 2"
+msgstr ""
+
+msgid "it"
+msgstr ""
+
+msgid "the game (Anomaly)"
+msgstr ""
+
 #, python-brace-format
 msgid ""
 "Unexpected umu-launcher archive {release}: `{member}` is not an "
@@ -1798,6 +1912,15 @@ msgstr ""
 
 #, python-brace-format
 msgid "Unexpected umu-launcher zipapp {release}: no `__main__.py` entry point."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Invalid SHA-256 checksum for umu-launcher {release}: archive rejected.\n"
+"Expected: {expected}\n"
+"Got:      {actual}\n"
+"The pinned fallback release changed or the download was tampered with — "
+"do not install it."
 msgstr ""
 
 #, python-brace-format

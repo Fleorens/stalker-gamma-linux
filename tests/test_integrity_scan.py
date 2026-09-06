@@ -23,6 +23,7 @@ import pytest
 
 from stalker_gamma_linux.integrity import scan
 from stalker_gamma_linux.integrity.errors import IntegrityCancelledError
+from stalker_gamma_linux.integrity.fingerprint import FileStat, KnownFile
 from tests.conftest import RecordingReporter
 
 # `chmod 000` n'empêche pas root de lire : les deux cas « illisible » ne veulent
@@ -43,6 +44,21 @@ class FakeClock:
         value = self.now
         self.now += self.step
         return value
+
+
+def _reference_of(result: scan.ScanResult) -> dict[str, KnownFile]:
+    """La référence qu'un scan produirait, telle que `baseline` la relira."""
+    return {
+        relative: KnownFile(digest=digest, stat=result.stats[relative])
+        for relative, digest in result.digests.items()
+    }
+
+
+def _rewrite_keeping_mtime(path: Path, payload: bytes) -> None:
+    """Réécrit un fichier en lui rendant sa date — la corruption que le défaut ne voit pas."""
+    before = path.stat()
+    path.write_bytes(payload)
+    os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
 
 
 def _mod_tree(root: Path) -> Path:
@@ -446,3 +462,167 @@ class TestScanProgressConcurrency:
 
         assert len(reporter.of_kind("progress")) == readings // 2
         assert progress.total_bytes == readings * 3
+
+
+class TestShortCircuit:
+    """Ne pas relire ce qui n'a pas bougé — et le repli sûr partout ailleurs.
+
+    Le compromis est écrit noir sur blanc dans `fingerprint` : tout ce qui passe
+    par une écriture ordinaire déplace la taille ou la date, donc est relu ; une
+    réécriture qui remet la date à la main ne l'est pas. Les deux sont testés
+    ici, le second parce qu'une garantie qu'on n'a pas doit être visible dans la
+    suite plutôt que découverte par un utilisateur.
+    """
+
+    def test_fichier_inchange_nest_pas_rehache(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        mods = _mod_tree(tmp_path)
+        first = scan.scan_tree(mods, reporter=reporter)
+
+        second = scan.scan_tree(mods, reference=_reference_of(first), reporter=reporter)
+
+        assert set(second.reused) == set(first.digests)
+        # Pas un octet lu : c'est exactement ce que le court-circuit achète.
+        assert second.total_bytes == 0
+        assert second.digests == first.digests
+
+    def test_taille_modifiee_est_rehachee_et_detectee(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        mods = _mod_tree(tmp_path)
+        first = scan.scan_tree(mods, reporter=reporter)
+        touched = mods / "101- Mod A" / "gamedata" / "a.ltx"
+        touched.write_bytes(b"alpha corrompu, plus long")
+
+        second = scan.scan_tree(mods, reference=_reference_of(first), reporter=reporter)
+
+        assert second.reused == ("102- Mod B/b.dds",)
+        assert (
+            second.digests["101- Mod A/gamedata/a.ltx"]
+            != first.digests["101- Mod A/gamedata/a.ltx"]
+        )
+        assert (
+            second.digests["101- Mod A/gamedata/a.ltx"]
+            == hashlib.md5(b"alpha corrompu, plus long", usedforsecurity=False).hexdigest()
+        )
+
+    def test_mtime_modifiee_seule_suffit_a_faire_rehacher(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        """Même contenu, même taille : la date seule doit suffire à déclencher la relecture."""
+        mods = _mod_tree(tmp_path)
+        first = scan.scan_tree(mods, reporter=reporter)
+        touched = mods / "102- Mod B" / "b.dds"
+        before = touched.stat()
+        os.utime(touched, ns=(before.st_atime_ns, before.st_mtime_ns + 1_000_000_000))
+
+        second = scan.scan_tree(mods, reference=_reference_of(first), reporter=reporter)
+
+        assert second.reused == ("101- Mod A/gamedata/a.ltx",)
+        assert second.total_bytes == len(b"beta")
+        # Relu, et identique : la date change, le verdict ne bouge pas.
+        assert second.digests == first.digests
+
+    def test_taille_identique_mais_contenu_different_est_detecte(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        """Le cas courant d'une corruption : l'écriture a déplacé la date, donc on relit."""
+        mods = _mod_tree(tmp_path)
+        first = scan.scan_tree(mods, reporter=reporter)
+        (mods / "102- Mod B" / "b.dds").write_bytes(b"BETA")
+
+        second = scan.scan_tree(mods, reference=_reference_of(first), reporter=reporter)
+
+        assert "102- Mod B/b.dds" not in second.reused
+        assert second.digests["102- Mod B/b.dds"] != first.digests["102- Mod B/b.dds"]
+
+    def test_corruption_qui_preserve_taille_et_date_passe_au_travers(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        """La contrepartie assumée, et la porte de sortie : rescanner sans référence."""
+        mods = _mod_tree(tmp_path)
+        first = scan.scan_tree(mods, reporter=reporter)
+        _rewrite_keeping_mtime(mods / "102- Mod B" / "b.dds", b"BETA")
+
+        court_circuite = scan.scan_tree(mods, reference=_reference_of(first), reporter=reporter)
+        complet = scan.scan_tree(mods, reporter=reporter)
+
+        assert court_circuite.digests["102- Mod B/b.dds"] == first.digests["102- Mod B/b.dds"]
+        assert complet.digests["102- Mod B/b.dds"] != first.digests["102- Mod B/b.dds"]
+
+    def test_sans_reference_tout_est_rehache(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        mods = _mod_tree(tmp_path)
+        scan.scan_tree(mods, reporter=reporter)
+
+        second = scan.scan_tree(mods, reference=None, reporter=reporter)
+
+        assert second.reused == ()
+        assert second.total_bytes == len(b"alpha") + len(b"beta")
+
+    def test_reference_sans_taille_ni_date_fait_tout_rehacher(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        """Une référence d'ancien format ne produit aucune entrée : repli sûr, tout est relu."""
+        mods = _mod_tree(tmp_path)
+
+        result = scan.scan_tree(mods, reference={}, reporter=reporter)
+
+        assert result.reused == ()
+        assert result.total_bytes == len(b"alpha") + len(b"beta")
+
+    def test_une_reference_partielle_ne_court_circuite_que_ce_quelle_couvre(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        mods = _mod_tree(tmp_path)
+        first = scan.scan_tree(mods, reporter=reporter)
+        partial = {"102- Mod B/b.dds": _reference_of(first)["102- Mod B/b.dds"]}
+
+        second = scan.scan_tree(mods, reference=partial, reporter=reporter)
+
+        assert second.reused == ("102- Mod B/b.dds",)
+        assert second.total_bytes == len(b"alpha")
+
+    def test_les_stats_couvrent_aussi_les_fichiers_non_relus(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        """Sinon la référence suivante perdrait sa colonne pour tout ce qui n'a pas bougé."""
+        mods = _mod_tree(tmp_path)
+        first = scan.scan_tree(mods, reporter=reporter)
+
+        second = scan.scan_tree(mods, reference=_reference_of(first), reporter=reporter)
+
+        assert second.stats == first.stats
+        assert set(second.stats) == set(second.digests)
+        assert second.stats["102- Mod B/b.dds"] == FileStat(
+            size=len(b"beta"), mtime_ns=(mods / "102- Mod B" / "b.dds").stat().st_mtime_ns
+        )
+
+    def test_un_fichier_reference_mais_illisible_reste_illisible(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        """Le court-circuit ne doit pas ressusciter un fichier disparu depuis la référence."""
+        mods = _mod_tree(tmp_path)
+        first = scan.scan_tree(mods, reporter=reporter)
+        (mods / "102- Mod B" / "b.dds").unlink()
+
+        second = scan.scan_tree(mods, reference=_reference_of(first), reporter=reporter)
+
+        assert "102- Mod B/b.dds" not in second.digests
+        assert second.reused == ("101- Mod A/gamedata/a.ltx",)
+
+    def test_le_pool_ne_change_rien_au_court_circuit(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        """Même invariant que le reste du module : le nombre de fils ne change pas le résultat."""
+        mods = _wide_tree(tmp_path, directories=3, per_directory=4)
+        reference = _reference_of(scan.scan_tree(mods, reporter=reporter, workers=1))
+
+        sequential = scan.scan_tree(mods, reference=reference, reporter=reporter, workers=1)
+        parallel = scan.scan_tree(mods, reference=reference, reporter=reporter, workers=8)
+
+        assert sequential.reused == parallel.reused
+        assert sequential.digests == parallel.digests
+        assert parallel.total_bytes == 0

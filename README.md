@@ -165,7 +165,14 @@ after downloading its 130 GB. Add `--dry-run` to see what it would adopt.
 verify` hashes every file under `gamma/mods` and compares it to a reference
 recorded on its first run (`gamma-md5.txt`, next to the install). It reports
 what was modified, what disappeared and what you added, and attributes each
-finding to the mod it belongs to. `--repair` then removes just the damaged mods
+finding to the mod it belongs to. After the first run it only rereads the files
+whose size or modification date moved, which takes a check that used to run for
+minutes down to seconds — that catches everything written through the
+filesystem (a truncated write, a file overwritten by another tool, an
+interrupted extraction), and the report says how many files it took on trust.
+Add `--full` to reread and rehash everything: that is the mode for content
+altered *underneath* the filesystem, such as bit rot on a disk without
+checksums, which leaves size and date untouched. `--repair` then removes just the damaged mods
 that come from the modpack — folder plus cached archive — reruns the engine and
 records a new reference. Only those mods are re-downloaded, but the engine
 reinstalls the whole modpack over your mods folder, so other mods may be

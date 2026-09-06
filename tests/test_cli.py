@@ -166,11 +166,20 @@ def test_build_parser_verify_flags() -> None:
     assert args.repair is True
 
 
-def test_main_dispatches_to_verify(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[tuple[Path | None, bool]] = []
+def test_build_parser_verify_full_est_optionnel_et_faux_par_defaut() -> None:
+    """Le court-circuit taille/date est le défaut ; `--full` est le mode explicite."""
+    default = cli.build_parser().parse_args(["verify"])
+    full = cli.build_parser().parse_args(["verify", "--full"])
 
-    def fake_run_verify(target: Path | None, *, repair_damaged: bool) -> int:
-        calls.append((target, repair_damaged))
+    assert default.full is False
+    assert full.full is True
+
+
+def test_main_dispatches_to_verify(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[Path | None, bool, bool]] = []
+
+    def fake_run_verify(target: Path | None, *, repair_damaged: bool, full_scan: bool) -> int:
+        calls.append((target, repair_damaged, full_scan))
         return 0
 
     monkeypatch.setattr(cli, "run_verify", fake_run_verify)
@@ -178,7 +187,20 @@ def test_main_dispatches_to_verify(monkeypatch: pytest.MonkeyPatch) -> None:
     exit_code = cli.main(["verify", "--target", "/tmp/game", "--repair"])
 
     assert exit_code == 0
-    assert calls == [(Path("/tmp/game"), True)]
+    assert calls == [(Path("/tmp/game"), True, False)]
+
+
+def test_main_transmet_full_a_verify(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[bool] = []
+
+    def fake_run_verify(target: Path | None, *, repair_damaged: bool, full_scan: bool) -> int:
+        calls.append(full_scan)
+        return 0
+
+    monkeypatch.setattr(cli, "run_verify", fake_run_verify)
+
+    assert cli.main(["verify", "--full"]) == 0
+    assert calls == [True]
 
 
 def test_build_parser_mo2_default_target() -> None:
