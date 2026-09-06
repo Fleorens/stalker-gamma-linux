@@ -1,0 +1,11 @@
+# Les actions GitHub sont épinglées sur un SHA de commit (voir les
+# workflows) : un tag mobile ne protège pas contre une réécriture en amont
+# (CWE-1357 / CWE-494). Épingler sans jamais mettre à jour ne fait que
+# déplacer le problème — Dependabot ouvre les PR de bump (nouveau SHA,
+# commentaire de tag à jour) pour que ces épingles restent maintenues.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
