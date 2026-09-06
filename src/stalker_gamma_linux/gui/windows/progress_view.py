@@ -8,13 +8,22 @@ Deux rendus selon la tâche :
 
 Pure wiring GTK au-dessus de `gui.worker.BackgroundTask` : ce module ne
 connaît rien des opérations elles-mêmes, il rend les événements de la queue.
+
+Le rendu obéit à deux règles, toutes deux imposées par la durée réelle d'une
+installation (plusieurs heures, ~400 mods, des rafales de centaines de lignes) :
+le drainage de la queue est intégral mais le **rendu** est plafonné par tick
+(`_POLL_EVENT_BUDGET`), pour que le fil principal reste disponible — le bouton
+« Annuler » est le seul contrôle de cet écran ; et la console est **bornée**
+(`_LOG_MAX_LINES`), le journal complet restant sur disque.
 """
 
 from __future__ import annotations
 
 import queue
 import time
+from collections import deque
 from collections.abc import Callable, Sequence
+from itertools import islice
 
 import gi
 
@@ -40,6 +49,36 @@ from stalker_gamma_linux.i18n import _  # noqa: E402
 _POLL_INTERVAL_MS = 80
 _PULSE_INTERVAL_MS = 200
 _CLOCK_INTERVAL_MS = 1000
+
+# Nombre maximal d'événements *rendus* par tick de `_on_poll`.
+#
+# gamma-launcher sort par rafales : des centaines de lignes d'un coup, plusieurs
+# fois par mod. Sans plafond, tout le paquet était rendu dans un seul tour de
+# boucle principale, et pendant ce temps rien d'autre ne passait — ni le
+# repeint, ni le clic sur « Annuler », seul contrôle de cet écran.
+#
+# 200 à 80 ms font 2500 lignes/s, très au-dessus du débit réel du moteur : en
+# marche normale la queue est vidée en entier à chaque tick et rien n'est
+# différé. Pendant une rafale, le tick coûte ~5 ms (mesuré, timeline de quatre
+# phases repliée et redessinée à chaque événement) sur les 80 disponibles : la
+# boucle principale garde 90 % de son temps pour repeindre et pour le clic. Le
+# retard est repris aux ticks suivants, sans perdre un seul événement.
+_POLL_EVENT_BUDGET = 200
+
+# Plafond de la console, en lignes. Une install complète (~400 mods, plusieurs
+# heures) pousse des centaines de milliers de lignes : un `Gtk.TextBuffer` non
+# borné les garde toutes, avec la mise en forme de chacune. 5000 lignes font une
+# cinquantaine d'écrans de défilement — bien plus que ce qu'on remonte pour
+# comprendre ce qui vient d'échouer. La CLI borne déjà ses tampons de la même
+# façon (`deque(maxlen=...)` dans `engine/process.py` et `prefix/process.py`).
+#
+# La troncature ne concerne QUE l'affichage : le journal complet reste écrit sur
+# disque par `QueueReporter`, qui double chaque événement vers le journal
+# applicatif sous `~/.local/state/` (cf. gui/worker.py).
+_LOG_MAX_LINES = 5000
+# Marge avant de couper : on supprime par blocs plutôt qu'à chaque ligne, une
+# suppression dans un `TextBuffer` invalidant la géométrie du TextView.
+_LOG_TRIM_CHUNK = 500
 
 _STATUS_ICON = {
     phases.PhaseStatus.PENDING: "media-record-symbolic",
@@ -130,6 +169,11 @@ class ProgressPage(Adw.NavigationPage):
         self._phase_rows: list[_PhaseRow] = []
         self._error_message = ""
         self._error_url: str | None = None
+        # Événements sortis de la queue mais pas encore rendus : le drainage
+        # n'est pas plafonné (il ne coûte rien), le rendu l'est.
+        self._backlog: deque[WorkerEvent] = deque()
+        self._task_end: DoneEvent | FailedEvent | None = None
+        self._scroll_pending = False
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
         for side in ("top", "bottom", "start", "end"):
@@ -222,7 +266,22 @@ class ProgressPage(Adw.NavigationPage):
         )
         scroller = Gtk.ScrolledWindow(child=self._log_view, min_content_height=140, vexpand=True)
         scroller.add_css_class("console")
+        # `scroll_to_mark` seul ne suffit pas à rester collé au bas : GTK valide
+        # la hauteur des lignes par petits paquets, bien après l'insertion, et
+        # `upper` continue donc de grandir une fois le défilement effectué — la
+        # console s'arrêtait plusieurs dizaines de lignes trop haut (déjà le cas
+        # avec le défilement par ligne, en pire : ~255 lignes de retard mesurées).
+        # On recale donc la vue à chaque révision de la géométrie : c'est le même
+        # comportement perçu qu'avant — la console suit la dernière ligne — mais
+        # au rythme de GTK, pas à celui de la rafale.
+        scroller.get_vadjustment().connect("changed", self._pin_console_to_bottom)
         return scroller
+
+    @staticmethod
+    def _pin_console_to_bottom(adjustment: Gtk.Adjustment) -> None:
+        bottom = adjustment.get_upper() - adjustment.get_page_size()
+        if adjustment.get_value() != bottom:
+            adjustment.set_value(bottom)
 
     # -- événements ----------------------------------------------------------
 
@@ -232,7 +291,35 @@ class ProgressPage(Adw.NavigationPage):
         self._task.cancel()
 
     def _append_log(self, message: str) -> None:
+        # Pas de `scroll_to_mark` ici : défiler à chaque ligne force GTK à
+        # revalider la géométrie du TextView à chaque insertion, et une rafale
+        # en compte des centaines. Le défilement a lieu une seule fois par tick,
+        # après le drainage (`_scroll_console`) — la console suit donc toujours
+        # la dernière ligne, en une validation au lieu de N.
         self._log_buffer.insert(self._log_buffer.get_end_iter(), f"{message}\n")
+        self._scroll_pending = True
+        self._trim_log()
+
+    def _trim_log(self) -> None:
+        """Borne la console : au-delà du plafond, les plus vieilles lignes partent.
+
+        Ne concerne QUE l'affichage — le journal complet reste sur disque (cf.
+        `_LOG_MAX_LINES`). Sans ça, le tampon d'une install complète atteignait
+        des centaines de milliers de lignes, jamais relues et jamais libérées.
+        """
+        line_count = self._log_buffer.get_line_count()
+        if line_count <= _LOG_MAX_LINES + _LOG_TRIM_CHUNK:
+            return
+        found, cut = self._log_buffer.get_iter_at_line(line_count - _LOG_MAX_LINES)
+        if not found:
+            return
+        self._log_buffer.delete(self._log_buffer.get_start_iter(), cut)
+
+    def _scroll_console(self) -> None:
+        """Suit la dernière ligne — une fois par tick, jamais une fois par ligne."""
+        if not self._scroll_pending:
+            return
+        self._scroll_pending = False
         self._log_view.scroll_to_mark(self._log_end_mark, 0.0, False, 0.0, 1.0)
 
     def _on_pulse(self) -> bool:
@@ -250,13 +337,63 @@ class ProgressPage(Adw.NavigationPage):
     def _on_poll(self) -> bool:
         if self._finished:
             return False
+        self._drain_events()
+        if self._task_end is not None:
+            self._flush_final()
+        else:
+            # Budget : le reste du retard attend le tick suivant. Rien n'est
+            # perdu, les événements non rendus restent dans `_backlog`.
+            for _ in range(min(_POLL_EVENT_BUDGET, len(self._backlog))):
+                self._handle_event(self._backlog.popleft())
+        self._scroll_console()
+        return not self._finished
+
+    def _drain_events(self) -> None:
+        """Vide la queue vers `_backlog`, sans rien afficher.
+
+        `get_nowait` ne coûte rien (aucun travail GTK) : on prend TOUT à chaque
+        tick. C'est ce qui permet de repérer un `DoneEvent`/`FailedEvent` arrivé
+        derrière une rafale au tick même où il est publié, au lieu d'attendre
+        les dizaines de ticks nécessaires à l'affichage du retard.
+        """
         while True:
             try:
                 event = self._task.events.get_nowait()
             except queue.Empty:
-                break
-            self._handle_event(event)
-        return not self._finished
+                return
+            if isinstance(event, DoneEvent | FailedEvent):
+                self._task_end = event
+            else:
+                self._backlog.append(event)
+
+    def _flush_final(self) -> None:
+        """Solde le retard puis clôt la tâche, dans le tick où la fin est vue.
+
+        Plus rien n'arrivera après la fin de tâche, et la faire attendre derrière
+        une rafale laisserait la fenêtre annoncer « en cours » alors que tout est
+        fini. Le retard est donc soldé d'un coup, mais en deux temps pour ne pas
+        payer l'affichage de milliers de lignes :
+
+        - l'ÉTAT (timeline, statut, bandeau) est replié sur *tous* les événements
+          en attente — aucun n'est ignoré, en particulier l'`error` qui porte le
+          remède et qui serait sinon perdu de vue ;
+        - seules les lignes encore visibles après troncature sont réellement
+          insérées : les plus anciennes, `_trim_log` les supprimerait dans la
+          foulée, et le journal complet est de toute façon sur disque.
+        """
+        assert self._task_end is not None
+        for event in self._backlog:
+            if isinstance(event, ReporterEvent):
+                self._apply_reporter_event(event)
+        self._render_timeline()
+        skipped = max(0, len(self._backlog) - _LOG_MAX_LINES)
+        for event in islice(self._backlog, skipped, None):
+            if isinstance(event, ReporterEvent):
+                self._log_reporter_event(event)
+        self._backlog.clear()
+        end = self._task_end
+        self._task_end = None
+        self._handle_event(end)
 
     def _handle_event(self, event: WorkerEvent) -> None:
         if isinstance(event, ReporterEvent):
@@ -270,17 +407,30 @@ class ProgressPage(Adw.NavigationPage):
             self._handle_done(1)
 
     def _handle_reporter_event(self, event: ReporterEvent) -> None:
+        self._apply_reporter_event(event)
+        self._render_timeline()
+        self._log_reporter_event(event)
+
+    def _apply_reporter_event(self, event: ReporterEvent) -> None:
+        """État de l'écran (timeline, titre, bandeau) — sans écrire en console.
+
+        Séparé de l'écriture en console pour que `_flush_final` puisse replier
+        l'état d'une rafale entière sans en payer le rendu ligne à ligne.
+        """
         if self._timeline is not None:
             self._timeline = self._timeline.apply(event)
-            self._render_timeline()
         if event.kind in ("step", "skip"):
             self._status_label.set_label(event.message)
+        elif event.kind == "error":
+            self._show_error(event.message, event.hint)
+
+    def _log_reporter_event(self, event: ReporterEvent) -> None:
+        if event.kind in ("step", "skip"):
             self._append_log(f"[{event.index}] {event.message}" if event.index else event.message)
         elif event.kind == "error":
             self._append_log(_("Error: {message}").format(message=event.message))
             if event.hint is not None:
                 self._append_log(f"→ {event.hint}")
-            self._show_error(event.message, event.hint)
         else:
             self._append_log(event.message)
 

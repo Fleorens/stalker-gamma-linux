@@ -436,6 +436,17 @@ généré de façon déterministe par `scripts/generate_background.py`
   une `queue.Queue`. Le côté GTK (`ProgressPage`) la draine via
   `GLib.timeout_add` (poll, 80 ms) — c'est le seul point de contact avec la
   boucle GTK, tout le reste de `worker.py` est du `threading`/`queue` pur.
+  Le drainage est intégral (sortir un événement de la queue ne coûte rien),
+  mais le **rendu** est plafonné à `_POLL_EVENT_BUDGET` événements par tick :
+  gamma-launcher sort par rafales de centaines de lignes, et les rendre toutes
+  dans un seul tour de boucle figeait la fenêtre (138 ms mesurés sur une rafale
+  de 5000 lignes, 24 ms avec le budget) — or « Annuler » est le seul contrôle
+  de cet écran. Le retard est repris aux ticks suivants ; une fin de tâche vue
+  derrière une rafale est traitée dans le tick même où elle arrive, sans
+  attendre l'affichage du retard. La console est bornée à `_LOG_MAX_LINES`
+  (le tampon atteignait sinon des centaines de milliers de lignes sur une
+  install complète) : la troncature ne concerne **que** l'affichage, le journal
+  complet restant écrit sur disque par `QueueReporter`.
 - **`prefs.py`** : préférences GUI (chemin d'installation, version
   Proton-GE, création du raccourci) en TOML sous
   `~/.config/stalker-gamma-linux/gui-prefs.toml` (réutilise
