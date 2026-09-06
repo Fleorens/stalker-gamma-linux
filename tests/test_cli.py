@@ -354,3 +354,56 @@ def test_main_dispatches_to_uninstall_with_yes(monkeypatch: pytest.MonkeyPatch) 
     assert cli.main(["uninstall", "--game-data", "--yes"]) == 0
     assert captured["assume_yes"] is True
     assert captured["game_data"] is True
+
+
+class TestRefusDesChemins:
+    """`--target`/`source` porteurs d'un caractère de contrôle : refus avant tout travail.
+
+    Le refus tient à la frontière (`cli._validate_path_arguments`), donc AUCUNE
+    commande n'est appelée — c'est ce que vérifient ces tests, plutôt que le seul
+    code de sortie.
+    """
+
+    @pytest.mark.parametrize("payload", ["/tmp/a\nExec=/bin/sh", "/tmp/a\x00b", "/tmp/a\x7fb"])
+    def test_shortcut_refuse_sans_appeler_la_commande(
+        self, payload: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[Path | None] = []
+        monkeypatch.setattr(cli, "run_shortcut", lambda target: calls.append(target) or 0)
+
+        assert cli.main(["shortcut", "--target", payload]) == 1
+        assert calls == []
+
+    def test_import_refuse_aussi_sur_source(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """`source` est un chemin utilisateur au même titre que `--target`."""
+        calls: list[tuple[Path, Path | None]] = []
+
+        def fake_run_import(source: Path, target: Path | None, *, dry_run: bool) -> int:
+            calls.append((source, target))
+            return 0
+
+        monkeypatch.setattr(cli, "run_import", fake_run_import)
+
+        assert cli.main(["import", "/tmp/a\nExec=/bin/sh"]) == 1
+        assert calls == []
+
+    def test_un_chemin_normal_passe(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        calls: list[Path | None] = []
+        monkeypatch.setattr(cli, "run_shortcut", lambda target: calls.append(target) or 0)
+
+        assert cli.main(["shortcut", "--target", "/tmp/game"]) == 0
+        assert calls == [Path("/tmp/game")]
+
+    def test_aucun_fichier_desktop_nest_ecrit(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Critère d'acceptation 1 : sortie en erreur, et rien sur le disque.
+
+        `XDG_DATA_HOME` redirige les chemins freedesktop sous `tmp_path` : si le
+        refus arrivait trop tard, `install_shortcut` y aurait déposé le
+        `.desktop` piégé (qu'il rend ensuite exécutable, chmod 0o755).
+        """
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+
+        assert cli.main(["shortcut", "--target", "/tmp/a\nExec=/bin/sh"]) == 1
+        assert not (tmp_path / "applications").exists()

@@ -78,3 +78,30 @@ def test_with_proton_release_empty_string_means_auto() -> None:
     updated = prefs.Preferences(proton_release="GE-Proton10-8").with_proton_release("")
 
     assert updated.proton_release is None
+
+
+def test_load_preferences_ignore_un_install_path_avec_caractere_de_controle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Le TOML est éditable à la main : il ne doit pas rouvrir la brèche du `.desktop`.
+
+    Repli silencieux sur le défaut, conformément au contrat « jamais d'exception »
+    de `load_preferences` (cf. paths_safety.validate_install_target).
+    """
+    config_dir = tmp_path / "config"
+    monkeypatch.setattr(state, "config_dir", lambda: config_dir)
+    config_dir.mkdir(parents=True)
+    prefs.prefs_file().write_text('install_path = "/tmp/a\\nExec=/bin/sh"\n', encoding="utf-8")
+
+    assert prefs.load_preferences().install_path == DEFAULT_INSTALL_TARGET
+
+
+def test_load_preferences_conserve_un_install_path_normal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_dir = tmp_path / "config"
+    monkeypatch.setattr(state, "config_dir", lambda: config_dir)
+    config_dir.mkdir(parents=True)
+    prefs.prefs_file().write_text('install_path = "/mnt/disk/GAMMA"\n', encoding="utf-8")
+
+    assert prefs.load_preferences().install_path == Path("/mnt/disk/GAMMA")

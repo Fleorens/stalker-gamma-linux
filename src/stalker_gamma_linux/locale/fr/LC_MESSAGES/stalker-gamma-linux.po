@@ -489,6 +489,24 @@ msgstr "ne peut pas être résolu : {error}"
 msgid "not a direct child of {parent}"
 msgstr "n'est pas un enfant direct de {parent}"
 
+#, python-brace-format
+msgid "Refusing install path {path}: {reason}"
+msgstr "Chemin d'installation refusé, {path} : {reason}"
+
+#, python-brace-format
+msgid "contains a control character ({escaped})"
+msgstr "contient un caractère de contrôle ({escaped})"
+
+msgid ""
+"Choose an install directory without control characters (line break, tab, "
+"NUL) in its path."
+msgstr ""
+"Choisissez un répertoire d'installation dont le chemin ne contient aucun "
+"caractère de contrôle (saut de ligne, tabulation, NUL)."
+
+msgid "Unusable directory"
+msgstr "Répertoire inutilisable"
+
 msgid "unknown (not installed as a package)"
 msgstr "inconnue (pas installé en tant que paquet)"
 

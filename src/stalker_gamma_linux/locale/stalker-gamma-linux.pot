@@ -411,6 +411,22 @@ msgstr ""
 msgid "not a direct child of {parent}"
 msgstr ""
 
+#, python-brace-format
+msgid "Refusing install path {path}: {reason}"
+msgstr ""
+
+#, python-brace-format
+msgid "contains a control character ({escaped})"
+msgstr ""
+
+msgid ""
+"Choose an install directory without control characters (line break, tab, "
+"NUL) in its path."
+msgstr ""
+
+msgid "Unusable directory"
+msgstr ""
+
 msgid "unknown (not installed as a package)"
 msgstr ""
 

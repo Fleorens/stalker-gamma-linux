@@ -17,6 +17,7 @@ from stalker_gamma_linux.integrity import run_verify
 from stalker_gamma_linux.mo2 import run_mo2, run_play
 from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
 from stalker_gamma_linux.orchestrator import run_install, run_update
+from stalker_gamma_linux.paths_safety import UnsafeInstallTargetError, validate_install_target
 from stalker_gamma_linux.prefix import run_prefix_doctor
 from stalker_gamma_linux.prefix.umu import run_install_umu
 from stalker_gamma_linux.report_bundle import run_report, version_line
@@ -260,6 +261,23 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _validate_path_arguments(args: argparse.Namespace) -> None:
+    """Contrôle de frontière sur les chemins que l'utilisateur a tapés.
+
+    Fait ici, une fois, plutôt que dans chaque commande : `--target` existe sur
+    neuf sous-commandes et `import` ajoute `source`, mais ils convergent tous
+    vers les mêmes puits ligne à ligne (`.desktop`, `ModOrganizer.ini`). Voir
+    `paths_safety.validate_install_target` pour le détail de l'injection.
+
+    Lève `UnsafeInstallTargetError` ; ne modifie pas `args` (le chemin validé
+    est identique à celui reçu, la validation ne normalise rien).
+    """
+    for name in ("target", "source"):
+        value = getattr(args, name, None)
+        if value is not None:
+            validate_install_target(value)
+
+
 def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "install":
         return run_install(args.target, shortcut=args.shortcut, force=args.force, only=args.only)
@@ -308,6 +326,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     log_path = logging_setup.configure_logging(verbose=args.verbose)
+
+    # Avant toute chose, et hors du `try` ci-dessous : un chemin refusé n'est pas
+    # une « erreur inattendue », il mérite son propre message actionnable.
+    try:
+        _validate_path_arguments(args)
+    except UnsafeInstallTargetError as error:
+        # `output.error` journalise déjà en ERROR : pas de `_logger` en plus.
+        output.error(
+            str(error),
+            hint=_(
+                "Choose an install directory without control characters "
+                "(line break, tab, NUL) in its path."
+            ),
+        )
+        return 1
 
     try:
         return _dispatch(args)

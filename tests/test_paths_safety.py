@@ -244,3 +244,50 @@ class TestValidateRemovableChild:
             paths_safety.validate_removable_child(downloads, "mod.7z")
             == (real / "mod.7z").resolve()
         )
+
+
+class TestValidateInstallTarget:
+    """Refus à la frontière d'un chemin d'install porteur d'un caractère de contrôle.
+
+    Le `\\n` est le cas qui mord : recopié dans `Path=` du `.desktop`, il y ouvre
+    une seconde clé `Exec=` — voir `TestDesktopEntryInjection` côté
+    tests/test_desktop_entry.py pour le bout de chaîne.
+    """
+
+    def test_chemin_normal_accepte(self) -> None:
+        target = Path("/home/user/Games/stalker-gamma")
+
+        assert paths_safety.validate_install_target(target) == target
+
+    def test_accents_et_espaces_acceptes(self) -> None:
+        """Rien d'imprimable n'est refusé : seuls les caractères de contrôle le sont."""
+        target = Path("/home/user/Jeux préférés/S.T.A.L.K.E.R. GAMMA")
+
+        assert paths_safety.validate_install_target(target) == target
+
+    def test_saut_de_ligne_refuse(self) -> None:
+        target = Path("/tmp/a\nExec=/bin/sh")
+
+        with pytest.raises(paths_safety.UnsafeInstallTargetError) as excinfo:
+            paths_safety.validate_install_target(target)
+
+        assert excinfo.value.path == target
+
+    def test_nul_refuse(self) -> None:
+        with pytest.raises(paths_safety.UnsafeInstallTargetError):
+            paths_safety.validate_install_target(Path("/tmp/a\x00b"))
+
+    @pytest.mark.parametrize("char", ["\r", "\t", "\x0b", "\x1b", "\x1f", "\x7f"])
+    def test_tous_les_caracteres_de_controle_refuses(self, char: str) -> None:
+        with pytest.raises(paths_safety.UnsafeInstallTargetError):
+            paths_safety.validate_install_target(Path(f"/tmp/a{char}b"))
+
+    def test_le_message_derreur_tient_sur_une_ligne(self) -> None:
+        """Réafficher le chemin brut rejouerait l'injection dans le terminal et le log."""
+        error = paths_safety.UnsafeInstallTargetError(Path("/tmp/a\nb"), "raison")
+
+        assert "\n" not in str(error)
+        assert "\\n" in str(error)
+
+    def test_reason_est_none_pour_un_chemin_sur(self) -> None:
+        assert paths_safety.unsafe_install_target_reason(Path("/home/user/gamma")) is None

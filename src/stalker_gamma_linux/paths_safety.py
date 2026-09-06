@@ -1,6 +1,6 @@
-"""Garde-fous de chemin avant toute suppression (`uninstall --game-data`, `verify --repair`).
+"""Garde-fous sur les chemins que l'utilisateur nous confie.
 
-Deux familles de cibles, deux niveaux de garde :
+Trois familles de cibles, trois niveaux de garde :
 
 1. **La racine d'installation** (`--target` d'`uninstall --game-data`) est
    fournie par l'utilisateur sans aucune contrainte de forme : une faute de
@@ -13,8 +13,13 @@ Deux familles de cibles, deux niveaux de garde :
    moteur. Un `..`, un séparateur de chemin ou un lien symbolique suffirait à
    faire sortir le `rmtree` du dossier prévu. Voir
    `tasks/T12-integrite-mods-installes.md`.
+3. **Le chemin d'installation lui-même** (`--target`, le `source` d'`import`, le
+   sélecteur de dossier de la GUI) n'est pas seulement une cible de suppression :
+   il est recopié dans des formats ligne à ligne (`.desktop`, `ModOrganizer.ini`)
+   où un caractère de contrôle ouvre une clé supplémentaire. Voir
+   `validate_install_target` en fin de module.
 
-Dans les deux cas le refus doit être **structurel** — un ensemble de règles
+Dans les trois cas le refus doit être **structurel** — un ensemble de règles
 qu'aucune valeur ne peut contourner — et non une convention d'interface
 (`--dry-run`, l'affichage du plan) que l'utilisateur peut accepter par réflexe.
 
@@ -236,3 +241,95 @@ def validate_removable_child(parent: Path, name: str) -> Path | None:
             resolved, _("not a direct child of {parent}").format(parent=resolved_parent)
         )
     return resolved
+
+
+# Caractères de contrôle C0 (`\x00`-`\x1f`, dont `\n` et `\r`) et DEL (`\x7f`).
+# Le noyau Linux n'interdit dans un nom de fichier que `/` et `\0` : un chemin
+# porteur d'un `\n` est parfaitement créable et manipulable, et arrive tel quel
+# jusqu'à nous par `--target` (argv accepte `\n`) ou par le sélecteur de dossier
+# de la GUI. `\0` ne peut pas venir d'argv (execve coupe à la première), mais
+# vient du TOML des préférences ou d'un appelant programmatique : les deux sont
+# traités ici de la même façon, un caractère de contrôle n'ayant aucun usage
+# légitime dans un chemin d'installation.
+_CONTROL_CHARS: frozenset[str] = frozenset(chr(code) for code in (*range(0x20), 0x7F))
+
+# Échappe UNIQUEMENT les caractères de contrôle : un `é` dans le chemin doit
+# rester lisible dans le message d'erreur, seul l'invisible doit devenir visible.
+_CONTROL_ESCAPE_TABLE = str.maketrans(
+    {char: char.encode("unicode_escape").decode("ascii") for char in _CONTROL_CHARS}
+)
+
+
+def _escape_control_chars(text: str) -> str:
+    """`text` avec ses caractères de contrôle rendus visibles (`\\n`, `\\x00`)."""
+    return text.translate(_CONTROL_ESCAPE_TABLE)
+
+
+class UnsafeInstallTargetError(Exception):
+    """Chemin d'installation porteur d'un caractère qu'aucun de ses puits ne sait écrire.
+
+    Porte le chemin concerné et la raison du refus, comme `UnsafeWipeTargetError`,
+    pour un message clair côté CLI/GUI sans que l'appelant ait à reconstruire le
+    contexte.
+    """
+
+    def __init__(self, path: Path, reason: str) -> None:
+        self.path = path
+        self.reason = reason
+        # Le message échappe le chemin : le réafficher brut rejouerait le saut
+        # de ligne qu'on est justement en train de refuser — le terminal et le
+        # fichier de log sont eux aussi des formats ligne à ligne.
+        super().__init__(
+            _("Refusing install path {path}: {reason}").format(
+                path=_escape_control_chars(str(path)), reason=reason
+            )
+        )
+
+
+def unsafe_install_target_reason(raw: Path) -> str | None:
+    """Motif du refus de `raw` comme chemin d'installation, ou `None` s'il est sûr.
+
+    Pure : ne regarde que la chaîne, jamais le disque. Source unique de vérité
+    derrière `validate_install_target`, gardée publique pour que l'appelant
+    puisse décider sans lever d'exception (la GUI grise un bouton là où la CLI
+    sort en erreur).
+    """
+    for char in str(raw):
+        if char in _CONTROL_CHARS:
+            return _("contains a control character ({escaped})").format(
+                escaped=_escape_control_chars(char)
+            )
+    return None
+
+
+def validate_install_target(raw: Path) -> Path:
+    """Retourne `raw` inchangé, ou lève `UnsafeInstallTargetError`.
+
+    Le chemin d'installation choisi par l'utilisateur (`--target` de la CLI, le
+    `source` d'`import`, le sélecteur de dossier de la GUI) finit recopié tel
+    quel dans deux formats **ligne à ligne** qui n'ont aucune notion
+    d'échappement du saut de ligne :
+
+    - `desktop/entry.py` écrit `Path=` et `Icon=` par simple interpolation, et
+      le quoting `Exec=` de la spec freedesktop couvre `\\ " ` $ %` — mais pas
+      `\\n`, qui n'a tout simplement aucune représentation dans une valeur ;
+    - `mo2/ini.py:set_key` écrit la valeur verbatim après le `=`.
+
+    Un `\\n` dans le chemin y ouvre donc une **seconde clé** : un `--target`
+    fabriqué injecte un `Exec=` supplémentaire dans le `.desktop`, fichier que
+    `desktop/install.py` rend ensuite exécutable (`chmod 0o755`) et enregistre
+    dans le menu applications — exécution de commande arbitraire au prochain
+    clic (CWE-74).
+
+    Le refus est placé **à la frontière** plutôt qu'en échappement dans chaque
+    puits : les puits sont nombreux et le resteront, l'entrée est unique. Et il
+    ne coûte rien à personne — un dossier d'installation légitime n'a aucune
+    raison de contenir un caractère de contrôle.
+
+    Contrairement à `validate_wipe_target`, ne touche pas au disque : utilisable
+    avant même que la cible existe (c'est le cas d'`install`).
+    """
+    reason = unsafe_install_target_reason(raw)
+    if reason is not None:
+        raise UnsafeInstallTargetError(raw, reason)
+    return raw

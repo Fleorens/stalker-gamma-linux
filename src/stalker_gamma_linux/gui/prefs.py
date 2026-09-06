@@ -16,6 +16,7 @@ import tomli_w
 
 from stalker_gamma_linux import state
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
+from stalker_gamma_linux.paths_safety import UnsafeInstallTargetError, validate_install_target
 
 _PREFS_FILENAME = "gui-prefs.toml"
 
@@ -73,11 +74,29 @@ def load_preferences() -> Preferences:
     raw_path = data.get("install_path")
     raw_release = data.get("proton_release")
     return Preferences(
-        install_path=Path(str(raw_path)) if raw_path else DEFAULT_INSTALL_TARGET,
+        install_path=_install_path_or_default(raw_path),
         proton_release=str(raw_release) if raw_release else None,
         create_steam_shortcut=bool(data.get("create_steam_shortcut", False)),
         use_gamemode=bool(data.get("use_gamemode", True)),
     )
+
+
+def _install_path_or_default(raw_path: object) -> Path:
+    """Chemin d'install du fichier, ou le défaut s'il est absent ou inutilisable.
+
+    Le sélecteur de dossier refuse déjà les caractères de contrôle, mais ce
+    fichier est du TOML éditable à la main (et a pu être écrit avant ce
+    garde-fou) : sans ce filtre, un `install_path` porteur d'un `\\n` repartirait
+    directement dans le `.desktop` (cf. `paths_safety.validate_install_target`).
+    Repli silencieux sur le défaut, conformément au contrat « jamais
+    d'exception » de `load_preferences`.
+    """
+    if not raw_path:
+        return DEFAULT_INSTALL_TARGET
+    try:
+        return validate_install_target(Path(str(raw_path)))
+    except UnsafeInstallTargetError:
+        return DEFAULT_INSTALL_TARGET
 
 
 def save_preferences(prefs: Preferences) -> None:

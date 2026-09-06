@@ -26,6 +26,10 @@ from stalker_gamma_linux.environment.report import build_report  # noqa: E402
 from stalker_gamma_linux.gui import prefs, space  # noqa: E402
 from stalker_gamma_linux.gui.format import format_gib  # noqa: E402
 from stalker_gamma_linux.i18n import _  # noqa: E402
+from stalker_gamma_linux.paths_safety import (  # noqa: E402
+    UnsafeInstallTargetError,
+    validate_install_target,
+)
 
 _VERDICT_CHIP = {
     space.SpaceVerdict.OK: ("chip-ok", _("Enough space")),
@@ -267,11 +271,25 @@ class InstallDialog(Adw.Dialog):
             return
         if folder is None or folder.get_path() is None:
             return
-        self._prefs = self._prefs.with_install_path(Path(str(folder.get_path())))
+        chosen = Path(str(folder.get_path()))
+        try:
+            # Même frontière que `--target` côté CLI : le chemin choisi finit
+            # dans le `.desktop` et le `ModOrganizer.ini`, où un caractère de
+            # contrôle ouvre une clé supplémentaire (cf. `paths_safety`).
+            validate_install_target(chosen)
+        except UnsafeInstallTargetError as error:
+            self._alert(_("Unusable directory"), str(error))
+            return
+        self._prefs = self._prefs.with_install_path(chosen)
         self._refresh()
         # L'espace disque dépend du volume choisi ; les prérequis système, non —
         # mais `check_disk_space` fait partie du rapport, donc on resonde.
         self._start_prerequisites_probe()
+
+    def _alert(self, heading: str, body: str) -> None:
+        dialog = Adw.AlertDialog(heading=heading, body=body)
+        dialog.add_response("ok", _("OK"))
+        dialog.present(self)
 
     def _on_confirm(self, _button: Gtk.Button) -> None:
         updated = self._prefs.with_create_steam_shortcut(self._shortcut_row.get_active())
