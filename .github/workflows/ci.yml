@@ -204,6 +204,73 @@ jobs:
       - name: Scan git history
         run: ./gitleaks git --no-banner --redact --verbose .
 
+  # `constraints.txt` fige la clôture transitive — mais figer n'est pas auditer.
+  # Une version épinglée vieillit sur place : le jour où un avis de sécurité est
+  # publié contre elle, RIEN ne change dans le dépôt, donc rien ne le signale.
+  # C'est le prix exact de la reproductibilité, et ce job est ce qui le paie.
+  # `pip-audit` interroge la base d'avis PyPI/OSV sur l'environnement RÉELLEMENT
+  # installé — les transitives de `gamma-launcher` comprises, que personne ne
+  # surveille de ce côté-ci puisqu'il ne les borne même pas.
+  #
+  # Python 3.11 parce que sa clôture est la plus LARGE : py7zr n'y tire
+  # `backports.zstd` que sous 3.14, où la stdlib fournit `compression.zstd`.
+  # Auditer le plus vieux Python supporté audite donc un sur-ensemble de ce que
+  # voient les trois autres.
+  deps:
+    name: Dépendances (pip-audit)
+    runs-on: ubuntu-latest
+    # Non bloquant, pour l'instant. Un avis peut tomber un mardi matin sur une
+    # transitive que personne ici ne peut corriger : bloquant, ce job arrêterait
+    # toutes les PR en cours pour un problème sans rapport avec elles, et le
+    # premier réflexe serait de le contourner — un job rouge qu'on apprend à
+    # ignorer ne protège plus rien.
+    # À rendre bloquant (supprimer cette ligne) quand les deux conditions sont
+    # réunies : (1) plusieurs semaines de vert d'affilée, donc un bruit de fond
+    # nul, et (2) une porte de sortie écrite pour les alertes non corrigeables
+    # en amont — `--ignore-vuln GHSA-…`, chacune commentée avec sa raison et une
+    # date de revue. Sans (2), la seule issue face au premier blocage serait de
+    # remettre cette ligne, et on aurait juste perdu le temps du détour.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # Même commande d'installation que `install.sh` (`-c constraints.txt`) :
+      # auditer un `pip install .` sans contraintes auditerait un environnement
+      # que personne n'installe jamais. Venv nu ici, en revanche : un runner
+      # `setup-python` n'a de toute façon aucun paquet distro à voir, et un venv
+      # nu garantit que la clôture auditée est complète.
+      - name: Installer la clôture épinglée
+        run: |
+          python -m venv .venv
+          # `setuptools` mis à jour en même temps que pip : ce n'est PAS une de
+          # nos dépendances, c'est ce qu'`ensurepip` dépose dans tout venv 3.11
+          # — et il y a des années de retard (65.5.0, cinq avis de sécurité
+          # ouverts). Sans ça, le job passe rouge en permanence sur un paquet
+          # qu'on n'installe pas, ne livre pas et ne peut pas épingler : le
+          # rapport ne parlerait plus jamais de nos dépendances.
+          .venv/bin/pip install --quiet --upgrade pip setuptools
+          .venv/bin/pip install --quiet -c constraints.txt .
+
+      # pip-audit dans SON venv, pointé sur l'autre via `--path` : installé dans
+      # le même, il auditerait ses propres dépendances (il en tire une douzaine)
+      # et le rapport ne parlerait plus de ce qu'on livre.
+      # Pas de `--strict` : il ferait échouer la collecte sur `gamma-launcher` et
+      # `stalker-gamma-linux`, absents de PyPI par construction. Ils ressortent
+      # « skipped », ce qui est l'information juste — et `gamma-launcher` est
+      # déjà épinglé au commit, donc immuable.
+      - name: pip-audit sur l'environnement installé
+        run: |
+          python -m venv .audit
+          .audit/bin/pip install --quiet pip-audit
+          .audit/bin/pip-audit \
+            --path "$(.venv/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" \
+            --desc=on --progress-spinner=off
+
   # Les noms de paquets pourrissent en silence. Constaté le 2026-08-16 :
   # `p7zip` avait disparu de Fedora et d'Arch (remplacé par `7zip`) et
   # `libunrar5t64` n'existe pas sur Debian 13 — le seul remède qu'on affiche à
