@@ -32,6 +32,7 @@ faite par le pipeline — sans elle (install posée à la main), on répond
 from __future__ import annotations
 
 import hashlib
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
@@ -158,21 +159,33 @@ def check_for_updates(
                 upstream_version=upstream_version,
             )
 
-    # 2. Filet : une définition modifiée sans incrément du numéro.
-    changed: list[str] = []
+    # 2. Filet : une définition modifiée sans incrément du numéro. Les deux
+    # fichiers sont indépendants l'un de l'autre : on lance les deux requêtes
+    # en parallèle pour ne payer qu'une fois la latence réseau (poignée TCP +
+    # TLS) au lieu de l'une après l'autre.
     for filename in DEFINITION_FILES:
-        local = definitions / filename
-        if not local.is_file():
+        if not (definitions / filename).is_file():
             return UpdateCheck(
                 status=UpdateStatus.UNKNOWN,
                 detail=_("{filename} is missing locally").format(filename=filename),
             )
-        try:
-            remote = read_remote_bytes(_upstream_url(filename, repo, ref))
-        except OSError as error:
-            return UpdateCheck(status=UpdateStatus.UNKNOWN, detail=str(error))
-        if _digest(remote) != _digest(local.read_bytes()):
-            changed.append(filename)
+
+    try:
+        with ThreadPoolExecutor(max_workers=len(DEFINITION_FILES)) as executor:
+            futures: dict[str, Future[bytes]] = {
+                filename: executor.submit(read_remote_bytes, _upstream_url(filename, repo, ref))
+                for filename in DEFINITION_FILES
+            }
+            remotes = {filename: future.result() for filename, future in futures.items()}
+    except OSError as error:
+        return UpdateCheck(status=UpdateStatus.UNKNOWN, detail=str(error))
+
+    # Ordre de DEFINITION_FILES, pas celui d'achèvement des requêtes.
+    changed = [
+        filename
+        for filename in DEFINITION_FILES
+        if _digest(remotes[filename]) != _digest((definitions / filename).read_bytes())
+    ]
 
     if changed:
         return UpdateCheck(
