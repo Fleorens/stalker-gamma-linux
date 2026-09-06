@@ -168,7 +168,7 @@ msgstr ""
 " (ta liste de mods MO2 n'est pas touchée)"
 
 msgid "Updates even if Mod Organizer 2 or the game are still using the prefix"
-msgstr ""
+msgstr "Met à jour même si Mod Organizer 2 ou le jeu utilisent encore le préfixe"
 
 msgid "Full report: system prerequisites + prefix status + install status"
 msgstr ""
@@ -230,14 +230,13 @@ msgstr ""
 "manquants"
 
 msgid "Repairs even if Mod Organizer 2 or the game are still using the prefix"
-msgstr ""
+msgstr "Répare même si Mod Organizer 2 ou le jeu utilisent encore le préfixe"
 
 msgid "Opens Mod Organizer 2 (prefix ready, GAMMA instance configured)"
 msgstr "Ouvre Mod Organizer 2 (préfixe prêt, instance GAMMA configurée)"
 
-#, fuzzy
 msgid "Launches Anomaly through MO2 (USVFS active), detached from this terminal"
-msgstr "Lance Anomaly à travers MO2 (USVFS actif) et diagnostique les mods"
+msgstr "Lance Anomaly à travers MO2 (USVFS actif), détaché de ce terminal"
 
 #, python-brace-format
 msgid "MO2 executable to launch (default: « {executable} »)"
@@ -296,6 +295,8 @@ msgid ""
 "Deletes game data even if Mod Organizer 2 or the game are still using the"
 " shared prefix"
 msgstr ""
+"Supprime les données de jeu même si Mod Organizer 2 ou le jeu utilisent "
+"encore le préfixe partagé"
 
 msgid ""
 "Installs umu-launcher (official zipapp ~420 KiB) into ~/.local/bin — no "
@@ -382,9 +383,8 @@ msgstr ""
 msgid "Missing prerequisites — steps depending on them may fail:\n"
 msgstr "Prérequis manquants — les étapes qui en dépendent peuvent échouer :\n"
 
-#, fuzzy
 msgid "provisioning the prefix"
-msgstr "Préfixe Proton"
+msgstr "préparer le préfixe"
 
 msgid "Installation cancelled."
 msgstr "Installation annulée."
@@ -415,9 +415,8 @@ msgstr ""
 msgid "Updating S.T.A.L.K.E.R. G.A.M.M.A. in {root}"
 msgstr "Mise à jour de S.T.A.L.K.E.R. G.A.M.M.A. dans {root}"
 
-#, fuzzy
 msgid "updating"
-msgstr "Mettre à jour"
+msgstr "mettre à jour"
 
 #, python-brace-format
 msgid "Could not back up the MO2 profiles: {error}"
@@ -683,7 +682,7 @@ msgid "Dry run — nothing will be deleted."
 msgstr "Simulation — rien ne sera supprimé."
 
 msgid "deleting game data"
-msgstr ""
+msgstr "supprimer les données de jeu"
 
 #, python-brace-format
 msgid ""
@@ -960,6 +959,9 @@ msgid ""
 "can write outside the extraction directory); sources {minimum}+ required "
 "(upstream UnRAR 6.12)"
 msgstr ""
+"version {version} détectée, vulnérable à CVE-2022-30333 (une archive "
+".rar peut écrire hors du répertoire d'extraction) ; sources {minimum}+ "
+"requises (UnRAR amont 6.12)"
 
 msgid "Vulkan GPU"
 msgstr "GPU Vulkan"
@@ -1794,6 +1796,11 @@ msgid ""
 "→ `stalker-gamma-linux prefix-doctor --repair` (reinstalls the missing "
 "verbs). See {doc}."
 msgstr ""
+"⚠ Runtime VC++ absent du préfixe partagé (concrt140.dll / msvcp140.dll / "
+"vcruntime140.dll introuvables) : ça échoue avant même qu'USVFS ait une "
+"chance de se monter.\n"
+"→ `stalker-gamma-linux prefix-doctor --repair` (réinstalle les verbs "
+"manquants). Voir {doc}."
 
 #, python-brace-format
 msgid ""
@@ -1803,6 +1810,12 @@ msgid ""
 "→ `stalker-gamma-linux install --only prefix` (rebuilds the shared prefix"
 " from scratch with the configured Proton build). See {doc}."
 msgstr ""
+"⚠ Ce préfixe a été construit par un build Proton/Wine différent de celui "
+"configuré aujourd'hui : wineserver refuse de tourner dessus (versions "
+"incompatibles) — ça échoue avant même qu'USVFS ait une chance de se "
+"monter.\n"
+"→ `stalker-gamma-linux install --only prefix` (reconstruit le préfixe "
+"partagé de zéro avec le build Proton configuré). Voir {doc}."
 
 #, python-brace-format
 msgid ""
@@ -1967,7 +1980,7 @@ msgstr "Lancement d'Anomaly via MO2 (« {executable} », USVFS)…"
 
 #, python-brace-format
 msgid "Game launched, detached from this terminal. Launch log: {log}"
-msgstr ""
+msgstr "Jeu lancé, détaché de ce terminal. Journal de lancement : {log}"
 
 #, python-brace-format
 msgid ""
@@ -2073,11 +2086,11 @@ msgstr ""
 "persiste, vérifie la version de Proton."
 
 msgid "Prefix session: free"
-msgstr ""
+msgstr "Session du préfixe : libre"
 
 #, python-brace-format
 msgid "Prefix session: busy — {name} (pid {pid})"
-msgstr ""
+msgstr "Session du préfixe : occupée — {name} (pid {pid})"
 
 msgid "The prefix is healthy."
 msgstr "Le préfixe est sain."
@@ -2085,9 +2098,8 @@ msgstr "Le préfixe est sain."
 msgid "The prefix needs repairing (--repair)."
 msgstr "Le préfixe nécessite une réparation (--repair)."
 
-#, fuzzy
 msgid "repairing the prefix"
-msgstr "Réparation des mods"
+msgstr "réparer le préfixe"
 
 #, python-brace-format
 msgid ""
@@ -2197,6 +2209,11 @@ msgid ""
 "→ This URL is only expected to serve small metadata (checksum file, "
 "GitHub API JSON, modlist.txt). Aborted before buffering more into memory."
 msgstr ""
+"Réponse distante trop volumineuse pour {url} (limite : {max_bytes} "
+"octets).\n"
+"→ Cette URL n'est censée servir que de petites métadonnées (fichier de "
+"somme de contrôle, JSON de l'API GitHub, modlist.txt). Interrompu avant "
+"d'en mettre davantage en mémoire."
 
 #, python-brace-format
 msgid ""
@@ -2217,6 +2234,8 @@ msgid ""
 "{name} is still running (pid {pid}) — close {what} before {action}.\n"
 "→ Sure it's safe anyway? Rerun with --force."
 msgstr ""
+"{name} tourne encore (pid {pid}) — ferme {what} avant de {action}.\n"
+"→ Sûr que c'est sans risque ? Relance avec --force."
 
 #, python-brace-format
 msgid "{what} cancelled."
@@ -2274,21 +2293,20 @@ msgstr ""
 "Journal : {log}"
 
 msgid "a Wine process using this prefix"
-msgstr ""
+msgstr "un processus Wine utilisant ce préfixe"
 
-#, fuzzy, python-brace-format
+#, python-brace-format
 msgid "Mod Organizer 2 and/or the game"
-msgstr "  Mod Organizer 2   {path}"
+msgstr "Mod Organizer 2 et/ou le jeu"
 
-#, fuzzy
 msgid "Mod Organizer 2"
-msgstr "Ouvrir Mod Organizer 2"
+msgstr "Mod Organizer 2"
 
 msgid "it"
-msgstr ""
+msgstr "le programme"
 
 msgid "the game (Anomaly)"
-msgstr ""
+msgstr "le jeu (Anomaly)"
 
 #, python-brace-format
 msgid ""
@@ -2320,6 +2338,12 @@ msgid ""
 "The pinned fallback release changed or the download was tampered with — "
 "do not install it."
 msgstr ""
+"Somme de contrôle SHA-256 invalide pour umu-launcher {release} : archive "
+"rejetée.\n"
+"Attendu : {expected}\n"
+"Obtenu :  {actual}\n"
+"La version de secours épinglée a changé, ou le téléchargement a été "
+"altéré — ne l'installe pas."
 
 #, python-brace-format
 msgid "GitHub API unreachable — falling back to umu-launcher {release}"
