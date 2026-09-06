@@ -9,16 +9,20 @@ Ce module ne collecte rien de nouveau : `doctor.build_full_report` sépare déj�
 la collecte du rendu, on ne fait que l'assembler avec la version du paquet, la
 plate-forme et la fin du journal.
 
-**Anonymisation** : tous les chemins sont réécrits en `~/…`. Le nom de compte
-apparaît sinon des dizaines de fois dans un rapport destiné à un ticket public.
-Ce n'est pas un anonymat fort — c'est le minimum décent quand on demande à
-quelqu'un de coller un fichier sur GitHub.
+**Anonymisation** : le home est réécrit en `~/…`, ainsi que `/run/user/<uid>`
+et le nom de compte nu partout où il traîne encore — cible d'installation hors
+du home, `/media/<user>/…`, journaux Proton/umu inclus dans le rapport. Sans
+ça, le nom de compte apparaît des dizaines de fois dans un rapport destiné à un
+ticket public. Ce n'est pas un anonymat fort — c'est le minimum décent quand on
+demande à quelqu'un de coller un fichier sur GitHub. Voir `anonymize()` pour
+les garde-fous contre les faux positifs sur les noms de compte courts.
 """
 
 from __future__ import annotations
 
 import os
 import platform
+import re
 import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -77,10 +81,59 @@ def version_line() -> str:
     return f"{DISTRIBUTION_NAME} {package_version()}{suffix}"
 
 
-def anonymize(text: str, home: Path | None = None) -> str:
-    """Remplace le home de l'utilisateur par `~` — le rapport finit sur un ticket public."""
-    resolved = str(home if home is not None else Path.home())
-    return text.replace(resolved, "~") if resolved not in ("", "/") else text
+# Un nom de compte de 1 ou 2 caractères est trop dangereux à réécrire en aveugle :
+# il a de bonnes chances d'apparaître comme fragment d'autre chose (un compte
+# « ge » écraserait « GE-Proton11-1 »). En dessous de ce seuil, on préfère
+# laisser fuiter le nom de compte plutôt que de mutiler le reste du rapport.
+_MIN_ANONYMIZED_USER_LENGTH = 3
+
+
+def anonymize(
+    text: str,
+    home: Path | None = None,
+    user: str | None = None,
+    uid: int | None = None,
+) -> str:
+    """Réécrit en `~` tout ce qui identifie l'utilisateur : home, uid, nom de compte.
+
+    Trois remplacements, appliqués dans cet ordre précis :
+    1. le home complet (`/home/marie` → `~`) — la chaîne la plus longue et la
+       plus spécifique, donc celle qu'on préfère faire correspondre en premier ;
+    2. `/run/user/<uid>` — le `XDG_RUNTIME_DIR` de Proton/umu, indépendant du
+       home ;
+    3. le nom de compte nu, partout où il traîne encore : cible d'installation
+       hors du home, `/media/<user>/…`, chemins Proton dans le journal.
+
+    Le nom de compte nu est le remplacement le plus risqué des trois : contrairement
+    au home ou à l'uid (des chemins complets, peu susceptibles d'apparaître par
+    hasard), c'est une chaîne courte qui peut coïncider avec un fragment d'autre
+    chose dans le rapport. Deux garde-fous, combinés :
+    - une longueur minimale (`_MIN_ANONYMIZED_USER_LENGTH`) : sous ce seuil, pas
+      de remplacement du tout, plutôt que de risquer de la casse ;
+    - des frontières de mot (`\\b`) : le nom de compte n'est réécrit que là où il
+      n'est pas collé à d'autres lettres ou chiffres (ça protège par exemple
+      "banana" d'un compte "ana").
+    Ce n'est pas parfait : un compte de 3+ caractères séparé d'un autre mot par un
+    tiret ou un underscore (les deux sont des séparateurs de mot pour `\\b` autant
+    que des séparateurs de composants de version) reste vulnérable — c'est un
+    compromis assumé, pas un trou qu'on a raté.
+    """
+    home_path = home if home is not None else Path.home()
+    resolved_home = str(home_path)
+    result = text.replace(resolved_home, "~") if resolved_home not in ("", "/") else text
+
+    resolved_uid = os.getuid() if uid is None else uid
+    result = re.sub(rf"/run/user/{resolved_uid}\b", "/run/user/~", result)
+
+    resolved_user = (
+        user
+        if user is not None
+        else (os.environ.get("USER") or os.environ.get("LOGNAME") or home_path.name or None)
+    )
+    if resolved_user and len(resolved_user) >= _MIN_ANONYMIZED_USER_LENGTH:
+        result = re.sub(rf"\b{re.escape(resolved_user)}\b", "~", result)
+
+    return result
 
 
 def _log_tail(lines: int = _LOG_TAIL_LINES) -> str:

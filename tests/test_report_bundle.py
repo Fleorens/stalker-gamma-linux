@@ -53,6 +53,52 @@ class TestAnonymize:
 
         assert report_bundle.anonymize(text, home=Path("/home/marie")) == text
 
+    def test_cible_hors_du_home_anonymise_le_compte(self) -> None:
+        """Cas réel : `--target /mnt/jeux/<user>/gamma`, hors du home."""
+        text = "Target: /mnt/jeux/marie/gamma"
+
+        result = report_bundle.anonymize(text, home=Path("/home/marie"), user="marie", uid=1000)
+
+        assert "marie" not in result
+
+    def test_run_user_uid_masque(self) -> None:
+        text = "XDG_RUNTIME_DIR=/run/user/1000 (umu-run)"
+
+        result = report_bundle.anonymize(text, home=Path("/home/marie"), user="marie", uid=1000)
+
+        assert "/run/user/1000" not in result
+        assert "/run/user/~" in result
+
+    def test_compte_court_ignore_sans_corrompre_le_rapport(self) -> None:
+        """Un compte de 2 caractères écraserait « GE-Proton11-1 » via `\\b` : on
+
+        préfère ne pas le réécrire du tout plutôt que de casser le rapport.
+        """
+        text = "Proton: GE-Proton11-1 — ge-perso-tool aussi présent"
+
+        result = report_bundle.anonymize(text, home=Path("/home/ge"), user="ge", uid=1000)
+
+        assert result == text
+
+    def test_nom_de_compte_nu_hors_home_est_masque(self) -> None:
+        """`/media/<user>/…` ne contient pas le home : seul le remplacement du
+
+        nom de compte nu peut l'anonymiser.
+        """
+        text = "/media/marie/DisqueExterne/gamma"
+
+        result = report_bundle.anonymize(text, home=Path("/home/marie"), user="marie", uid=1000)
+
+        assert "marie" not in result
+
+    def test_compte_ne_corrompt_pas_une_sous_chaine_alphanumerique(self) -> None:
+        """Frontières de mot : un compte "ana" ne doit pas mordre sur "banana"."""
+        text = "un fruit : banana"
+
+        result = report_bundle.anonymize(text, home=Path("/home/ana"), user="ana", uid=1000)
+
+        assert result == text
+
 
 class TestBuildBundle:
     def test_contient_les_sections_attendues(self, tmp_path: Path) -> None:
