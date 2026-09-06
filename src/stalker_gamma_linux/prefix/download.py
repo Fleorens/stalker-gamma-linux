@@ -19,6 +19,7 @@ from stalker_gamma_linux.prefix.errors import (
     ChecksumMismatchError,
     PrefixCancelledError,
     ProtonDownloadError,
+    RemoteResponseTooLargeError,
     TruncatedDownloadError,
 )
 
@@ -40,6 +41,11 @@ _HASH_CHUNK_BYTES = 1024 * 1024
 _DOWNLOAD_CHUNK_BYTES = 1024 * 1024
 _SHA512_HEX_LENGTH = 128
 _SHA512_HEX_RE = re.compile(rf"^[0-9a-fA-F]{{{_SHA512_HEX_LENGTH}}}$")
+# `read_remote_bytes` ne sert qu'à de petites métadonnées (somme de contrôle,
+# JSON de l'API GitHub, modlist.txt) : un plafond large les laisse tous passer
+# sans y penser, tout en bornant la mémoire consommée (CWE-400) si une URL
+# venait à répondre avec un flux bien plus gros que prévu.
+_MAX_REMOTE_METADATA_BYTES = 8 * 1024 * 1024
 
 
 def _default_install_dir() -> Path:
@@ -47,10 +53,17 @@ def _default_install_dir() -> Path:
     return Path.home() / ".local" / "share" / "Steam" / "compatibilitytools.d"
 
 
-def read_remote_bytes(url: str) -> bytes:
-    """Lecture distante brute — public : réutilisé par `updates` (comparaison d'empreintes)."""
+def read_remote_bytes(url: str, *, max_bytes: int = _MAX_REMOTE_METADATA_BYTES) -> bytes:
+    """Lecture distante brute — public : réutilisé par `updates` (comparaison d'empreintes).
+
+    Lit au plus `max_bytes + 1` octets : un octet de trop suffit à détecter un
+    dépassement sans jamais bufferiser plus que le plafond en mémoire.
+    """
     with urllib.request.urlopen(url, timeout=_FETCH_TIMEOUT_SECONDS) as response:
-        return bytes(response.read())
+        data = response.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise RemoteResponseTooLargeError(url, max_bytes)
+    return bytes(data)
 
 
 def read_remote_text(url: str) -> str:

@@ -10,6 +10,7 @@ from stalker_gamma_linux.prefix import download
 from stalker_gamma_linux.prefix.errors import (
     ChecksumMismatchError,
     ProtonDownloadError,
+    RemoteResponseTooLargeError,
     TruncatedDownloadError,
 )
 
@@ -252,6 +253,33 @@ class TestDownloadToTruncation:
         download.download_to("https://example.invalid/archive.tar", dest)
 
         assert dest.read_bytes() == payload
+
+
+class TestReadRemoteBytesCap:
+    """`read_remote_bytes` ne sert qu'à de petites métadonnées : elle doit refuser de
+    bufferiser une réponse anormalement grosse plutôt que d'y engloutir la mémoire."""
+
+    def test_reponse_sous_le_plafond_acceptee(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        payload = b"petite reponse"
+        _patch_urlopen(monkeypatch, _FakeResponse(payload, announced_length=None))
+
+        result = download.read_remote_bytes(
+            "https://example.invalid/metadata", max_bytes=len(payload)
+        )
+
+        assert result == payload
+
+    def test_reponse_au_dessus_du_plafond_rejetee(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        payload = b"un octet de trop"
+        _patch_urlopen(monkeypatch, _FakeResponse(payload, announced_length=None))
+
+        with pytest.raises(RemoteResponseTooLargeError) as excinfo:
+            download.read_remote_bytes(
+                "https://example.invalid/metadata", max_bytes=len(payload) - 1
+            )
+
+        assert excinfo.value.max_bytes == len(payload) - 1
+        assert isinstance(excinfo.value, OSError)
 
 
 class TestChecksumValidation:

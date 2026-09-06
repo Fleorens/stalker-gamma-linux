@@ -89,6 +89,30 @@ class TruncatedDownloadError(PrefixError):
         )
 
 
+class RemoteResponseTooLargeError(PrefixError, OSError):
+    """La réponse distante dépasse le plafond fixé pour une lecture en mémoire.
+
+    Hérite aussi d'`OSError` : tous les appelants de `read_remote_bytes` /
+    `read_remote_text` (`updates.py`, `prefix.umu`, `resolve_latest_ge_release`
+    ci-dessous) attrapent déjà `OSError` autour de ces appels pour retomber sur
+    un état « indéterminé » ou un repli épinglé. Sans cette double hérédité,
+    un dépassement de plafond remonterait comme une exception non gérée au
+    lieu de suivre le même chemin de repli qu'une coupure réseau ordinaire.
+    """
+
+    def __init__(self, url: str, max_bytes: int) -> None:
+        self.url = url
+        self.max_bytes = max_bytes
+        super().__init__(
+            _(
+                "Remote response too large for {url} (limit: {max_bytes} bytes).\n"
+                "→ This URL is only expected to serve small metadata (checksum "
+                "file, GitHub API JSON, modlist.txt). Aborted before buffering "
+                "more into memory."
+            ).format(url=url, max_bytes=max_bytes)
+        )
+
+
 class ProtonDownloadError(PrefixError):
     """Le téléchargement ou l'extraction de Proton-GE a échoué."""
 
