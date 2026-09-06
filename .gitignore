@@ -19,6 +19,13 @@ build/
 *.zip
 *.rar
 
+# Rapports d'audit générés localement (audits/audit-*.md). Ils décrivent des
+# failles AVANT correctif, chemins et extraits de code à l'appui : sur un dépôt
+# public, c'est un mode d'emploi servi aux attaquants pour toutes les versions
+# déjà installées chez les joueurs. Le correctif, lui, se raconte dans le
+# message de commit, qui n'est lisible qu'une fois la faille close.
+/audits/
+
 # Editors
 .idea/
 .vscode/
