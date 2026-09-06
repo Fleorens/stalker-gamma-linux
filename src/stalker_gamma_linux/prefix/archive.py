@@ -79,4 +79,10 @@ def safe_extractall(tar: tarfile.TarFile, dest: Path) -> None:
         tar.extractall(dest, filter="data")
         return
     validate_members(tar, dest)
+    # data_filter normalise aussi le mode des fichiers : efface les bits setuid/setgid
+    # qui n'ont aucun sens dans un zipapp ou une release précompilée, et constitueraient
+    # une faille de privilèges si l'extraction se fait sous un propriétaire autre que
+    # celui qui poserait ces bits.
+    for member in tar.getmembers():
+        member.mode &= ~(0o4000 | 0o2000)
     tar.extractall(dest)  # noqa: S202 - membres validés juste au-dessus

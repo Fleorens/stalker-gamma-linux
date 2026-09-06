@@ -9,6 +9,7 @@ tests, il ne serait couvert nulle part.
 from __future__ import annotations
 
 import io
+import stat
 import tarfile
 from pathlib import Path
 
@@ -30,10 +31,11 @@ def _tar_with(members: list[tarfile.TarInfo], tmp_path: Path) -> tarfile.TarFile
     return tarfile.open(archive)
 
 
-def _regular(name: str) -> tarfile.TarInfo:
+def _regular(name: str, mode: int = 0o644) -> tarfile.TarInfo:
     info = tarfile.TarInfo(name)
     info.type = tarfile.REGTYPE
     info.size = 0
+    info.mode = mode
     return info
 
 
@@ -127,3 +129,16 @@ class TestSafeExtractall:
             safe_extractall(tar, dest)
 
         assert not (tmp_path / "escaped.txt").exists()
+
+    def test_neutralise_setuid_et_setgid(self, tmp_path: Path) -> None:
+        """Les bits setuid/setgid sont effacés lors de l'extraction (comme data_filter)."""
+        with _tar_with([_regular("setuid.sh", mode=0o4755)], tmp_path) as tar:
+            dest = tmp_path / "dest"
+            dest.mkdir()
+            safe_extractall(tar, dest)
+
+        extracted = dest / "setuid.sh"
+        assert extracted.exists()
+        # Vérifier que le bit setuid (04000) est absent.
+        mode = stat.S_IMODE(extracted.stat().st_mode)
+        assert not (mode & stat.S_ISUID)
