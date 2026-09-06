@@ -604,7 +604,7 @@ Six décisions qui ne se lisent pas dans le code :
    fichier réel d'un téléchargement ModDB n'étant connu qu'en interrogeant la
    page ModDB.
 
-Deux points d'implémentation qui ont une raison précise :
+Trois points d'implémentation qui ont une raison précise :
 
 - **La progression est cadencée au temps écoulé, jamais à l'index.** Les
   fichiers de mods vont de quelques octets à plusieurs gigaoctets : un
@@ -614,6 +614,29 @@ Deux points d'implémentation qui ont une raison précise :
   vérifiée — un `cancel_event` levé au milieu d'un fichier de 4 Gio rend la
   main tout de suite. L'horloge est injectable, ce qui rend la cadence
   testable sans `sleep`.
+- **Le hachage est parallèle, le résultat ne l'est pas.** `scan_tree`
+  distribue les fichiers sur un `ThreadPoolExecutor` (jamais
+  `multiprocessing` : `hashlib` libère le GIL, le coût de sérialisation
+  mangerait le gain). Mesuré sur 7,86 Gio et 20 735 fichiers, cache de pages
+  vidé avant chaque passe : 18,6 s avant, 10,4 s après — les empreintes étant
+  bit à bit identiques. Trois précautions rendent ce gain acceptable :
+  - **L'ordre ne bouge pas.** Les tâches sont consommées dans l'ordre de
+    *soumission* et non d'achèvement, ce qui laisse `digests` dans l'ordre de
+    parcours ; `unreadable` est retrié en sortie, ses entrées naissant à la
+    fois du parcours et du hachage, donc à des moments décalés.
+  - **Le défaut s'adapte au support.** Quatre fils sur mémoire flash — c'est
+    le coude de la courbe, doubler encore ne rend que ~8 % parce que le
+    plafond n'est plus MD5 mais la part de la boucle qui garde le GIL — et
+    **un seul** sur un disque à plateaux, où quatre lecteurs concurrents
+    remplacent une lecture séquentielle par un va-et-vient de têtes.
+    `integrity/storage.py` répond à cette question-là, et il ne peut pas se
+    contenter de `st_dev` : sur btrfs ou NFS le noyau rend un numéro anonyme,
+    il faut passer par `/proc/self/mountinfo` puis `queue/rotational`. Un
+    support indéterminable est traité comme non mécanique.
+  - **L'annulation reste immédiate.** Un `threading.Event` interne double
+    celui de l'appelant, qui peut être absent : Ctrl-C compris, les fils en vol
+    sortent au bloc suivant (~1 Mio) au lieu de finir un fichier de plusieurs
+    Gio, et `scan_tree` ne rend jamais la main en laissant un fil derrière lui.
 - **Les noms de mods sont validés avant tout `rmtree`/`unlink`**, par les
   mêmes fonctions que T11 (`paths_safety.validate_removable_child`) : ils
   viennent de la liste amont et de `meta.ini`, pas de nous. Un `..`, un

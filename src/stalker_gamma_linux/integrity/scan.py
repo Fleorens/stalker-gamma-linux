@@ -1,7 +1,7 @@
-"""Parcours de `gamma/mods/` et calcul des empreintes MD5, fichier par fichier.
+"""Parcours de `gamma/mods/` et calcul des empreintes MD5.
 
-Trois contraintes dictent la forme de ce module, et elles viennent toutes de la
-taille réelle d'une install GAMMA (~83 Gio de mods, plusieurs centaines de
+Quatre contraintes dictent la forme de ce module, et elles viennent toutes de
+la taille réelle d'une install GAMMA (~83 Gio de mods, plusieurs centaines de
 milliers de fichiers) :
 
 1. **Lecture par blocs.** Certaines archives de mods dépassent le gigaoctet une
@@ -17,6 +17,14 @@ milliers de fichiers) :
 3. **Un fichier illisible n'arrête pas le scan.** Droits cassés, secteur mort,
    fichier ouvert par un autre processus : c'est précisément ce qu'on cherche à
    détecter. On le range dans `unreadable` et on continue.
+4. **Hachage parallèle, résultat séquentiel.** Un seul fil ne tient que
+   ~430 Mio/s sur une arborescence réaliste, là où MD5 seul rend ~840 Mio/s
+   par cœur : le reste part en ouvertures de fichiers et en attente disque.
+   `hashlib` libérant le GIL, quelques fils en récupèrent une bonne part
+   (chiffres mesurés dans `_default_workers`) — sans `multiprocessing`, dont
+   le coût de sérialisation mangerait le gain. Le pool ne change **rien** à ce
+   que voit l'appelant : les tâches sont consommées dans l'ordre de
+   soumission, donc dans l'ordre de parcours (voir `scan_tree`).
 
 L'annulation est vérifiée entre deux blocs, pas seulement entre deux fichiers :
 un `cancel_event` levé au milieu d'un fichier de 4 Gio doit rendre la main tout
@@ -31,12 +39,16 @@ import hashlib
 import os
 import threading
 import time
+from collections import deque
 from collections.abc import Callable, Iterator, Mapping
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
 
 from stalker_gamma_linux import output, sizing
 from stalker_gamma_linux.i18n import _
+from stalker_gamma_linux.integrity import storage
 from stalker_gamma_linux.integrity.errors import IntegrityCancelledError
 
 # 1 Mio : assez grand pour que le coût par appel disparaisse, assez petit pour
@@ -48,7 +60,41 @@ BLOCK_SIZE = 1024 * 1024
 # paraisse jamais figée.
 PROGRESS_INTERVAL_SECONDS = 1.5
 
+# Plafond de fils de hachage sur un support non mécanique (voir
+# `_default_workers` pour le pourquoi de ce chiffre-là).
+MAX_HASH_WORKERS = 4
+
+# Fichiers en vol par fil. Les tâches sont soumises par fenêtre glissante et
+# non toutes d'un coup : sur 300 000 fichiers, tout empiler immobiliserait des
+# centaines de Mio rien qu'en objets `Future`. Assez profond, tout de même,
+# pour qu'un gros fichier en tête de file ne laisse pas les autres fils
+# inoccupés le temps qu'il se termine.
+QUEUE_DEPTH_PER_WORKER = 8
+
 Clock = Callable[[], float]
+
+
+class CancelSignal(Protocol):
+    """Tout ce que le hachage demande à un signal d'annulation : savoir s'il est levé.
+
+    `threading.Event` satisfait ce contrat tel quel — l'élargissement n'existe
+    que pour pouvoir passer aux fils la *combinaison* de l'annulation demandée
+    par l'appelant et de l'arrêt interne du pool (voir `_AnySignal`).
+    """
+
+    def is_set(self) -> bool: ...
+
+
+class _AnySignal:
+    """Signal levé dès que l'un de ceux qu'il agrège l'est."""
+
+    __slots__ = ("_signals",)
+
+    def __init__(self, *signals: CancelSignal | None) -> None:
+        self._signals = tuple(signal for signal in signals if signal is not None)
+
+    def is_set(self) -> bool:
+        return any(signal.is_set() for signal in self._signals)
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,6 +124,24 @@ class _ScanProgress:
     Petit objet à état volontairement isolé ici : c'est le seul endroit du
     module qui mute quoi que ce soit, et le reste (`ScanResult`,
     `UnreadableFile`) reste immuable.
+
+    **Thread-safe.** `add_bytes` est appelée une fois par bloc et par fil de
+    hachage. La course qui se voit vraiment est le « check-then-act » de la
+    cadence : deux fils lisent la même heure, franchissent ensemble le test des
+    1,5 s et s'écrasent mutuellement `_last_report` — les lignes de progression
+    se doublent, et leur nombre varie d'une exécution à l'autre. Les `+=` des
+    compteurs, eux, ne survivent aujourd'hui à l'absence de verrou que par
+    accident : CPython ne préempte un fil qu'aux sauts et aux appels, jamais
+    entre le chargement et le rangement d'un attribut. C'est un détail
+    d'implémentation, pas une garantie du langage, et il tombe sur un
+    interpréteur sans GIL. Le verrou couvre donc les deux.
+
+    L'horloge est lue sous le verrou elle aussi : c'est ce qui permet aux tests
+    d'injecter une horloge factice sans avoir à la rendre thread-safe. Le
+    `reporter`, en revanche, est appelé **hors** verrou — une implémentation
+    lente (rendu GTK, console) n'a pas à bloquer les fils qui hachent, et le
+    cadencement à 1,5 s fait qu'un seul fil à la fois franchit le test, donc que
+    les lignes sortent dans l'ordre.
     """
 
     def __init__(
@@ -90,31 +154,53 @@ class _ScanProgress:
         self._reporter = reporter
         self._clock = clock
         self._interval = interval
+        self._lock = threading.Lock()
         self._last_report = clock()
-        self.files = 0
-        self.total_bytes = 0
+        self._files = 0
+        self._total_bytes = 0
+
+    @property
+    def total_bytes(self) -> int:
+        with self._lock:
+            return self._total_bytes
+
+    @property
+    def files(self) -> int:
+        with self._lock:
+            return self._files
 
     def add_bytes(self, count: int) -> None:
-        self.total_bytes += count
-        self._report_if_due()
+        with self._lock:
+            self._total_bytes += count
+            due = self._due_snapshot()
+        self._report(due)
 
     def add_file(self) -> None:
-        self.files += 1
-        self._report_if_due()
+        with self._lock:
+            self._files += 1
+            due = self._due_snapshot()
+        self._report(due)
 
-    def _report_if_due(self) -> None:
+    def _due_snapshot(self) -> tuple[int, int] | None:
+        """Compteurs à publier si la cadence le permet, `None` sinon. Verrou tenu."""
         now = self._clock()
         if now - self._last_report < self._interval:
-            return
+            return None
         self._last_report = now
+        return self._files, self._total_bytes
+
+    def _report(self, due: tuple[int, int] | None) -> None:
+        if due is None:
+            return
+        files, total_bytes = due
         self._reporter.progress(
             _("  {files} files checked, {size} GiB read…").format(
-                files=self.files, size=f"{self.total_bytes / sizing.GIB:.1f}"
+                files=files, size=f"{total_bytes / sizing.GIB:.1f}"
             )
         )
 
 
-def _raise_if_cancelled(cancel_event: threading.Event | None) -> None:
+def _raise_if_cancelled(cancel_event: CancelSignal | None) -> None:
     if cancel_event is not None and cancel_event.is_set():
         raise IntegrityCancelledError
 
@@ -122,7 +208,7 @@ def _raise_if_cancelled(cancel_event: threading.Event | None) -> None:
 def hash_file(
     path: Path,
     *,
-    cancel_event: threading.Event | None = None,
+    cancel_event: CancelSignal | None = None,
     on_block: Callable[[int], None] | None = None,
 ) -> tuple[str, int]:
     """`(md5 hexadécimal, taille lue)` de `path`, lu par blocs de `BLOCK_SIZE`.
@@ -168,14 +254,74 @@ def _walk_files(root: Path, on_error: Callable[[OSError], None]) -> Iterator[tup
             yield path, path.relative_to(root).as_posix()
 
 
+def _default_workers(root: Path) -> int:
+    """Nombre de fils de hachage à lancer par défaut pour l'arborescence `root`.
+
+    Deux régimes, parce que le parallélisme ne produit pas le même effet des
+    deux côtés du miroir :
+
+    - **Disque mécanique : un seul fil.** Quatre lecteurs concurrents sur
+      quatre fichiers éloignés remplacent une lecture séquentielle à ~150 Mio/s
+      par un va-et-vient de têtes ; le scan y perdrait au lieu d'y gagner. On
+      retombe alors exactement sur le comportement d'avant le pool.
+    - **Le reste : `MAX_HASH_WORKERS`, plafonné au nombre de cœurs.** Quatre,
+      parce que c'est le coude de la courbe — pas parce que le chiffre est
+      joli. Mesuré sur 7,86 Gio et 20 735 fichiers (NVMe, Ryzen 7 5700X3D,
+      cache de pages vidé avant chaque passe) : 18,6 s à un fil, 12,5 s à
+      deux, 10,4 s à quatre, 9,6 s à huit, 8,8 s à seize. Chaque doublement
+      au-delà de quatre ne rend plus que ~8 %, parce que ce n'est plus MD5 qui
+      borne — seul, il tient 3,2 Gio/s à quatre fils — mais la part de la
+      boucle qui **garde** le GIL : ouvrir vingt mille fichiers et recopier
+      leurs blocs. Payer quatre cœurs de plus pour 8 % n'a pas de sens sur une
+      machine où le joueur fait autre chose pendant que le scan tourne.
+
+    Un support indéterminable (`None` : btrfs multi-disques, NFS, conteneur
+    sans `/proc`) est traité comme non mécanique. Le cas coûteux est celui des
+    plateaux, et c'est justement celui qu'on sait reconnaître ; le doute, lui,
+    porte surtout sur des supports modernes. Qui veut trancher autrement passe
+    `workers=` à `scan_tree`.
+    """
+    if storage.is_rotational(root):
+        return 1
+    return min(MAX_HASH_WORKERS, os.cpu_count() or 1)
+
+
+def _resolve_workers(workers: int | None, root: Path) -> int:
+    if workers is None:
+        return _default_workers(root)
+    if workers < 1:
+        raise ValueError(f"workers must be >= 1, got {workers!r}")
+    return workers
+
+
+def _unreadable_order(entry: UnreadableFile) -> tuple[str, str]:
+    return entry.relative, entry.reason
+
+
 def scan_tree(
     root: Path,
     *,
     reporter: output.Reporter = output.console_reporter,
     cancel_event: threading.Event | None = None,
     clock: Clock = time.monotonic,
+    workers: int | None = None,
 ) -> ScanResult:
-    """Hache tous les fichiers sous `root`. Lève `IntegrityCancelledError` si annulé."""
+    """Hache tous les fichiers sous `root`. Lève `IntegrityCancelledError` si annulé.
+
+    `workers` : nombre de fils de hachage. `None` (défaut) le déduit du support
+    qui porte `root` (`_default_workers`) ; `1` restaure un scan strictement
+    séquentiel. **Le résultat n'en dépend pas** : mêmes empreintes, même ordre,
+    quel que soit le nombre de fils. C'est l'ordre de *soumission* qui est
+    consommé, jamais l'ordre d'achèvement — `digests` reste dans l'ordre de
+    parcours, et `unreadable` est retrié en sortie puisque ses entrées naissent
+    des deux côtés (parcours et hachage) et donc à des moments décalés.
+
+    Une implémentation de `reporter` doit désormais tolérer d'être appelée
+    depuis un fil de hachage. Les deux du projet le font (`console_reporter`
+    s'appuie sur le verrou de `rich`, `gui.worker.QueueReporter` sur une
+    `queue.Queue`).
+    """
+    worker_count = _resolve_workers(workers, root)
     digests: dict[str, str] = {}
     unreadable: list[UnreadableFile] = []
     progress = _ScanProgress(reporter, clock=clock)
@@ -184,18 +330,50 @@ def scan_tree(
         name = error.filename if isinstance(error.filename, str) else str(root)
         unreadable.append(UnreadableFile(relative=_relative_to(root, name), reason=str(error)))
 
-    for path, relative in _walk_files(root, on_walk_error):
-        _raise_if_cancelled(cancel_event)
+    # `abort` double le `cancel_event` de l'appelant, qui peut être absent :
+    # toute sortie de la boucle — annulation, Ctrl-C, erreur inattendue — doit
+    # stopper les fils en vol au bloc suivant. Sans lui, le `shutdown` du
+    # `finally` attendrait la fin d'un fichier de plusieurs Gio avant de rendre
+    # la main, et un Ctrl-C paraîtrait ignoré.
+    abort = threading.Event()
+    stop_signal = _AnySignal(cancel_event, abort)
+
+    def hash_one(path: Path) -> str:
+        digest, _size = hash_file(path, cancel_event=stop_signal, on_block=progress.add_bytes)
+        return digest
+
+    def collect(relative: str, task: Future[str]) -> None:
+        """Range le résultat d'un fichier — appelée dans l'ordre de soumission."""
         try:
-            digest, _size = hash_file(path, cancel_event=cancel_event, on_block=progress.add_bytes)
+            digests[relative] = task.result()
         except OSError as error:
             unreadable.append(UnreadableFile(relative=relative, reason=str(error)))
-            continue
-        digests[relative] = digest
+            return
         progress.add_file()
 
+    executor = ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix="gamma-md5")
+    pending: deque[tuple[str, Future[str]]] = deque()
+    window = worker_count * QUEUE_DEPTH_PER_WORKER
+    try:
+        for path, relative in _walk_files(root, on_walk_error):
+            _raise_if_cancelled(cancel_event)
+            pending.append((relative, executor.submit(hash_one, path)))
+            if len(pending) >= window:
+                collect(*pending.popleft())
+        while pending:
+            _raise_if_cancelled(cancel_event)
+            collect(*pending.popleft())
+    finally:
+        # `cancel_futures` jette ce qui n'a pas démarré, `abort` fait sortir les
+        # fils actifs au bloc suivant (~1 Mio), et `wait=True` les attend : au
+        # retour de `scan_tree`, plus aucun fil de hachage ne survit.
+        abort.set()
+        executor.shutdown(wait=True, cancel_futures=True)
+
     return ScanResult(
-        digests=digests, unreadable=tuple(unreadable), total_bytes=progress.total_bytes
+        digests=digests,
+        unreadable=tuple(sorted(unreadable, key=_unreadable_order)),
+        total_bytes=progress.total_bytes,
     )
 
 

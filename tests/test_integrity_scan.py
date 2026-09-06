@@ -1,7 +1,13 @@
-"""Parcours et hachage de `mods/` (T12) : lecture par blocs, annulation, progression.
+"""Parcours et hachage de `mods/` (T12) : blocs, annulation, progression, pool.
 
 L'horloge est injectée (`clock=`) : la cadence de progression se teste alors
 sans `sleep`, et sans dépendre de la vitesse de la machine qui exécute la suite.
+
+Le hachage étant parallèle, la suite vérifie surtout ce que le pool ne doit
+**pas** changer : mêmes empreintes, même ordre, mêmes illisibles qu'un scan
+séquentiel (`workers=1`), quel que soit le nombre de fils. Les cas de course
+sont provoqués, jamais espérés — arborescence dont le premier fichier est aussi
+le plus gros, annulation déclenchée depuis un fil de hachage.
 """
 
 from __future__ import annotations
@@ -9,6 +15,8 @@ from __future__ import annotations
 import hashlib
 import os
 import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -44,6 +52,60 @@ def _mod_tree(root: Path) -> Path:
     (mods / "102- Mod B").mkdir()
     (mods / "102- Mod B" / "b.dds").write_bytes(b"beta")
     return mods
+
+
+class YieldingClock(FakeClock):
+    """Horloge factice qui rend la main au milieu de la section critique.
+
+    Sans elle, un test de concurrence sur `_ScanProgress` ne prouve rien :
+    CPython ne préempte un fil qu'aux sauts et aux appels, si bien qu'une
+    boucle courte s'exécute d'un trait et qu'aucun entrelacement ne se produit.
+    Le `sleep(0)` relâche le GIL exactement entre la lecture de l'horloge et la
+    mise à jour de `_last_report` — le `check-then-act` que le verrou protège.
+    """
+
+    def __call__(self) -> float:
+        value = super().__call__()
+        time.sleep(0)
+        return value
+
+
+def _wide_tree(root: Path, *, directories: int = 6, per_directory: int = 15) -> Path:
+    """Arborescence assez large et assez inégale pour que l'ordre d'achèvement diverge.
+
+    Le tout premier fichier dans l'ordre de parcours est aussi le plus gros :
+    c'est le cas qui démasque une implémentation qui consommerait les tâches
+    dans l'ordre d'achèvement (`as_completed`) au lieu de l'ordre de soumission.
+    """
+    mods = root / "mods"
+    for directory in range(directories):
+        current = mods / f"{100 + directory}- Mod {directory}" / "gamedata"
+        current.mkdir(parents=True)
+        for index in range(per_directory):
+            size = 8 if (directory or index) else scan.BLOCK_SIZE * 3
+            (current / f"{index:03d}.ltx").write_bytes(f"{directory}-{index}-".encode() * size)
+    return mods
+
+
+class CancellingReporter(RecordingReporter):
+    """Reporter qui demande l'annulation dès la première ligne de progression.
+
+    C'est la façon la plus fidèle de déclencher une annulation **en cours** de
+    scan : elle part d'un fil de hachage, au milieu de la lecture, exactement
+    comme le bouton « Annuler » de la GUI le ferait depuis le fil GTK.
+    """
+
+    def __init__(self, cancel_event: threading.Event) -> None:
+        super().__init__()
+        self._cancel_event = cancel_event
+
+    def progress(self, message: str) -> None:
+        super().progress(message)
+        self._cancel_event.set()
+
+
+def _surviving_hash_threads() -> list[str]:
+    return [thread.name for thread in threading.enumerate() if thread.name.startswith("gamma-md5")]
 
 
 class TestHashFile:
@@ -196,3 +258,191 @@ class TestProgressPacing:
         scan.scan_tree(mods, reporter=reporter, clock=FakeClock(step=10.0))
 
         assert len(reporter.of_kind("progress")) >= 2
+
+
+class TestParallelHashing:
+    def test_meme_resultat_et_meme_ordre_quel_que_soit_le_nombre_de_fils(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        """L'invariant central du pool : le parallélisme ne se voit pas dans le résultat."""
+        mods = _wide_tree(tmp_path)
+
+        sequential = scan.scan_tree(mods, reporter=reporter, workers=1)
+        parallel = scan.scan_tree(mods, reporter=reporter, workers=8)
+
+        assert parallel.digests == sequential.digests
+        # `==` sur des dict ignore l'ordre : c'est lui qu'on vérifie ici.
+        assert list(parallel.digests) == list(sequential.digests)
+        assert parallel.total_bytes == sequential.total_bytes
+        assert parallel.file_count == sequential.file_count
+
+    def test_empreintes_conformes_a_hashlib(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        """Un pool qui mélangerait deux fichiers passerait les tests d'ordre, pas celui-ci."""
+        mods = _wide_tree(tmp_path, directories=3, per_directory=4)
+
+        result = scan.scan_tree(mods, reporter=reporter, workers=8)
+
+        expected = {
+            path.relative_to(mods).as_posix(): hashlib.md5(
+                path.read_bytes(), usedforsecurity=False
+            ).hexdigest()
+            for path in sorted(mods.rglob("*.ltx"))
+        }
+        assert result.digests == expected
+
+    def test_ordre_de_parcours_conserve(self, tmp_path: Path, reporter: RecordingReporter) -> None:
+        mods = _wide_tree(tmp_path, directories=3, per_directory=5)
+
+        result = scan.scan_tree(mods, reporter=reporter, workers=8)
+
+        assert list(result.digests) == sorted(result.digests)
+
+    @skip_as_root
+    def test_fichier_illisible_collecte_et_non_propage(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        """L'`OSError` remonte maintenant par une `Future` : elle doit rester rangée."""
+        mods = _wide_tree(tmp_path, directories=2, per_directory=4)
+        unreadable = mods / "100- Mod 0" / "gamedata" / "002.ltx"
+        unreadable.chmod(0o000)
+
+        try:
+            result = scan.scan_tree(mods, reporter=reporter, workers=8)
+        finally:
+            unreadable.chmod(0o644)
+
+        assert [entry.relative for entry in result.unreadable] == [
+            "100- Mod 0/gamedata/002.ltx",
+        ]
+        assert "100- Mod 0/gamedata/002.ltx" not in result.digests
+        assert result.file_count == 7  # les sept autres sont bien allés au bout
+
+    @skip_as_root
+    def test_illisibles_dans_le_meme_ordre_que_le_scan_sequentiel(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        """Fichiers et dossiers illisibles naissent à des moments décalés : ordre stable exigé."""
+        mods = _wide_tree(tmp_path, directories=3, per_directory=4)
+        blocked_file = mods / "101- Mod 1" / "gamedata" / "001.ltx"
+        blocked_file.chmod(0o000)
+        blocked_dir = mods / "102- Mod 2" / "gamedata"
+        blocked_dir.chmod(0o000)
+
+        try:
+            sequential = scan.scan_tree(mods, reporter=reporter, workers=1)
+            parallel = scan.scan_tree(mods, reporter=reporter, workers=8)
+        finally:
+            blocked_file.chmod(0o644)
+            blocked_dir.chmod(0o755)
+
+        assert [entry.relative for entry in parallel.unreadable] == [
+            "101- Mod 1/gamedata/001.ltx",
+            "102- Mod 2/gamedata",
+        ]
+        assert parallel.unreadable == sequential.unreadable
+
+    def test_annulation_en_cours_de_scan_leve_et_ne_laisse_aucun_fil(self, tmp_path: Path) -> None:
+        """Annulation déclenchée depuis un fil de hachage, pas avant le départ."""
+        mods = tmp_path / "mods"
+        mods.mkdir()
+        for index in range(300):
+            (mods / f"{index:03d}.ltx").write_bytes(b"x")
+        cancel_event = threading.Event()
+        reporter = CancellingReporter(cancel_event)
+
+        with pytest.raises(IntegrityCancelledError):
+            # Horloge factice : chaque relevé de progression est « dû », donc la
+            # toute première lecture de bloc déclenche l'annulation.
+            scan.scan_tree(
+                mods,
+                reporter=reporter,
+                cancel_event=cancel_event,
+                clock=FakeClock(step=10.0),
+                workers=4,
+            )
+
+        # Deux événements par fichier au maximum (bloc + fichier) : rester très
+        # en deçà de 600 prouve que le scan s'est arrêté au lieu d'aller au bout.
+        assert len(reporter.of_kind("progress")) < 200
+        assert _surviving_hash_threads() == []
+
+    def test_aucun_fil_ne_survit_a_un_scan_normal(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        scan.scan_tree(_wide_tree(tmp_path, directories=2, per_directory=3), reporter=reporter)
+
+        assert _surviving_hash_threads() == []
+
+    def test_nombre_de_fils_invalide_refuse_tout_de_suite(
+        self, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        with pytest.raises(ValueError, match="workers"):
+            scan.scan_tree(_mod_tree(tmp_path), reporter=reporter, workers=0)
+
+
+class TestWorkerDefaults:
+    def test_un_seul_fil_sur_disque_mecanique(self, monkeypatch, tmp_path: Path) -> None:
+        """Quatre têtes de lecture concurrentes sur des plateaux : plus lent, pas plus rapide."""
+        monkeypatch.setattr(scan.storage, "is_rotational", lambda _path: True)
+
+        assert scan._default_workers(tmp_path) == 1
+
+    def test_plusieurs_fils_sur_memoire_flash(self, monkeypatch, tmp_path: Path) -> None:
+        monkeypatch.setattr(scan.storage, "is_rotational", lambda _path: False)
+
+        assert scan._default_workers(tmp_path) == min(scan.MAX_HASH_WORKERS, os.cpu_count() or 1)
+
+    def test_support_indetermine_traite_comme_flash(self, monkeypatch, tmp_path: Path) -> None:
+        """btrfs multi-disques, NFS, conteneur sans `/proc` : le doute ne bride pas le scan."""
+        monkeypatch.setattr(scan.storage, "is_rotational", lambda _path: None)
+
+        assert scan._default_workers(tmp_path) > 1 or (os.cpu_count() or 1) == 1
+
+    def test_le_defaut_est_bien_celui_que_scan_tree_applique(
+        self, monkeypatch, tmp_path: Path, reporter: RecordingReporter
+    ) -> None:
+        monkeypatch.setattr(scan.storage, "is_rotational", lambda _path: True)
+        requested: list[int] = []
+        real_executor = scan.ThreadPoolExecutor
+
+        def spy(*, max_workers: int, thread_name_prefix: str) -> ThreadPoolExecutor:
+            requested.append(max_workers)
+            return real_executor(max_workers=max_workers, thread_name_prefix=thread_name_prefix)
+
+        monkeypatch.setattr(scan, "ThreadPoolExecutor", spy)
+
+        scan.scan_tree(_mod_tree(tmp_path), reporter=reporter)
+
+        assert requested == [1]
+
+
+class TestScanProgressConcurrency:
+    def test_cadence_et_compteurs_exacts_sous_concurrence(
+        self, reporter: RecordingReporter
+    ) -> None:
+        """Huit fils, une seconde par lecture d'horloge, un rapport dû toutes les 1,5 s.
+
+        Le résultat attendu est *exact*, pas approximatif : une ligne toutes les
+        deux lectures, et pas un octet perdu. Sans verrou, deux fils lisent la
+        même heure et franchissent ensemble le test de cadence — le compte tombe
+        alors autour de 1 650 au lieu de 2 000, et il varie d'une exécution à
+        l'autre.
+        """
+        threads_count, per_thread = 8, 500
+        readings = threads_count * per_thread
+        progress = scan._ScanProgress(reporter, clock=YieldingClock(step=1.0))
+
+        def hammer() -> None:
+            for _index in range(per_thread):
+                progress.add_bytes(3)
+
+        threads = [threading.Thread(target=hammer) for _ in range(threads_count)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert len(reporter.of_kind("progress")) == readings // 2
+        assert progress.total_bytes == readings * 3
