@@ -8,26 +8,38 @@ dans `~/.local/bin`, exactement ce que la doc amont demande de faire à la
 main. Même pattern que `prefix.download` (Proton-GE) : dernière release via
 l'API GitHub avec repli épinglé, téléchargement interruptible, pose atomique.
 
-**Intégrité — pourquoi pas de SHA-512 ici alors que Proton-GE en a un.**
+**Intégrité — pourquoi pas de SHA-512 amont ici alors que Proton-GE en a un.**
 L'amont ne publie aucune somme de contrôle : ses releases ne contiennent que
 les `.deb`/`.rpm` et le zipapp, sans fichier `.sha512sum` (vérifié sur la
-release 1.4.4). Il n'y a donc rien contre quoi comparer, et l'absence de
-vérification n'est pas un oubli mais une contrainte amont. Ce qu'on fait à la
-place, parce que c'est ce qui casse réellement en pratique :
+release 1.4.4). Il n'y a donc rien contre quoi comparer une release résolue
+dynamiquement via l'API (`resolve_latest_release`) — son contenu n'est connu
+qu'au moment du téléchargement. Ce qu'on fait à la place, parce que c'est ce
+qui casse réellement en pratique :
 
 - `download_to` recoupe la taille reçue avec le `Content-Length` annoncé —
   une connexion coupée en plein transfert ne passe plus pour un succès ;
 - `_require_valid_zipapp` exige un `#!` suivi d'une archive ZIP lisible
   contenant `__main__.py`, au lieu du simple « le fichier n'est pas vide ».
 
-Reste la confiance en HTTPS/GitHub pour l'authenticité, comme pour n'importe
+Pour le seul cas qu'on maîtrise — la release de repli `FALLBACK_UMU_RELEASE`,
+figée dans le code — on connaît d'avance l'archive exacte qu'on va
+télécharger : `FALLBACK_UMU_ARCHIVE_SHA256` est le SHA-256 de
+`umu-launcher-{FALLBACK_UMU_RELEASE}-zipapp.tar` tel que publié par l'amont
+(calculé une fois, à la main, en téléchargeant l'archive réelle — pas une
+valeur inventée). `install_umu` le vérifie quand la release installée est
+celle du repli ; une release différente (résolue via l'API, ou passée
+explicitement) n'a pas de digest connu et n'est pas vérifiée — même
+comportement qu'avant.
+
+Reste la confiance en HTTPS/GitHub pour tout le reste, comme pour n'importe
 quel `curl | sh` d'installation amont. Si l'amont se met à publier des sommes
-(ou des attestations d'artefacts), ce module doit les vérifier — même
-traitement que Proton-GE.
+(ou des attestations d'artefacts) pour toutes ses releases, ce module doit
+les vérifier — même traitement que Proton-GE.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import tarfile
@@ -49,6 +61,12 @@ from stalker_gamma_linux.prefix.errors import UmuDownloadError
 # injoignable (rate limit) ; les téléchargements directs, eux, passent.
 FALLBACK_UMU_RELEASE = "1.4.4"
 
+# SHA-256 de `umu-launcher-1.4.4-zipapp.tar` tel que publié par l'amont —
+# l'amont ne le publie pas lui-même (cf. docstring du module), donc calculé à
+# la main en téléchargeant l'archive réelle depuis les releases GitHub :
+# `sha256sum umu-launcher-1.4.4-zipapp.tar` le 2026-09-06.
+FALLBACK_UMU_ARCHIVE_SHA256 = "eb590691841f7fad3fc3ad8fd5db4ccb87849fe7948e62b28ece7a4ee48cc851"
+
 _RELEASE_BASE_URL = "https://github.com/Open-Wine-Components/umu-launcher/releases/download"
 _LATEST_RELEASE_API_URL = (
     "https://api.github.com/repos/Open-Wine-Components/umu-launcher/releases/latest"
@@ -56,6 +74,7 @@ _LATEST_RELEASE_API_URL = (
 _UMU_TAG_RE = re.compile(r"^\d+\.\d+(\.\d+)?$")
 # Le tar contient exactement `umu/umu-run` (zipapp exécutable) — vérifié sur 1.4.4.
 _MEMBER_NAME = "umu/umu-run"
+_HASH_CHUNK_BYTES = 1024 * 1024
 
 
 def default_install_dir() -> Path:
@@ -101,6 +120,36 @@ def _require_valid_zipapp(path: Path, release: str) -> str:
     return _MEMBER_NAME
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while chunk := stream.read(_HASH_CHUNK_BYTES):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _require_known_checksum(archive: Path, release: str) -> None:
+    """Vérifie le SHA-256 de `archive` contre `FALLBACK_UMU_ARCHIVE_SHA256`.
+
+    Uniquement pour `FALLBACK_UMU_RELEASE` : c'est la seule release dont on
+    connaît d'avance l'archive exacte (cf. docstring du module). Une release
+    résolue dynamiquement via l'API n'a pas de digest de référence — rien à
+    comparer, donc pas d'appel ici pour elle.
+    """
+    if release != FALLBACK_UMU_RELEASE:
+        return
+    actual = _sha256(archive)
+    if actual != FALLBACK_UMU_ARCHIVE_SHA256:
+        raise UmuDownloadError(
+            _(
+                "Invalid SHA-256 checksum for umu-launcher {release}: archive "
+                "rejected.\nExpected: {expected}\nGot:      {actual}\n"
+                "The pinned fallback release changed or the download was "
+                "tampered with — do not install it."
+            ).format(release=release, expected=FALLBACK_UMU_ARCHIVE_SHA256, actual=actual)
+        )
+
+
 def resolve_latest_release(*, on_progress: ProgressCallback | None = None) -> str:
     """Tag de la dernière release umu-launcher, via l'API GitHub (repli épinglé)."""
     progress = on_progress or (lambda _line: None)
@@ -131,8 +180,10 @@ def install_umu(
     `release` à None = dernière release publiée. Retourne le chemin du
     `umu-run` posé (écrase une version précédente : le zipapp est
     autoporteur, pas d'état à préserver). Lève `UmuDownloadError` en cas de
-    problème réseau ou d'archive inattendue. Sans sudo : tout se passe sous
-    le home de l'utilisateur.
+    problème réseau, d'archive inattendue, ou — pour `FALLBACK_UMU_RELEASE`
+    seulement — de SHA-256 ne correspondant pas à `FALLBACK_UMU_ARCHIVE_SHA256`
+    (cf. docstring du module). Sans sudo : tout se passe sous le home de
+    l'utilisateur.
     """
     progress = on_progress or (lambda _line: None)
     if release is None:
@@ -149,6 +200,7 @@ def install_umu(
             archive = Path(tmp) / "umu-zipapp.tar"
             progress(_("Downloading umu-launcher {release}…").format(release=release))
             download_to(archive_url, archive, cancel_event=cancel_event)
+            _require_known_checksum(archive, release)
             with tarfile.open(archive) as tar:
                 safe_extractall(tar, Path(tmp))
             extracted = Path(tmp) / _MEMBER_NAME

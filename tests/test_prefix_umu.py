@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import os
 import tarfile
@@ -48,6 +49,13 @@ def _patch_download(monkeypatch: pytest.MonkeyPatch, archive_bytes: bytes) -> li
         dest.write_bytes(archive_bytes)
 
     monkeypatch.setattr(umu, "download_to", fake_download_to)
+    # Ces tests portent sur l'extraction/la validation du zipapp, pas sur le
+    # digest — on aligne la référence sur l'archive factice pour que la
+    # vérification (déclenchée pour RELEASE == FALLBACK_UMU_RELEASE) ne les
+    # fasse pas échouer. `TestChecksum` ci-dessous couvre le digest lui-même.
+    monkeypatch.setattr(
+        umu, "FALLBACK_UMU_ARCHIVE_SHA256", hashlib.sha256(archive_bytes).hexdigest()
+    )
     return urls
 
 
@@ -100,6 +108,50 @@ class TestInstallUmu:
 
         with pytest.raises(UmuDownloadError, match="Could not download"):
             umu.install_umu(RELEASE, tmp_path / "bin")
+
+
+class TestChecksum:
+    """Vérification SHA-256, uniquement pour `FALLBACK_UMU_RELEASE`."""
+
+    def test_digest_correct_installation_ok(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        data = _make_zipapp_tar(tmp_path)
+        _patch_download(monkeypatch, data)
+        monkeypatch.setattr(umu, "FALLBACK_UMU_ARCHIVE_SHA256", hashlib.sha256(data).hexdigest())
+
+        result = umu.install_umu(umu.FALLBACK_UMU_RELEASE, tmp_path / "bin")
+
+        assert result.read_bytes().startswith(b"#!")
+
+    def test_digest_incorrect_sur_le_repli_leve(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _patch_download(monkeypatch, _make_zipapp_tar(tmp_path))
+        monkeypatch.setattr(umu, "FALLBACK_UMU_ARCHIVE_SHA256", "0" * 64)
+
+        with pytest.raises(UmuDownloadError, match="SHA-256"):
+            umu.install_umu(umu.FALLBACK_UMU_RELEASE, tmp_path / "bin")
+
+    def test_release_non_repli_pas_de_verification(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Une release résolue dynamiquement n'a pas de digest connu : pas de contrôle."""
+        data = _make_zipapp_tar(tmp_path)
+        urls: list[str] = []
+
+        def fake_download_to(url: str, dest: Path, **kwargs: object) -> None:
+            urls.append(url)
+            dest.write_bytes(data)
+
+        monkeypatch.setattr(umu, "download_to", fake_download_to)
+        # Digest de référence délibérément faux : s'il était comparé, ça échouerait.
+        monkeypatch.setattr(umu, "FALLBACK_UMU_ARCHIVE_SHA256", "0" * 64)
+        assert umu.FALLBACK_UMU_RELEASE != "1.5.0"
+
+        result = umu.install_umu("1.5.0", tmp_path / "bin")
+
+        assert result.read_bytes().startswith(b"#!")
 
 
 class TestResolveLatestRelease:
