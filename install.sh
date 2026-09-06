@@ -144,7 +144,14 @@ fi
 log "Venv (--system-site-packages) sous $VENV_DIR…"
 "$PYTHON_BIN" -m venv --system-site-packages "$VENV_DIR"
 "$VENV_DIR/bin/pip" install --quiet --upgrade pip
-"$VENV_DIR/bin/pip" install --quiet "$SRC_DIR"
+# `-c constraints.txt` : la clôture transitive complète y est épinglée (le
+# POURQUOI est dans l'en-tête du fichier). Sans ça, `gamma-launcher` — qui
+# déclare ses neuf dépendances sans la moindre borne de version — fait installer
+# ce que PyPI publie de plus récent le jour J : deux joueurs qui installent à
+# une semaine d'écart n'obtiennent pas le même code, et un bug rapporté n'est
+# plus reproductible. Le fichier ne nomme que NOS dépendances, jamais PyGObject
+# ni aucun paquet distro visible ici via `--system-site-packages`.
+"$VENV_DIR/bin/pip" install --quiet -c "$SRC_DIR/constraints.txt" "$SRC_DIR"
 
 # Révision réellement installée : le numéro de version seul ne distingue pas
 # deux utilisateurs de `main` entre deux releases. On la note ici plutôt que de

@@ -10,9 +10,19 @@ readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
 dependencies = [
-    "gamma-launcher @ git+https://github.com/Mord3rca/gamma-launcher.git@v3.1",
-    "rich>=13.0",
-    "tomli-w>=1.0",
+    # Épinglé au COMMIT, pas au tag. Un tag git est mutable : l'amont — ou
+    # quiconque obtient ses accès — peut le déplacer sans que cette ligne change,
+    # et chaque réinstallation récupérerait alors un code différent, silencieusement
+    # (CWE-494). Le SHA, lui, EST le contenu. Correspondance lisible : le tag v3.1
+    # désigne aujourd'hui ade656e0. À revérifier avant toute montée de version :
+    # `git ls-remote --tags https://github.com/Mord3rca/gamma-launcher.git`.
+    "gamma-launcher @ git+https://github.com/Mord3rca/gamma-launcher.git@ade656e029a8547d8853ce1ba54f9b7f0acb9100",
+    # Bornes hautes : sans elles `rich>=13.0` résolvait déjà en 15.x, deux majeures
+    # au-dessus de la seule version jamais testée ici — une rupture d'API amont
+    # arrivait donc chez l'utilisateur sans passer par la CI. Ces bornes disent
+    # « une majeure connue » ; `constraints.txt` dit « celle-ci, exactement ».
+    "rich>=13.0,<16",
+    "tomli-w>=1.0,<2",
 ]
 
 [project.urls]
