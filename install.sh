@@ -92,7 +92,21 @@ log "Python $PYTHON_VERSION détecté."
 
 # 2. Source : le checkout courant si le script y est lancé depuis l'intérieur,
 #    sinon clone/mise à jour d'un miroir sous $APP_DATA_DIR.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"
+#
+#    Le checkout n'est retenu que si ce script est RÉELLEMENT un fichier sur le
+#    disque. En `curl | bash`, bash lit le script sur stdin : BASH_SOURCE[0] est
+#    alors non défini, et l'ancien repli sur $0 valait "bash" — dirname rendait
+#    ".", donc le répertoire courant passait pour un checkout. Il suffisait d'un
+#    pyproject.toml au bon `name` déposé là (répertoire partagé, archive
+#    décompressée, ~/Téléchargements) pour que le `pip install "$SRC_DIR"` plus
+#    bas installe un projet arbitraire, et exécute son backend de build avec les
+#    droits de l'utilisateur (CWE-426, chemin de recherche non fiable). Sans
+#    fichier source, aucun checkout n'est déductible : on clone l'officiel.
+SCRIPT_SELF="${BASH_SOURCE[0]:-}"
+SCRIPT_DIR=""
+if [ -n "$SCRIPT_SELF" ] && [ -f "$SCRIPT_SELF" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SELF")" 2>/dev/null && pwd || true)"
+fi
 if [ -n "$SCRIPT_DIR" ] && grep -q '^name = "stalker-gamma-linux"' "$SCRIPT_DIR/pyproject.toml" 2>/dev/null; then
     SRC_DIR="$SCRIPT_DIR"
     log "Utilisation du checkout existant : $SRC_DIR"
