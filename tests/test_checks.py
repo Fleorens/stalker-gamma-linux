@@ -130,14 +130,112 @@ def test_check_7z_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     assert requirement.status is Status.MISSING
 
 
-def test_check_libunrar_present(monkeypatch: pytest.MonkeyPatch) -> None:
+def _patch_libunrar(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    package_output: str = "",
+    package_returncode: int = 0,
+    package_manager_present: bool = True,
+) -> None:
+    """libunrar dans le cache ldconfig, le gestionnaire de paquets répondant `package_output`.
+
+    Le tri se fait sur `cmd[0]` : `check_libunrar` enchaîne deux commandes
+    (ldconfig puis rpm/pacman/dpkg-query) et chacune doit répondre la sienne.
+    """
+
+    def fake_run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd[0] == "ldconfig":
+            return _completed(stdout="libunrar.so.5 => /usr/lib/libunrar.so.5")
+        return _completed(stdout=package_output, returncode=package_returncode)
+
+    monkeypatch.setattr(system, "run", fake_run)
     monkeypatch.setattr(
-        system, "run", lambda cmd: _completed(stdout="libunrar.so.5 => /usr/lib/libunrar.so.5")
+        system, "which", lambda cmd: f"/usr/bin/{cmd}" if package_manager_present else None
     )
+
+
+def test_check_libunrar_vulnerable_version_is_outdated(monkeypatch: pytest.MonkeyPatch) -> None:
+    # 6.1.6 = l'avant-dernière version des sources avant le correctif de
+    # CVE-2022-30333 (sources 6.1.7, alias produit « UnRAR 6.12 »).
+    _patch_libunrar(monkeypatch, package_output="6.1.6\n")
+
+    requirement = checks.check_libunrar(FAMILY)
+
+    assert requirement.status is Status.OUTDATED
+    assert "6.1.6" in requirement.detail
+    assert "CVE-2022-30333" in requirement.detail
+    assert requirement.install_hint is not None
+    assert requirement.install_hint.startswith("sudo dnf install libunrar")
+    assert requirement.key == "libunrar"
+
+
+def test_check_libunrar_patched_version_is_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_libunrar(monkeypatch, package_output="7.1.7\n")
 
     requirement = checks.check_libunrar(FAMILY)
 
     assert requirement.status is Status.OK
+    assert "7.1.7" in requirement.detail
+    assert requirement.install_hint is None
+
+
+def test_check_libunrar_threshold_version_is_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Exactement la version du correctif : corrigée, donc pas d'alerte.
+    _patch_libunrar(monkeypatch, package_output="6.1.7\n")
+
+    requirement = checks.check_libunrar(FAMILY)
+
+    assert requirement.status is Status.OK
+
+
+def test_check_libunrar_reads_pacman_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    # `pacman -Q` répond « nom version-release » : c'est bien la version qu'on lit.
+    _patch_libunrar(monkeypatch, package_output="libunrar 7.1.6-1\n")
+
+    requirement = checks.check_libunrar(DistroFamily.ARCH)
+
+    assert requirement.status is Status.OK
+    assert "7.1.6" in requirement.detail
+
+
+def test_check_libunrar_reads_dpkg_epoch(monkeypatch: pytest.MonkeyPatch) -> None:
+    # dpkg préfixe une epoch (« 1: ») : elle ne doit pas être prise pour la version.
+    _patch_libunrar(monkeypatch, package_output="1:6.0.3-1+deb11u1\n")
+
+    requirement = checks.check_libunrar(DistroFamily.DEBIAN)
+
+    assert requirement.status is Status.OUTDATED
+    assert "6.0.3" in requirement.detail
+
+
+def test_check_libunrar_unknown_version_stays_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Paquet introuvable (libunrar compilée à la main, nom de paquet exotique) :
+    # on ne sait pas, donc on ne crie pas au loup — mais on le dit.
+    _patch_libunrar(monkeypatch, package_returncode=1)
+
+    requirement = checks.check_libunrar(FAMILY)
+
+    assert requirement.status is Status.OK
+    assert "version" in requirement.detail
+    assert requirement.install_hint is None
+
+
+def test_check_libunrar_without_package_manager_stays_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_libunrar(monkeypatch, package_manager_present=False)
+
+    requirement = checks.check_libunrar(FAMILY)
+
+    assert requirement.status is Status.OK
+
+
+def test_check_libunrar_unknown_family_stays_ok(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Aucune requête connue pour cette famille : présence confirmée, version non.
+    _patch_libunrar(monkeypatch, package_output="6.1.6\n")
+
+    requirement = checks.check_libunrar(DistroFamily.UNKNOWN)
+
+    assert requirement.status is Status.OK
+    assert "6.1.6" not in requirement.detail
 
 
 def test_check_libunrar_missing(monkeypatch: pytest.MonkeyPatch) -> None:

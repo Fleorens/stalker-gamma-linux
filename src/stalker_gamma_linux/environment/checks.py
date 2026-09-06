@@ -23,6 +23,42 @@ MIN_LIBADWAITA_VERSION = (1, 5)
 
 _VERSION_RE = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?")
 
+# CVE-2022-30333 : UnRAR < 6.12 laisse une archive .rar écrire hors du dossier
+# d'extraction (traversée de répertoire via un lien symbolique). gamma-launcher
+# extrait des centaines d'archives tierces récupérées sur ModDB avec cette
+# bibliothèque : une libunrar vulnérable est ici un risque réel, pas théorique.
+#
+# ⚠ Deux numérotations coexistent chez RARLAB : la version *produit* annoncée
+# « 6.12 » correspond aux *sources* 6.1.7 (tarball `unrarsrc-6.1.7.tar.gz`),
+# et ce sont les sources que les distributions empaquettent. Le seuil est donc
+# exprimé en version sources — le comparer à « 6.12 » (soit (6, 12)) déclarerait
+# saines toutes les 6.1.x vulnérables.
+MIN_LIBUNRAR_VERSION = (6, 1, 7)
+
+# Comment relever la version de la *bibliothèque* installée, par famille.
+#
+# Pourquoi le gestionnaire de paquets, et pas les deux autres pistes :
+# - le binaire `unrar` : il n'est PAS livré avec la bibliothèque (paquets
+#   distincts sur les trois familles, cf. `commands.py`) — sur la machine de dev
+#   Fedora, /lib64/libunrar.so est présent et `unrar` absent, donc la piste
+#   échoue précisément là où on veut une réponse ; et sa bannière annonce la
+#   version produit (« UNRAR 6.12 »), incomparable au seuil sans conversion ;
+# - la chaîne de version dans le .so : elle n'y est pas (`strings` sur
+#   /usr/lib64/libunrar.so ne rend aucune version), et le fichier n'a pas
+#   davantage de suffixe exploitable (`libunrar.so` tout court sur Fedora) ;
+# - le gestionnaire de paquets, lui, rapporte la version des sources — la seule
+#   directement comparable au seuil — et existe par construction sur les trois
+#   familles visées par `DistroFamily`.
+#
+# Debian/Ubuntu : requête par motif, parce que le paquet s'appelle `libunrar5`
+# sur Debian et `libunrar5t64` sur Ubuntu 24.04 (transition time64) ; un nom
+# figé raterait l'une des deux.
+_LIBUNRAR_VERSION_QUERIES: dict[DistroFamily, tuple[str, ...]] = {
+    DistroFamily.FEDORA: ("rpm", "-q", "--queryformat", "%{VERSION}\n", "libunrar"),
+    DistroFamily.ARCH: ("pacman", "-Q", "libunrar"),
+    DistroFamily.DEBIAN: ("dpkg-query", "-W", "-f=${Version}\n", "libunrar*"),
+}
+
 
 def _flatpak_app_installed(app_id: str) -> bool:
     # L'utilisateur peut avoir Steam/protontricks installés en Flatpak plutôt
@@ -177,16 +213,73 @@ def check_7z(family: DistroFamily) -> Requirement:
     )
 
 
+def _libunrar_version(family: DistroFamily) -> tuple[int, ...] | None:
+    """Version des sources de libunrar d'après le gestionnaire de paquets, ou None.
+
+    None couvre tous les cas « on ne sait pas » : famille non reconnue,
+    gestionnaire de paquets absent, bibliothèque installée hors paquet (compilée
+    à la main, posée par un script tiers). L'appelant reste alors sur Status.OK :
+    ne pas savoir n'est pas une raison d'alarmer.
+    """
+    query = _LIBUNRAR_VERSION_QUERIES.get(family)
+    if query is None or system.which(query[0]) is None:
+        return None
+    result = system.run(list(query))
+    if result.returncode != 0:
+        return None
+    # `pacman -Q` répond « libunrar 7.1.6-1 » et dpkg peut préfixer une epoch
+    # (« 1:6.1.7-1 ») : `_parse_version` retient le premier X.Y[.Z] rencontré,
+    # qui est bien le numéro de version dans les deux formes.
+    return _parse_version(result.stdout)
+
+
 def check_libunrar(family: DistroFamily) -> Requirement:
+    """Présence *et* version de libunrar : une 6.1.6 est aussi dangereuse qu'une absence.
+
+    Vérifier la seule présence rapportait « [ OK ] » sur une machine exposée à
+    CVE-2022-30333 alors que le pipeline extrait des archives tierces avec cette
+    bibliothèque (cf. MIN_LIBUNRAR_VERSION).
+    """
     result = system.run(["ldconfig", "-p"])
-    if "libunrar" in result.stdout:
-        return Requirement(name="libunrar", status=Status.OK, detail=_("libunrar detected"))
+    if "libunrar" not in result.stdout:
+        return Requirement(
+            name="libunrar",
+            status=Status.MISSING,
+            detail=_("libunrar absent from the ldconfig cache"),
+            install_hint=INSTALL_COMMANDS["libunrar"].for_family(family),
+            key="libunrar",
+        )
+
+    version = _libunrar_version(family)
+    if version is None:
+        # La bibliothèque est là, sa version nous échappe : le dire franchement
+        # plutôt que de laisser croire à une vérification qui n'a pas eu lieu.
+        return Requirement(
+            name="libunrar", status=Status.OK, detail=_("detected (version unreadable)")
+        )
+
+    version_str = ".".join(str(part) for part in version)
+    if version < MIN_LIBUNRAR_VERSION:
+        # Faux positif possible : Debian et consorts rétroportent parfois le
+        # correctif dans une version plus ancienne (unrar-nonfree 6.0.3-1+deb11u1).
+        # On assume — pousser à mettre à jour une libunrar de 2021 ne coûte qu'une
+        # commande, alors que taire une extraction hors du dossier cible coûte
+        # des fichiers écrasés hors de l'installation.
+        return Requirement(
+            name="libunrar",
+            status=Status.OUTDATED,
+            detail=_(
+                "version {version} detected, vulnerable to CVE-2022-30333 "
+                "(a .rar archive can write outside the extraction directory); "
+                "sources {minimum}+ required (upstream UnRAR 6.12)"
+            ).format(version=version_str, minimum=".".join(str(p) for p in MIN_LIBUNRAR_VERSION)),
+            install_hint=INSTALL_COMMANDS["libunrar"].for_family(family),
+            key="libunrar",
+        )
     return Requirement(
         name="libunrar",
-        status=Status.MISSING,
-        detail=_("libunrar absent from the ldconfig cache"),
-        install_hint=INSTALL_COMMANDS["libunrar"].for_family(family),
-        key="libunrar",
+        status=Status.OK,
+        detail=_("version {version} detected").format(version=version_str),
     )
 
 

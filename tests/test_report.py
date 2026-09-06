@@ -22,16 +22,17 @@ def _make_fully_equipped_system(monkeypatch: pytest.MonkeyPatch) -> None:
         "disk_usage",
         lambda path: system.DiskUsage(total=500 * 2**30, used=0, free=200 * 2**30),
     )
-    monkeypatch.setattr(
-        system,
-        "run",
-        lambda cmd: subprocess.CompletedProcess(
-            args=cmd,
-            returncode=0,
-            stdout="protontricks, version 1.12.0\nlibunrar.so.5\ndeviceName = Fake GPU",
-            stderr="",
-        ),
-    )
+
+    # Le tri sur `cmd[0]` est nécessaire depuis que `check_libunrar` interroge le
+    # gestionnaire de paquets : sans lui, `rpm` renverrait la version de
+    # protontricks (1.12.0) et libunrar passerait pour vulnérable.
+    def fake_run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        stdout = "protontricks, version 1.12.0\nlibunrar.so.5\ndeviceName = Fake GPU"
+        if cmd[0] == "rpm":
+            stdout = "7.1.7\n"
+        return subprocess.CompletedProcess(args=cmd, returncode=0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(system, "run", fake_run)
 
 
 def test_build_report_all_ok(monkeypatch: pytest.MonkeyPatch) -> None:
