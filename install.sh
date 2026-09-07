@@ -27,6 +27,45 @@ log() { printf '\033[1m%s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m%s\033[0m\n' "$*"; }
 die() { printf '\033[1;31mErreur :\033[0m %s\n' "$*" >&2; exit 1; }
 
+# Pendant shell de `src/stalker_gamma_linux/paths_safety.py`, qui consacre un
+# module entier à refuser STRUCTURELLEMENT une suppression douteuse. Ce script
+# supprime lui aussi des arborescences, et les siennes dérivent de
+# `XDG_DATA_HOME` — une variable d'environnement, donc une entrée : reprise
+# telle quelle, sans le moindre contrôle, elle faisait de `rm -rf` une commande
+# dont la cible n'était garantie par rien. Le refus vaut mieux ici que la
+# prudence : une règle qu'on applique d'un seul côté de la frontière n'est pas
+# une règle.
+#
+# Trois conditions, toutes nécessaires :
+# 1. chemin ABSOLU — un chemin relatif viserait le répertoire courant ;
+# 2. pas de `..` — comme `paths_safety`, on refuse ce qu'on ne peut pas lire ;
+# 3. suffixe `/stalker-gamma-linux` (ou son `/src`) ET au moins deux segments,
+#    soit exactement le `len(resolved.parts) < 3` du module Python — un
+#    `XDG_DATA_HOME=/data` légitime donne `/data/stalker-gamma-linux` et doit
+#    passer, `/stalker-gamma-linux` à la racine non.
+#
+# Pas de contrôle du lien symbolique, lui : `rm -rf` sur un lien retire le lien,
+# pas sa cible. C'est `rmtree` sur un chemin déjà `resolve()`é qui rend la règle
+# indispensable côté Python ; elle n'a pas d'objet ici.
+safe_rm_rf() {
+    local target="$1"
+    case "$target" in
+        /*) : ;;
+        *) die "Refus de supprimer « $target » : chemin relatif." ;;
+    esac
+    case "$target" in
+        *..*) die "Refus de supprimer « $target » : le chemin contient « .. »." ;;
+    esac
+    case "$target" in
+        */stalker-gamma-linux | */stalker-gamma-linux/src) : ;;
+        *) die "Refus de supprimer « $target » : ne ressemble pas à un dossier de l'outil." ;;
+    esac
+    local separators="${target#/}"
+    separators="${separators//[^\/]/}"
+    [ "${#separators}" -ge 1 ] || die "Refus de supprimer « $target » : trop proche de la racine."
+    rm -rf "$target"
+}
+
 NO_LAUNCH=0
 UNINSTALL=0
 for arg in "$@"; do
@@ -56,7 +95,7 @@ if [ "$UNINSTALL" -eq 1 ]; then
         rm -f "$LOCAL_BIN/stalker-gamma-linux" "$LOCAL_BIN/stalker-gamma-linux-gui"
         rm -f "$APPLICATIONS_DIR/stalker-gamma-linux-gui.desktop"
     fi
-    rm -rf "$APP_DATA_DIR"
+    safe_rm_rf "$APP_DATA_DIR"
     command -v update-desktop-database >/dev/null 2>&1 && \
         update-desktop-database "$APPLICATIONS_DIR" >/dev/null 2>&1 || true
     log "Désinstallation terminée. Les données de jeu, elles, sont intactes."
@@ -125,7 +164,7 @@ else
         if ! { git -C "$SRC_DIR" fetch --depth 1 origin "$BRANCH" >/dev/null 2>&1 &&
                git -C "$SRC_DIR" reset --hard FETCH_HEAD >/dev/null 2>&1; }; then
             warn "Mise à jour impossible — re-clonage propre du dépôt…"
-            rm -rf "$SRC_DIR"
+            safe_rm_rf "$SRC_DIR"
             git clone --depth 1 "$REPO_URL" "$SRC_DIR" \
                 || die "Clonage de $REPO_URL impossible (réseau ? dépôt inaccessible ?)."
         fi
