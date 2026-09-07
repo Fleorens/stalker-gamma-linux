@@ -300,6 +300,33 @@ def test_build_parser_shortcut_default_target() -> None:
     assert args.target is None
 
 
+def test_build_parser_postmortem_defaults() -> None:
+    args = cli.build_parser().parse_args(["postmortem"])
+
+    assert args.command == "postmortem"
+    assert args.target is None
+
+
+def test_main_dispatches_to_postmortem(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[Path | None] = []
+
+    def fake_run_postmortem(target: Path | None) -> int:
+        calls.append(target)
+        return 0
+
+    monkeypatch.setattr(cli, "run_postmortem", fake_run_postmortem)
+
+    assert cli.main(["postmortem", "--target", "/mnt/disk/GAMMA"]) == 0
+    assert calls == [Path("/mnt/disk/GAMMA")]
+
+
+def test_main_postmortem_propage_le_code_de_retour(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Non nul quand il y a quelque chose à corriger — même convention que `doctor`."""
+    monkeypatch.setattr(cli, "run_postmortem", lambda target: 1)
+
+    assert cli.main(["postmortem"]) == 1
+
+
 def test_main_dispatches_to_shortcut(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[Path | None] = []
 

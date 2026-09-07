@@ -19,6 +19,7 @@ from stalker_gamma_linux.mo2 import run_mo2, run_play
 from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
 from stalker_gamma_linux.orchestrator import run_install, run_update
 from stalker_gamma_linux.paths_safety import UnsafeInstallTargetError, validate_install_target
+from stalker_gamma_linux.postmortem import run_postmortem
 from stalker_gamma_linux.prefix import run_prefix_doctor
 from stalker_gamma_linux.prefix.umu import run_install_umu
 from stalker_gamma_linux.report_bundle import run_report, version_line
@@ -212,6 +213,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    postmortem_parser = subparsers.add_parser(
+        "postmortem",
+        help=_(
+            "Explains how the last game session ended, once the game is closed — "
+            "and names the mods to look at first when a crash trace points at a file"
+        ),
+    )
+    postmortem_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
+
     import_parser = subparsers.add_parser(
         "import",
         help=_(
@@ -383,6 +393,8 @@ def _dispatch(args: argparse.Namespace) -> int:
             executable=args.executable,
             use_gamemode=not args.no_gamemode,
         )
+    if args.command == "postmortem":
+        return run_postmortem(args.target)
     if args.command == "import":
         return run_import(args.source, args.target, dry_run=args.dry_run)
     if args.command == "backup":

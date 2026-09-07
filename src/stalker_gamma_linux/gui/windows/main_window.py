@@ -48,6 +48,9 @@ from stalker_gamma_linux.gui.worker import (  # noqa: E402
 from stalker_gamma_linux.i18n import _  # noqa: E402
 from stalker_gamma_linux.mo2 import session as mo2_session  # noqa: E402
 from stalker_gamma_linux.mo2.paths import Mo2Paths  # noqa: E402
+from stalker_gamma_linux.postmortem.analysis import build_postmortem  # noqa: E402
+from stalker_gamma_linux.postmortem.report import format_postmortem  # noqa: E402
+from stalker_gamma_linux.postmortem.result import Postmortem  # noqa: E402
 from stalker_gamma_linux.report_bundle import version_line  # noqa: E402
 
 JobFunc = Callable[[queue.Queue[WorkerEvent], threading.Event], int]
@@ -77,6 +80,10 @@ class MainWindow(Adw.ApplicationWindow):
         self._preferences = prefs.load_preferences()
         self._current_state: viewmodel.MainWindowState | None = None
         self._probe_generation = 0
+        # Le post-mortem n'a de sens qu'après une partie : le bouton n'apparaît
+        # donc qu'au retour d'un `play`, là où l'utilisateur le cherche, et pas
+        # en permanence comme une invitation à chercher un problème.
+        self._played_this_session = False
 
         self._toast_overlay = Adw.ToastOverlay()
         self._nav_view = Adw.NavigationView()
@@ -140,9 +147,16 @@ class MainWindow(Adw.ApplicationWindow):
         self._update_button.set_size_request(-1, 40)
         self._update_button.connect("clicked", lambda _b: self._confirm_update())
 
+        self._postmortem_button = Gtk.Button(label=_("Did the game crash?"))
+        self._postmortem_button.add_css_class("action-secondary")
+        self._postmortem_button.set_size_request(-1, 40)
+        self._postmortem_button.set_visible(False)
+        self._postmortem_button.connect("clicked", lambda _b: self._start_postmortem())
+
         secondary_row = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=10, halign=Gtk.Align.END
         )
+        secondary_row.append(self._postmortem_button)
         secondary_row.append(self._mo2_button)
         secondary_row.append(self._update_button)
 
@@ -193,6 +207,7 @@ class MainWindow(Adw.ApplicationWindow):
             self._primary_content.set_icon_name("folder-download-symbolic")
         self._mo2_button.set_visible(result.is_installed)
         self._update_button.set_visible(result.is_installed)
+        self._postmortem_button.set_visible(result.is_installed and self._played_this_session)
         self._update_action.set_enabled(result.is_installed)
 
         self.set_default_widget(self._primary_button)
@@ -532,6 +547,7 @@ class MainWindow(Adw.ApplicationWindow):
     def _start_play(self) -> None:
         target = self._preferences.install_path
         use_gamemode = self._preferences.use_gamemode
+        self._played_this_session = True
 
         def job(events: queue.Queue[WorkerEvent], cancel_event: threading.Event) -> int:
             return mo2_session.run_play(
@@ -557,6 +573,37 @@ class MainWindow(Adw.ApplicationWindow):
             )
 
         self._push_task(_("Opening Mod Organizer 2"), job, cancellable=True)
+
+    def _start_postmortem(self) -> None:
+        """Analyse la dernière session, hors du fil GTK, et présente le verdict.
+
+        Rien n'est décidé ici : `postmortem.build_postmortem` est exactement ce
+        que fait `stalker-gamma-linux postmortem`. La lecture est bornée (deux
+        extrémités du journal, quelques `stat` sur `mods/`), mais elle touche le
+        disque — donc un thread, comme l'analyse d'environnement.
+        """
+        target = self._preferences.install_path
+
+        def worker() -> None:
+            result = build_postmortem(target)
+            GLib.idle_add(self._present_postmortem, result)
+
+        self._show_toast(_("Reading the last session…"))
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _present_postmortem(self, postmortem: Postmortem) -> bool:
+        details = Gtk.TextView(editable=False, cursor_visible=False, monospace=True)
+        details.get_buffer().set_text(format_postmortem(postmortem))
+        # La trace fait des lignes très longues : on défile plutôt que de les
+        # replier, une trace recoupée n'étant plus recopiable dans une issue.
+        scroller = Gtk.ScrolledWindow(min_content_height=320, min_content_width=520)
+        scroller.set_child(details)
+
+        dialog = Adw.AlertDialog(heading=_("Last game session"))
+        dialog.set_extra_child(scroller)
+        dialog.add_response("close", _("Close"))
+        dialog.present(self)
+        return False
 
     def _push_task(
         self,

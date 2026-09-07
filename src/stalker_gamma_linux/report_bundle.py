@@ -32,6 +32,9 @@ from stalker_gamma_linux import state as state_module
 from stalker_gamma_linux.doctor import DoctorReport, build_full_report
 from stalker_gamma_linux.environment.report import format_report
 from stalker_gamma_linux.i18n import _
+from stalker_gamma_linux.postmortem.analysis import build_postmortem
+from stalker_gamma_linux.postmortem.report import format_postmortem
+from stalker_gamma_linux.postmortem.result import Postmortem
 from stalker_gamma_linux.prefix import proton
 from stalker_gamma_linux.prefix.doctor import format_prefix_report
 
@@ -157,8 +160,21 @@ def _section(title: str, body: str) -> str:
     return f"=== {title} ===\n{body}\n"
 
 
-def build_bundle(report: DoctorReport, *, log_tail: str | None = None) -> str:
-    """Assemble le rapport complet en texte brut, prêt à coller dans une issue."""
+def build_bundle(
+    report: DoctorReport,
+    *,
+    log_tail: str | None = None,
+    postmortem: Postmortem | None = None,
+) -> str:
+    """Assemble le rapport complet en texte brut, prêt à coller dans une issue.
+
+    Le post-mortem de la dernière session en fait partie depuis T18 : c'est
+    précisément ce qu'on demandait jusqu'ici à l'utilisateur d'aller chercher à
+    la main, et l'extrait de trace qu'il contient est la moitié du ticket. Il
+    passe par la **même** anonymisation que le reste — un journal X-Ray recopie
+    le chemin complet de l'install, donc le nom de compte, à chaque ligne de son
+    dump de crash.
+    """
     header = "\n".join(
         [
             version_line(),
@@ -176,6 +192,12 @@ def build_bundle(report: DoctorReport, *, log_tail: str | None = None) -> str:
             _section(
                 _("GAMMA detected on disk"),
                 _("yes") if report.installed_on_disk else _("no"),
+            ),
+            _section(
+                _("Post-mortem (last game session)"),
+                format_postmortem(
+                    build_postmortem(report.target) if postmortem is None else postmortem
+                ),
             ),
             _section(
                 _("Log (last {count} lines)").format(count=_LOG_TAIL_LINES),

@@ -310,6 +310,118 @@ conséquences :
   lancements **réussis** : lu après coup, le diagnostic conclurait à un échec de
   préfixe alors que la partie a démarré. Faux positif connu, à traiter côté T14 —
   hors périmètre de cette tâche, qui ne touche pas au code.
+  **Traité en T18** (voir « Post-mortem de session » ci-dessous) : le
+  post-mortem n'oppose pas un message à un autre, il compare les dates de
+  modification des deux journaux. Si le moteur a tourné pendant *ce* lancement,
+  l'avertissement de préfixe n'est pas l'histoire de cette partie et le crash
+  reprend la première place. Les marqueurs eux-mêmes sont inchangés : ils
+  restent justes quand le processus ne démarre pas.
+
+## Post-mortem de session — journal du moteur X-Ray (T18, 2026-09-07)
+
+Ce que la table « Symptôme → remède » ci-dessus ne couvrait pas : **le jeu a
+démarré, avec ses mods, et il est tombé en cours de partie.** Le journal
+umu-run ne dit rien de ce cas ; le seul endroit où il se lit est le journal du
+moteur lui-même, que rien n'ouvrait jusqu'ici.
+
+### Emplacement du journal — constaté, pas supposé
+
+Sur **les deux** installs GAMMA réelles de la machine de développement, le
+moteur écrit dans le dossier *Anomaly*, pas dans l'instance MO2 :
+
+```
+<anomaly>/appdata/logs/xray_steamuser.log
+```
+
+`steamuser` est le compte Windows du préfixe Proton (d'où la recherche par
+glob `xray_*.log`). La redirection d'écriture de l'USVFS — tout ce qu'un
+processus lancé depuis MO2 crée atterrit dans `overwrite/` — **n'a pas eu
+lieu** : `appdata/` est hors de l'arborescence virtualisée (vérifié :
+`gamma/overwrite/` ne contient qu'`AnomalyLauncher.cfg`, `commandline.txt` et
+un `gamedata/`). Elle reste possible selon la configuration de l'instance, donc
+`postmortem/logfile.py` cherche aux **deux** emplacements et retient le fichier
+le plus récemment modifié — le nom n'étant pas horodaté, contrairement aux
+`usvfs-*.log`, c'est la date qui tranche.
+
+Le journal est réécrit à chaque lancement (un seul `Game started:` par
+fichier) et fait couramment plusieurs mégaoctets : 5,2 Mo / 104 329 lignes sur
+la session mesurée. Il n'est donc jamais chargé en entier — en-tête d'un côté,
+queue de l'autre.
+
+### Le piège : `[error]` et `stack trace` ne sont pas des marqueurs de crash
+
+Mesuré sur une session **quittée normalement** (13/08/2026, 104 329 lignes) :
+
+| Motif cherché | Occurrences sur la session **propre** | sur la session **plantée** |
+|---|---|---|
+| `[error]` (insensible à la casse, n'importe où) | **65** | 55 |
+| `stack trace` (idem) | **27** | 63 |
+| `^stack trace:` (ancré en début de ligne) | **0** | **1** |
+| `^FATAL ERROR` | 0 | 0 |
+| `^[xrLogger] InternalCloseLog` | **1** | **0** |
+
+Les 65 et les 27 sont des erreurs *applicatives* de GAMMA, dont le moteur se
+relève : `! [ERROR] --- Failed to load script mags_patches`,
+`~ STACK TRACEBACK:`. Le joueur a joué une heure de plus derrière. Ce qui
+distingue le bloc fatal du moteur est qu'il commence **en début de ligne** —
+Anomaly préfixe toujours les siennes d'un `! ` ou d'un `~ `. Les motifs de
+`postmortem/markers.py` sont donc ancrés ; l'insensibilité à la casse redevient
+alors sans danger.
+
+### Marqueurs retenus, et d'où ils viennent
+
+- **Fin propre** : `[xrLogger] InternalCloseLog called, terminating thread` —
+  dernière ligne de la session propre, précédée du `RM_Dump` du gestionnaire de
+  ressources.
+- **Crash** : `stack trace:` en début de ligne, suivi du dump
+  `SymInit: Symbol-SearchPath:` / `OS-Version:` / `at address 0x…`, et pas de
+  `InternalCloseLog` derrière. C'est exactement ce sur quoi s'arrête la session
+  plantée du 26/08/2026 (`at address 0x0000000140B02DC1`).
+- **Bloc fatal** : `FATAL ERROR` seul sur sa ligne, puis
+  `[error]Expression    : …`, `[error]Description   : …`. Aucune des deux
+  sessions n'en contient ; les formats viennent des chaînes du binaire lui-même
+  (`%sFATAL ERROR%s%s`, `%sExpression    : %s%s` dans
+  `anomaly/bin/AnomalyDX11.exe`, cf. `xrDebugNew.cpp`).
+- **Manque de mémoire** : `Out of memory. Memory request: <n> K` et
+  `* [x-ray]: OOM requesting <n> bytes`. **Cas jamais observé** : formats tirés
+  du binaire (`out_of_memory_handler`), et c'est écrit tel quel dans le code
+  plutôt que laissé croire qu'on l'a vu tourner.
+
+Quand aucun marqueur de fin n'apparaît, le verdict est « je ne peux pas
+conclure » : la partie tourne peut-être encore.
+
+### Attribution au mod — un suspect, pas un coupable
+
+Le moteur ne nomme jamais un mod, il nomme un fichier. Sur la session plantée,
+les dernières lignes avant la trace sont :
+
+```
+! error in stalker [sim_default_csky_2], profile [dick_sim_default_csky_2_default_34]
+  with visual [actors\stalker_nebo\stalker_nebo3_exohead]
+stack trace:
+```
+
+`gamedata/meshes/actors/stalker_nebo/stalker_nebo3_exohead.ogf` existe : il est
+fourni par `29- Dux's Innemurable Characters Kit - DuxFortis`. Mais
+`31- Fixed Vanilla Models and Textures - Blackgrowl` fournit le reste du dossier
+`stalker_nebo/` **sans** ce fichier-là. Le mod nommé est donc celui à regarder
+en premier, pas celui à accuser : le fautif peut être son voisin dans l'ordre de
+chargement. D'où la formulation « suspect », et la liste de *tous* les
+propriétaires trouvés.
+
+Le rattachement chemin → mod n'est pas réécrit : c'est `integrity.report.mod_of`
+qui décide, comme pour `verify`.
+
+### Journal de lancement : append-only, donc dernière session seulement
+
+`prefix.process.run_detached` ouvre `logs/mo2-game.log` en **append** — le
+fichier de l'install mesurée contient trois lancements. Diagnostiquer le fichier
+entier ferait ressortir l'échec d'il y a trois semaines comme s'il venait
+d'arriver ; `mo2.diagnostics.last_launch_session` ne garde donc que le dernier
+bloc `$ <commande>`. Au passage, la lecture de ce journal est devenue tolérante
+aux octets non-UTF-8 : `run_detached` y redirige la sortie brute du processus,
+sans le `errors="replace"` que `run_in_prefix` applique à son flux, et un seul
+octet invalide (0x88, constaté côté Wine) faisait taire le diagnostic sans un mot.
 
 ## Sources
 
@@ -349,5 +461,11 @@ conséquences :
 - pressure-vessel / Steam Runtime (le conteneur qui remplace `/usr` et rend le
   wine hôte inatteignable) :
   https://gitlab.steamos.cloud/steamrt/steam-runtime-tools/-/tree/main/pressure-vessel
+- Marqueurs du journal du moteur (T18) : deux journaux X-Ray complets d'installs
+  GAMMA réelles (X-Ray Monolith 1.5.3, `'xrCore' build 9959`) — une session
+  quittée normalement le 2026-08-13, une session plantée le 2026-08-26 — plus
+  les chaînes de format extraites de `anomaly/bin/AnomalyDX11.exe` (`strings`),
+  qui donnent littéralement ce que `xrDebugNew.cpp` peut écrire. Voir la section
+  « Post-mortem de session » ci-dessus.
 </content>
 </invoke>

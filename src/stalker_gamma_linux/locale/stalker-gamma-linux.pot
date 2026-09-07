@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-07 15:18+0200\n"
+"POT-Creation-Date: 2026-09-07 22:12+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -199,6 +199,11 @@ msgstr ""
 msgid ""
 "Launches without GameMode (enabled by default when installed: performance"
 " CPU governor and priorities while you play)"
+msgstr ""
+
+msgid ""
+"Explains how the last game session ended, once the game is closed — and "
+"names the mods to look at first when a crash trace points at a file"
 msgstr ""
 
 msgid ""
@@ -524,6 +529,9 @@ msgid "yes"
 msgstr ""
 
 msgid "no"
+msgstr ""
+
+msgid "Post-mortem (last game session)"
 msgstr ""
 
 #, python-brace-format
@@ -1392,6 +1400,9 @@ msgstr ""
 msgid "Update"
 msgstr ""
 
+msgid "Did the game crash?"
+msgstr ""
+
 msgid "INSTALL"
 msgstr ""
 
@@ -1478,6 +1489,12 @@ msgid "Launching the game"
 msgstr ""
 
 msgid "Opening Mod Organizer 2"
+msgstr ""
+
+msgid "Reading the last session…"
+msgstr ""
+
+msgid "Last game session"
 msgstr ""
 
 msgid "Done."
@@ -1992,6 +2009,105 @@ msgstr ""
 
 #, python-brace-format
 msgid "expected an absolute Linux path, got: {path!r}"
+msgstr ""
+
+#, python-brace-format
+msgid "    … ({count} repeated line(s) omitted)"
+msgstr ""
+
+msgid "The game did not start: the launch failed before the engine ran."
+msgstr ""
+
+msgid "The engine stopped after failing to allocate memory (out of memory)."
+msgstr ""
+
+msgid ""
+"The engine crashed: its log stops on a fatal block, with no clean "
+"shutdown."
+msgstr ""
+
+msgid ""
+"The mods do not look mounted (USVFS): the game may have started without "
+"them."
+msgstr ""
+
+msgid "Last session ended normally — no crash to report."
+msgstr ""
+
+msgid "No engine log found: I cannot tell how the last session ended."
+msgstr ""
+
+msgid "The engine log is empty: I cannot tell how the last session ended."
+msgstr ""
+
+msgid ""
+"The engine log ends without a shutdown or a crash: I cannot conclude (the"
+" game may still be running, or it was killed from outside)."
+msgstr ""
+
+#, python-brace-format
+msgid "Session started: {stamp}"
+msgstr ""
+
+#, python-brace-format
+msgid "Session started: {stamp} (xrCore build {build})"
+msgstr ""
+
+msgid ""
+"Mods to look at first — SUSPECTS, not proof: they provide a file named in"
+" the trace. The culprit may be a mod that overrides one of them."
+msgstr ""
+
+#, python-brace-format
+msgid "      {path}  (named as: {reference})"
+msgstr ""
+
+msgid "Also named, and provided by the Anomaly base rather than a mod:"
+msgstr ""
+
+msgid ""
+"Named in the trace but provided by no installed mod. That is information,"
+" not a failure: the Anomaly base ships most of its content packed in db/,"
+" which is not opened here."
+msgstr ""
+
+msgid ""
+"No mod could be named: the trace does not mention a file that any "
+"installed mod provides. The excerpt below is what there is to go on."
+msgstr ""
+
+msgid "Excerpt kept from the engine log:"
+msgstr ""
+
+msgid ""
+"→ Lower the texture/shader load (Screen Space Shaders, cumulative shader "
+"packs), and check that the machine is not short on RAM or swap while "
+"playing."
+msgstr ""
+
+msgid ""
+"→ Disable the suspects above one at a time in Mod Organizer 2, then "
+"replay the same scene. `stalker-gamma-linux verify` also tells you "
+"whether one of those mods is damaged on disk rather than merely "
+"incompatible."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"→ Launch the game once with `stalker-gamma-linux play`, close it, and run"
+" this command again. The engine writes its log under "
+"<anomaly>/appdata/logs/ (see {doc})."
+msgstr ""
+
+#, python-brace-format
+msgid "Engine log: {path}"
+msgstr ""
+
+msgid "Engine log: none found under <anomaly>/appdata/logs/"
+msgstr ""
+
+#, python-brace-format
+msgid "Launch log: {path}"
 msgstr ""
 
 msgid "absolute path"

@@ -847,6 +847,84 @@ Validé hors ligne sur la vraie liste (756 entrées, CRLF) : les réglages du
 joueur reviennent, ses ajouts retrouvent leur position, le mod retiré en amont
 n'est pas ressuscité, aucun doublon, et le fichier reste intégralement en CRLF.
 
+## Post-mortem de session (T18)
+
+Le diagnostic post-lancement existait depuis T05/T14, mais depuis que `play`
+rend la main sans attendre (T15), **plus personne ne l'appelait** : au moment où
+`play` revient, le jeu tourne encore et les journaux n'ont rien à dire. T18
+ajoute la commande qui les relit quand ils ont enfin quelque chose à raconter, et
+la moitié qui manquait — le journal du moteur X-Ray, seul endroit où un crash de
+GAMMA s'attribue à un mod.
+
+Les relevés qui fondent chaque marqueur (emplacement réel du journal, mesures de
+faux positifs, provenance des motifs) sont dans
+`docs/MO2-PROTON-COMPAT.md` § « Post-mortem de session » — ils appartiennent au
+document qui sert déjà de référence au diagnostic, pas à celui-ci.
+
+### Nom de la commande : `postmortem`
+
+« Post-mortem » est du jargon, et la question du joueur est « pourquoi ça a
+planté ? ». La commande garde pourtant ce nom, pour deux raisons :
+
+1. la CLI de ce projet nomme des **outils**, en anglais, et déjà sur ce registre :
+   `doctor`, `prefix-doctor`, `verify`, `import`. Une commande `why-did-it-crash`
+   détonnerait, et `crash` mentirait — la commande sert aussi à dire « rien de
+   cassé » ;
+2. la surface faite pour le joueur n'est pas la CLI : c'est le bouton
+   **« Le jeu a planté ? »** de la fenêtre principale, qui n'apparaît qu'au retour
+   d'un `play` — le moment exact où on le cherche. Le nom technique reste du côté
+   technique.
+
+### Découpage
+
+Paquet `postmortem/`, un fichier par question :
+
+| Module | Question |
+|---|---|
+| `markers.py` | À quoi ressemble un crash dans un journal X-Ray ? (motifs + provenance) |
+| `logfile.py` | Où est le journal, et comment le lire sans le charger ? |
+| `outcome.py` | Comment cette session s'est-elle terminée ? |
+| `attribution.py` | Quel mod fournit le fichier nommé dans la trace ? |
+| `result.py` | Le verdict et ses pièces à conviction |
+| `analysis.py` | Quel diagnostic l'emporte ? |
+| `report.py` | Comment le dire sans affirmer plus qu'on ne lit ? |
+| `session.py` | La commande CLI |
+
+### Un seul diagnostic principal, et comment on tranche
+
+Ordre de priorité, du plus en amont au plus en aval :
+
+    échec de lancement > manque de mémoire > crash moteur > USVFS mort > session normale
+
+Même règle qu'en T14 : un utilisateur à qui on annonce trois problèmes n'en
+corrige aucun. Une exception mesurée s'y ajoute — deux des marqueurs d'échec de
+lancement ne sont **pas fatals** (Proton écrit `Prefix has an invalid version?!`
+puis lance le jeu quand même, mesuré en T16). Appliqué mécaniquement, l'ordre
+ferait disparaître un vrai crash derrière un « reconstruis ton préfixe ». Le fait
+qui tranche ne se lit pas dans un message mais dans les **dates de modification**
+des deux journaux : si celui du moteur date d'une autre partie, il ne décrit pas
+ce lancement (`analysis.describes_same_session`).
+
+### Lecture bornée, par les deux bouts
+
+Un journal X-Ray fait plusieurs mégaoctets et rien n'en borne la taille. L'en-tête
+(`Game started:`, `'xrCore' build`) tient dans les premiers kilo-octets ; le
+verdict et la trace sont à la fin, atteints par `seek` puis `deque` borné — pas
+en relisant tout le fichier pour arriver à son bout. Coût mesuré sur l'install
+réelle (5,2 Mo, 761 mods) : **0,02 s**, attribution comprise.
+
+### Rien n'est réattribué deux fois
+
+`integrity.report.mod_of` est déjà l'unique endroit qui décide à quel mod
+appartient un chemin sous `mods/` ; `attribution.py` l'appelle au lieu de relire
+le nom du dossier, pour que les deux ne divergent jamais. Ce que ce module ajoute
+— et qui n'existait nulle part — est la traduction « nom de ressource du moteur »
+(un *visual* sans extension, un script nu dans une trace Lua) vers le chemin
+plausible sous `gamedata/`. L'attribution ne parcourt pas l'arborescence des mods
+(des centaines de milliers de fichiers) : elle construit quelques chemins par mod
+et teste leur existence, la résolution insensible à la casse n'étant tentée qu'en
+second passage.
+
 ## Dimensionnement disque (`sizing.py`)
 
 Le volume qu'exige une installation est une donnée **unique**, dans

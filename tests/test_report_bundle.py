@@ -14,6 +14,8 @@ from stalker_gamma_linux import report_bundle
 from stalker_gamma_linux.doctor import DoctorReport
 from stalker_gamma_linux.environment.distro import Distro, DistroFamily
 from stalker_gamma_linux.environment.models import EnvironmentReport, Requirement, Status
+from stalker_gamma_linux.postmortem.outcome import SessionEnd, SessionOutcome
+from stalker_gamma_linux.postmortem.result import Finding, Postmortem
 from stalker_gamma_linux.prefix.doctor import PrefixReport
 from stalker_gamma_linux.state import InstallState
 
@@ -104,8 +106,56 @@ class TestBuildBundle:
     def test_contient_les_sections_attendues(self, tmp_path: Path) -> None:
         bundle = report_bundle.build_bundle(_doctor_report(tmp_path), log_tail="ligne de journal")
 
-        for section in ("Report", "Environment", "Proton prefix", "Installation", "Log"):
+        for section in (
+            "Report",
+            "Environment",
+            "Proton prefix",
+            "Installation",
+            "Post-mortem",
+            "Log",
+        ):
             assert f"=== {section}" in bundle
+
+    def test_le_verdict_du_post_mortem_est_repris(self, tmp_path: Path) -> None:
+        """Le post-mortem et son extrait de trace font la moitié d'un ticket
+        utile : sans eux, on redemande le journal à chaque issue."""
+        postmortem = Postmortem(
+            finding=Finding.ENGINE_CRASH,
+            root=tmp_path,
+            session=SessionEnd(
+                outcome=SessionOutcome.ENGINE_CRASH,
+                excerpt=("stack trace:", "at address 0x0000000140B02DC1"),
+            ),
+        )
+
+        bundle = report_bundle.build_bundle(
+            _doctor_report(tmp_path), log_tail="", postmortem=postmortem
+        )
+
+        assert "The engine crashed" in bundle
+        assert "at address 0x0000000140B02DC1" in bundle
+
+    def test_le_post_mortem_passe_par_lanonymisation(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Un journal X-Ray recopie le chemin complet de l'install à chaque ligne
+        de son dump de crash — donc le nom de compte."""
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+        postmortem = Postmortem(
+            finding=Finding.ENGINE_CRASH,
+            root=tmp_path,
+            session=SessionEnd(
+                outcome=SessionOutcome.ENGINE_CRASH,
+                excerpt=(f"SymInit: Symbol-SearchPath: '{tmp_path}/Games/GAMMA/anomaly/bin'",),
+            ),
+        )
+
+        bundle = report_bundle.build_bundle(
+            _doctor_report(tmp_path), log_tail="", postmortem=postmortem
+        )
+
+        assert str(tmp_path) not in bundle
+        assert "~/Games/GAMMA/anomaly/bin" in bundle
 
     def test_contient_version_et_plateforme(self, tmp_path: Path) -> None:
         bundle = report_bundle.build_bundle(_doctor_report(tmp_path), log_tail="")

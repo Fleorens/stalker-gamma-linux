@@ -141,6 +141,7 @@ stalker-gamma-linux install --target /mnt/disk --shortcut   # custom disk, + des
 stalker-gamma-linux import /path/to/existing     # adopt an install already on disk — no re-download
 stalker-gamma-linux play                         # launch Anomaly through MO2 (USVFS, mods active, GameMode if installed)
 stalker-gamma-linux mo2                          # open Mod Organizer 2 itself (enable/disable mods)
+stalker-gamma-linux postmortem                   # after closing the game: how the last session ended, and which mods to suspect
 stalker-gamma-linux update                       # update the modpack, re-verify, keep your mod list
 stalker-gamma-linux backup                       # back up profiles + saved games + overwrite (kept, never rotated)
 stalker-gamma-linux backup --list                # what you can go back to (date, contents, size)
@@ -212,11 +213,19 @@ from Mod Organizer 2. The same two buttons are in the GUI's
 Diagnostic view. Note this is a different check from `update`'s: that one
 verifies the downloaded **archives**, this one the files actually on disk.
 
+**Game crashed?** Close it, then run `stalker-gamma-linux postmortem` (or press
+*Did the game crash?* in the GUI). It reads the engine's own log and tells you
+how the session actually ended — and when the crash trace names a file, which
+installed mods provide it. Those are **suspects**, not a verdict: the culprit can
+be a mod that overrides one of them, and the wording says so. A session you
+simply quit is reported as such, and a missing or truncated log gets a plain
+"I cannot conclude" plus the path to look at, never a guess.
+
 **Reporting a problem?** Run `stalker-gamma-linux doctor --report` (or click the
 save icon in the GUI's Diagnostic view). It writes a single file with your
-prerequisites, prefix state, installed Proton builds and the end of the log,
-with paths anonymized to `~` — attach that to the issue and skip the
-back-and-forth. `stalker-gamma-linux --version` alone prints the version plus
+prerequisites, prefix state, installed Proton builds, that post-mortem verdict
+with its trace excerpt, and the end of the log, with paths anonymized to `~` —
+attach that to the issue and skip the back-and-forth. `stalker-gamma-linux --version` alone prints the version plus
 the exact revision installed, which is what pins down *which* code you're on
 between releases.
 
@@ -255,6 +264,11 @@ prerequisites missing" chip that opens the full Diagnostic view.
 - **Backups** — the same Diagnostic view lists every restore point (date,
   contents, size) with a *Restore* button each, and a *Back up now* that keeps
   your profiles, saved games and overwrite folder out of the rotation.
+- **After a crash** — a *Did the game crash?* button appears on the main
+  screen once you come back from a game, and tells you how the last session
+  ended: a clean exit, a dead USVFS, or an engine crash — and in that case the
+  mods that provide the files named in the trace, so you know which ones to
+  disable first.
 
 It needs GTK4 + libadwaita + PyGObject from your distribution (not
 pip-installable — no manylinux wheel exists for PyGObject); running the

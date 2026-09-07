@@ -4,11 +4,18 @@ Deux familles de diagnostics, dans l'ordre où les échecs surviennent réelleme
 
 0. **En amont de l'USVFS** : le processus cible ne démarre même pas.
    `launch_failure_diagnosis`/`diagnose_launch_log` reconnaissent, sur le
-   journal de lancement umu-run (`prefix.process.run_in_prefix`), un runtime
-   VC++ manquant (concrt140/msvcp140/vcruntime140) ou un préfixe construit par
-   une autre version de Proton (wineserver refuse de démarrer). Ces échecs
-   masquent tout diagnostic USVFS ultérieur : `session.run_play` les affiche
-   **à la place** du message USVFS générique, jamais en plus.
+   journal de lancement umu-run, un runtime VC++ manquant
+   (concrt140/msvcp140/vcruntime140) ou un préfixe construit par une autre
+   version de Proton (wineserver refuse de démarrer). Ces échecs masquent tout
+   diagnostic USVFS ultérieur : ce message s'affiche **à la place** du message
+   USVFS générique, jamais en plus.
+
+   Le journal en question est celui d'un lancement de *jeu*
+   (`prefix.process.run_detached`, `logs/mo2-game.log` ou `flat-game.log`),
+   ouvert en **append** : seule sa dernière session est diagnostiquée, sinon
+   l'échec d'une partie précédente ressortirait comme s'il venait d'arriver.
+   Depuis T15, plus personne ne lit ces fonctions au retour de `play` (le jeu
+   tourne encore) : c'est le paquet `postmortem` qui les rappelle après coup.
 
 Le symptôme n°1 du mode MO2 sous Proton est un jeu qui se lance **sans contenu
 GAMMA** parce que le VFS n'a pas été monté (version de Proton incompatible, ou
@@ -41,8 +48,17 @@ from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.mo2.instance import GAMMA_PROFILE
 from stalker_gamma_linux.mo2.modlist import enabled_mods, read_modlist
 from stalker_gamma_linux.mo2.paths import Mo2Paths
+from stalker_gamma_linux.prefix.paths import PrefixPaths
 
 _USVFS_LOG_GLOB = "usvfs-*.log"
+
+# Journaux de lancement écrits par `prefix.process.run_detached` : un fichier
+# fixe par mode de lancement, ouvert en **append** à chaque partie.
+LAUNCH_LOG_NAMES = ("mo2-game.log", "flat-game.log")
+
+# Ligne que `run_detached` écrit en tête de chaque lancement (`$ <commande>`) :
+# c'est le seul séparateur de sessions dans un journal append-only.
+_LAUNCH_SESSION_RE = re.compile(r"^\$ .*$", re.MULTILINE)
 
 # Signaux d'un VFS vivant, tirés d'un vrai log usvfs qui fonctionne : les hooks
 # ont été posés dans un process cible (le jeu), et/ou des fichiers sont
@@ -110,16 +126,58 @@ def launch_failure_diagnosis(log_text: str) -> str | None:
     return None
 
 
+def latest_launch_log(prefix: PrefixPaths) -> Path | None:
+    """Journal de lancement du jeu le plus récent (mode MO2 ou mode flat).
+
+    Les deux modes écrivent chacun dans un fichier au nom fixe ; c'est donc la
+    date de modification, et non le nom, qui dit lequel décrit la dernière
+    partie.
+    """
+    existing = [
+        candidate for name in LAUNCH_LOG_NAMES if (candidate := prefix.logs / name).is_file()
+    ]
+    if not existing:
+        return None
+    return max(existing, key=lambda path: path.stat().st_mtime)
+
+
+def last_launch_session(log_text: str) -> str:
+    """Dernier bloc `$ <commande>` du journal — la partie qui vient de tourner.
+
+    `run_detached` ouvre son journal en **append** : un fichier réel en contient
+    plusieurs (trois, sur l'install de test). Diagnostiquer le fichier entier
+    ferait ressortir l'échec d'une partie d'il y a trois semaines comme s'il
+    venait d'arriver — un faux positif garanti dès la deuxième partie.
+    """
+    starts = [match.start() for match in _LAUNCH_SESSION_RE.finditer(log_text)]
+    return log_text[starts[-1] :] if starts else log_text
+
+
+def read_launch_log(log_path: Path) -> str | None:
+    """Contenu du journal de lancement, décodage **tolérant**.
+
+    `system.read_text` décode en UTF-8 strict et rend None au premier octet
+    invalide. Or `run_detached` redirige la sortie du processus *directement*
+    dans ce fichier — sans le `errors="replace"` que `run_in_prefix` applique à
+    son flux — et Wine émet des octets non-UTF-8 (0x88 constaté). Un journal
+    ainsi pollué n'aurait produit aucun diagnostic du tout, silencieusement.
+    """
+    try:
+        return log_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+
+
 def diagnose_launch_log(log_path: Path | None) -> str | None:
-    """Lit `log_path` (déjà écrit par `prefix.process.run_in_prefix`) et y
-    cherche un échec runtime/préfixe connu. None si le chemin est absent ou
-    illisible — pas de faux diagnostic sur un journal introuvable."""
+    """Cherche un échec runtime/préfixe connu dans la **dernière** session du
+    journal de lancement. None si le chemin est absent ou illisible — pas de
+    faux diagnostic sur un journal introuvable."""
     if log_path is None:
         return None
-    text = system.read_text(log_path)
+    text = read_launch_log(log_path)
     if text is None:
         return None
-    return launch_failure_diagnosis(text)
+    return launch_failure_diagnosis(last_launch_session(text))
 
 
 @dataclass(frozen=True, slots=True)

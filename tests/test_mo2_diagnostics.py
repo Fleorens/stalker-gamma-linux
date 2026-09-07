@@ -1,9 +1,11 @@
+import os
 from pathlib import Path
 
 import pytest
 
 from stalker_gamma_linux.mo2 import diagnostics
 from stalker_gamma_linux.mo2.paths import Mo2Paths
+from stalker_gamma_linux.prefix.paths import PrefixPaths
 
 _MODLIST_WITH_MODS = "+Mod A\n+Mod B\n-Mod C\n"
 
@@ -189,6 +191,60 @@ class TestLaunchFailureDiagnosis:
     def test_diagnose_launch_log_reads_and_diagnoses(self, tmp_path: Path) -> None:
         log = tmp_path / "mo2-game-20260722-180000.log"
         log.write_text(_CONCRT140_LAUNCH_LOG, encoding="utf-8")
+
+        message = diagnostics.diagnose_launch_log(log)
+
+        assert message is not None
+        assert "prefix-doctor --repair" in message
+
+
+class TestLaunchLogSelection:
+    """Le journal de lancement est **append-only** et il y en a deux (MO2/flat)."""
+
+    def _prefix(self, tmp_path: Path) -> PrefixPaths:
+        prefix = PrefixPaths.under(tmp_path)
+        prefix.logs.mkdir(parents=True)
+        return prefix
+
+    def test_aucun_journal(self, tmp_path: Path) -> None:
+        assert diagnostics.latest_launch_log(self._prefix(tmp_path)) is None
+
+    def test_le_plus_recent_des_deux_modes_gagne(self, tmp_path: Path) -> None:
+        prefix = self._prefix(tmp_path)
+        flat = prefix.logs / "flat-game.log"
+        mo2_game = prefix.logs / "mo2-game.log"
+        flat.write_text("ancien", encoding="utf-8")
+        mo2_game.write_text("récent", encoding="utf-8")
+        older = flat.stat().st_mtime - 3600
+        os.utime(flat, (older, older))
+
+        assert diagnostics.latest_launch_log(prefix) == mo2_game
+
+    def test_derniere_session_seule(self) -> None:
+        """Deux lancements dans le même fichier : seul le second est la partie
+        qui vient de tourner."""
+        text = "$ umu-run A\nconcrt140.dll not found\n$ umu-run B\ntout va bien\n"
+
+        assert diagnostics.last_launch_session(text) == "$ umu-run B\ntout va bien\n"
+
+    def test_journal_sans_marqueur_de_session_est_pris_entier(self) -> None:
+        assert diagnostics.last_launch_session("juste du texte\n") == "juste du texte\n"
+
+    def test_diagnose_ignore_lechec_dune_partie_precedente(self, tmp_path: Path) -> None:
+        log = tmp_path / "mo2-game.log"
+        log.write_text(
+            _CONCRT140_LAUNCH_LOG + "$ umu-run ModOrganizer.exe\nntsync: up and running.\n",
+            encoding="utf-8",
+        )
+
+        assert diagnostics.diagnose_launch_log(log) is None
+
+    def test_octets_non_utf8_ne_font_pas_taire_le_diagnostic(self, tmp_path: Path) -> None:
+        """`run_detached` redirige la sortie brute du processus : Wine y écrit des
+        octets non-UTF-8 (0x88 constaté). En lecture stricte, le diagnostic
+        disparaissait sans un mot."""
+        log = tmp_path / "mo2-game.log"
+        log.write_bytes(b"$ umu-run ModOrganizer.exe\n\x88 Library concrt140.dll not found\n")
 
         message = diagnostics.diagnose_launch_log(log)
 

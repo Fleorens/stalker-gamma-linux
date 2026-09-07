@@ -148,6 +148,23 @@ def test_vue_diagnostic_avec_verification_integrite() -> None:
     DoctorPage(target=None, show_toast=lambda _t: None, on_verify=lambda _repair: None)
 
 
+def test_bouton_post_mortem_cache_avant_toute_partie(window) -> None:  # type: ignore[no-untyped-def]
+    """« Le jeu a planté ? » n'a de sens qu'au retour d'un `play`.
+
+    Visible en permanence, il inviterait à chercher un problème là où il n'y en
+    a pas — et sur une install fraîche il n'aurait aucun journal à lire.
+    """
+    assert not window._postmortem_button.get_visible()
+
+
+def test_dialogue_post_mortem_se_construit(window, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    """Le verdict s'affiche dans un dialogue défilant : la trace ne se replie
+    pas, sinon elle n'est plus recopiable dans une issue."""
+    from stalker_gamma_linux.postmortem.result import Finding, Postmortem
+
+    window._present_postmortem(Postmortem(finding=Finding.CLEAN_SESSION, root=tmp_path))
+
+
 def test_vue_diagnostic_construit_tous_ses_groupes(tmp_path: Path) -> None:
     """`__init__` ne bâtit rien : les groupes n'existent qu'au retour de la collecte.
 

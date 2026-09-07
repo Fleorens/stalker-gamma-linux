@@ -74,9 +74,11 @@ couvertes chez nous ; six deviennent des tâches.
   destructrices — `install --only prefix` (`orchestrator.py`), `update`,
   `prefix-doctor --repair` et `uninstall --game-data` — avec `--force` partout.
   Détection par `wineserver` du préfixe, puis MO2, puis le jeu.
-- **T14** 🟡 Diagnostic du log de lancement : `mo2/diagnostics.py` couvre
-  l'USVFS mais pas les échecs qui surviennent en amont (`concrt140.dll`,
-  `version mismatch` d'un préfixe construit par un autre Proton).
+- **T14** ✅ Diagnostic du log de lancement : `mo2/diagnostics.py` couvre
+  l'USVFS **et** les échecs qui surviennent en amont (`concrt140.dll`,
+  `version mismatch` d'un préfixe construit par un autre Proton). Recâblé après
+  coup par T18, qui ferme aussi les deux faux positifs restants (journal
+  append-only, avertissement de préfixe non fatal).
 - **T15** ✅ **validé en réel (2026-08-22, install de test complète, umu 1.4.1
   + GE-Proton11-3)** `play` détaché du terminal : qualifié (seul le
   lancement direct en ligne de commande était concerné, ni le `.desktop`
@@ -124,11 +126,21 @@ ce que seul Linux permet, et les modes d'échec qui font abandonner. Découpage 
   Emplacement réel des parties **constaté avant d'être codé** (voir
   docs/ARCHITECTURE.md « Sauvegarde, restauration, et fusion de la modlist »).
   Objectif atteint : on passe de « réversible » à « ça ne se perd plus ».
-- **T18** 🟠 Post-mortem de session. `mo2/diagnostics.py` sait diagnostiquer,
-  mais depuis T15 `run_play` ne l'appelle plus (le jeu tourne encore ⇒ faux
-  négatif) et **aucune commande ne le rappelle après coup** : le diagnostic est
-  écrit et mort. Manque aussi la lecture du log X-Ray lui-même, seul endroit où
-  un crash s'attribue à un mod — via `integrity.report.mod_of`, déjà écrit.
+- **T18** ✅ **validé sur deux journaux X-Ray réels (2026-09-07)** Post-mortem
+  de session : commande `postmortem` + bouton « Le jeu a planté ? » dans la GUI,
+  qui relisent, une fois le jeu fermé, le journal de lancement, le journal du
+  moteur X-Ray et celui de l'USVFS pour rendre **un** diagnostic — et nommer les
+  mods à regarder en premier quand la trace désigne un fichier
+  (`integrity.report.mod_of`, réutilisé, pas dupliqué). Vérifié sur une vraie
+  partie plantée (le mod suspect est correctement nommé) et sur une vraie partie
+  quittée normalement (aucun cri au crash). Le résultat s'ajoute au rapport
+  `doctor --report`, anonymisé comme le reste. Le constat qui a orienté tout le
+  travail : sur une session parfaitement saine, chercher `[error]` ou
+  `stack trace` donne 65 et 27 faux positifs — seuls les motifs **ancrés en début
+  de ligne** discriminent (voir docs/MO2-PROTON-COMPAT.md). Deux faux positifs
+  préexistants corrigés au passage : le journal de lancement est append-only
+  (seule la dernière session compte) et l'avertissement de préfixe non fatal
+  mesuré en T16 ne masque plus un crash réel.
 - **T19** 🟠 Steam / mode Gaming en un clic (`shortcuts.vdf`). **Revient sur le
   hors-scope de T06** : le « gain limité aux joueurs Deck » est devenu le public
   qui grossit, et en mode Gaming l'utilisateur *ne peut pas* suivre notre

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-07 15:18+0200\n"
+"POT-Creation-Date: 2026-09-07 22:12+0200\n"
 "PO-Revision-Date: 2026-07-26 10:23+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -263,6 +263,14 @@ msgid ""
 msgstr ""
 "Lance le jeu sans GameMode (activé par défaut quand il est installé : "
 "gouverneur CPU performance et priorités pendant la partie)"
+
+msgid ""
+"Explains how the last game session ended, once the game is closed — and "
+"names the mods to look at first when a crash trace points at a file"
+msgstr ""
+"Explique comment la dernière session de jeu s'est terminée, une fois le "
+"jeu fermé — et nomme les mods à regarder en premier quand une trace de "
+"crash désigne un fichier"
 
 msgid ""
 "Adopts a GAMMA install already on disk (GOG/Heroic, manual, Windows dual-"
@@ -642,6 +650,9 @@ msgstr "oui"
 
 msgid "no"
 msgstr "non"
+
+msgid "Post-mortem (last game session)"
+msgstr "Post-mortem (dernière session de jeu)"
 
 #, python-brace-format
 msgid "Log (last {count} lines)"
@@ -1649,6 +1660,9 @@ msgstr "JOUER"
 msgid "Update"
 msgstr "Mettre à jour"
 
+msgid "Did the game crash?"
+msgstr "Le jeu a planté ?"
+
 msgid "INSTALL"
 msgstr "INSTALLER"
 
@@ -1750,6 +1764,12 @@ msgstr "Lancer le jeu"
 
 msgid "Opening Mod Organizer 2"
 msgstr "Ouvrir Mod Organizer 2"
+
+msgid "Reading the last session…"
+msgstr "Lecture de la dernière session…"
+
+msgid "Last game session"
+msgstr "Dernière session de jeu"
 
 msgid "Done."
 msgstr "Terminé."
@@ -2399,6 +2419,135 @@ msgstr "Lancement de l'installation flat…"
 msgid "expected an absolute Linux path, got: {path!r}"
 msgstr "chemin Linux absolu attendu, reçu : {path!r}"
 
+#, python-brace-format
+msgid "    … ({count} repeated line(s) omitted)"
+msgstr "    … ({count} ligne(s) répétée(s) omises)"
+
+msgid "The game did not start: the launch failed before the engine ran."
+msgstr ""
+"Le jeu n'a pas démarré : le lancement a échoué avant que le moteur ne "
+"tourne."
+
+msgid "The engine stopped after failing to allocate memory (out of memory)."
+msgstr "Le moteur s'est arrêté faute de mémoire (échec d'allocation)."
+
+msgid ""
+"The engine crashed: its log stops on a fatal block, with no clean "
+"shutdown."
+msgstr ""
+"Le moteur a planté : son journal s'arrête sur un bloc fatal, sans "
+"fermeture propre."
+
+msgid ""
+"The mods do not look mounted (USVFS): the game may have started without "
+"them."
+msgstr ""
+"Les mods n'ont pas l'air montés (USVFS) : le jeu a peut-être démarré sans"
+" eux."
+
+msgid "Last session ended normally — no crash to report."
+msgstr "La dernière session s'est terminée normalement — aucun crash à signaler."
+
+msgid "No engine log found: I cannot tell how the last session ended."
+msgstr ""
+"Aucun journal du moteur trouvé : impossible de dire comment la dernière "
+"session s'est terminée."
+
+msgid "The engine log is empty: I cannot tell how the last session ended."
+msgstr ""
+"Le journal du moteur est vide : impossible de dire comment la dernière "
+"session s'est terminée."
+
+msgid ""
+"The engine log ends without a shutdown or a crash: I cannot conclude (the"
+" game may still be running, or it was killed from outside)."
+msgstr ""
+"Le journal du moteur s'arrête sans fermeture ni crash : impossible de "
+"conclure (la partie tourne peut-être encore, ou le processus a été tué de"
+" l'extérieur)."
+
+#, python-brace-format
+msgid "Session started: {stamp}"
+msgstr "Session démarrée : {stamp}"
+
+#, python-brace-format
+msgid "Session started: {stamp} (xrCore build {build})"
+msgstr "Session démarrée : {stamp} (xrCore build {build})"
+
+msgid ""
+"Mods to look at first — SUSPECTS, not proof: they provide a file named in"
+" the trace. The culprit may be a mod that overrides one of them."
+msgstr ""
+"Mods à regarder en premier — SUSPECTS, pas une preuve : ils fournissent "
+"un fichier nommé dans la trace. Le fautif peut être un mod qui en écrase "
+"un."
+
+#, python-brace-format
+msgid "      {path}  (named as: {reference})"
+msgstr "      {path}  (nommé : {reference})"
+
+msgid "Also named, and provided by the Anomaly base rather than a mod:"
+msgstr "Également nommé, et fourni par la base Anomaly plutôt que par un mod :"
+
+msgid ""
+"Named in the trace but provided by no installed mod. That is information,"
+" not a failure: the Anomaly base ships most of its content packed in db/,"
+" which is not opened here."
+msgstr ""
+"Nommé dans la trace mais fourni par aucun mod installé. C'est une "
+"information, pas un échec : la base Anomaly livre l'essentiel de son "
+"contenu empaqueté dans db/, qu'on n'ouvre pas ici."
+
+msgid ""
+"No mod could be named: the trace does not mention a file that any "
+"installed mod provides. The excerpt below is what there is to go on."
+msgstr ""
+"Aucun mod n'a pu être nommé : la trace ne mentionne aucun fichier fourni "
+"par un mod installé. L'extrait ci-dessous est tout ce dont on dispose."
+
+msgid "Excerpt kept from the engine log:"
+msgstr "Extrait conservé du journal du moteur :"
+
+msgid ""
+"→ Lower the texture/shader load (Screen Space Shaders, cumulative shader "
+"packs), and check that the machine is not short on RAM or swap while "
+"playing."
+msgstr ""
+"→ Réduisez la charge textures/shaders (Screen Space Shaders, packs de "
+"shaders cumulatifs), et vérifiez que la machine ne manque pas de RAM ou "
+"de swap pendant la partie."
+
+msgid ""
+"→ Disable the suspects above one at a time in Mod Organizer 2, then "
+"replay the same scene. `stalker-gamma-linux verify` also tells you "
+"whether one of those mods is damaged on disk rather than merely "
+"incompatible."
+msgstr ""
+"→ Désactivez les suspects ci-dessus un par un dans Mod Organizer 2, puis "
+"rejouez la même scène. `stalker-gamma-linux verify` dit aussi si l'un de "
+"ces mods est abîmé sur le disque plutôt que simplement incompatible."
+
+#, python-brace-format
+msgid ""
+"→ Launch the game once with `stalker-gamma-linux play`, close it, and run"
+" this command again. The engine writes its log under "
+"<anomaly>/appdata/logs/ (see {doc})."
+msgstr ""
+"→ Lancez le jeu une fois avec `stalker-gamma-linux play`, fermez-le, puis"
+" relancez cette commande. Le moteur écrit son journal dans "
+"<anomaly>/appdata/logs/ (voir {doc})."
+
+#, python-brace-format
+msgid "Engine log: {path}"
+msgstr "Journal du moteur : {path}"
+
+msgid "Engine log: none found under <anomaly>/appdata/logs/"
+msgstr "Journal du moteur : aucun trouvé dans <anomaly>/appdata/logs/"
+
+#, python-brace-format
+msgid "Launch log: {path}"
+msgstr "Journal de lancement : {path}"
+
 msgid "absolute path"
 msgstr "chemin absolu"
 
@@ -2847,4 +2996,10 @@ msgstr "umu-run opérationnel : {target}"
 
 #~ msgid "Could not back up the MO2 profiles: {error}"
 #~ msgstr "Impossible de sauvegarder les profils MO2 : {error}"
+
+#~ msgid "The game ran, but nothing shows the mods were mounted (USVFS)."
+#~ msgstr ""
+#~ "Le jeu a tourné, mais rien "
+#~ "n'indique que les mods étaient montés"
+#~ " (USVFS)."
 
