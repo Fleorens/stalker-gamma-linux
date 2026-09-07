@@ -54,6 +54,12 @@ stalker_gamma_linux = [
     "assets/icon.png",
     "assets/logo.png",
     "assets/background.jpg",
+    # Variante floutée/assombrie, affichée derrière les pages de contenu
+    # (progression, diagnostic) — cf. `gui/windows/background.py`.
+    "assets/background-blur.jpg",
+    # La feuille de style n'est plus une chaîne Python : sans cette ligne, une
+    # installation par `pip` livrerait une GUI sans aucun style.
+    "gui/theme/style.css",
     "locale/*/LC_MESSAGES/*.mo",
 ]
 
@@ -68,7 +74,9 @@ select = ["E", "F", "I", "UP", "B", "SIM", "N"]
 [tool.ruff.lint.isort]
 # `tests` héberge des outils partagés (`conftest.RecordingReporter`) : sans
 # ça, isort les rangeait avec les dépendances tierces.
-known-first-party = ["stalker_gamma_linux", "tests"]
+# `artwork` : le paquet de génération d'artwork sous `scripts/`, qui n'est pas
+# installé — sans cette ligne, isort le rangeait avec les dépendances tierces.
+known-first-party = ["stalker_gamma_linux", "tests", "artwork"]
 
 [tool.mypy]
 python_version = "3.11"

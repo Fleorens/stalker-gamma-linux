@@ -58,3 +58,47 @@ class TestAssess:
         assert report.verdict is space.SpaceVerdict.UNKNOWN
         assert report.free_bytes is None
         assert report.free_label == "unknown free space"
+
+
+class TestGaugeFraction:
+    """La jauge du dialog d'installation se lit par rapport au *recommandé*."""
+
+    def test_pleine_au_recommande(self) -> None:
+        report = space.SpaceReport(
+            free_bytes=space.RECOMMENDED_FREE_BYTES, verdict=space.SpaceVerdict.OK
+        )
+
+        assert space.gauge_fraction(report) == 1.0
+
+    def test_plafonnee_au_dela_du_recommande(self) -> None:
+        report = space.SpaceReport(
+            free_bytes=space.RECOMMENDED_FREE_BYTES * 4, verdict=space.SpaceVerdict.OK
+        )
+
+        assert space.gauge_fraction(report) == 1.0
+
+    def test_proportionnelle_en_dessous(self) -> None:
+        report = space.SpaceReport(
+            free_bytes=space.RECOMMENDED_FREE_BYTES // 2, verdict=space.SpaceVerdict.TIGHT
+        )
+
+        assert space.gauge_fraction(report) == pytest.approx(0.5)
+
+    def test_volume_illisible_rend_une_jauge_vide(self) -> None:
+        """Une jauge vide dit la même chose que le libellé « espace inconnu »."""
+        report = space.SpaceReport(free_bytes=None, verdict=space.SpaceVerdict.UNKNOWN)
+
+        assert space.gauge_fraction(report) == 0.0
+
+
+class TestFreeSize:
+    def test_taille_seule_pour_une_tuile_deja_etiquetee(self) -> None:
+        report = space.SpaceReport(free_bytes=493 * _GIB, verdict=space.SpaceVerdict.OK)
+
+        assert report.free_size == "493 GiB"
+        assert "free" in report.free_label  # le libellé long, lui, porte le mot
+
+    def test_taille_inconnue(self) -> None:
+        report = space.SpaceReport(free_bytes=None, verdict=space.SpaceVerdict.UNKNOWN)
+
+        assert report.free_size == "—"

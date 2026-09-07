@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-07 22:12+0200\n"
+"POT-Creation-Date: 2026-09-07 23:01+0200\n"
 "PO-Revision-Date: 2026-07-26 10:23+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -132,7 +132,7 @@ msgstr ""
 "le disque, {minimum} Gio libres requis)"
 
 msgid "Starts even if prerequisites are missing (the install will likely fail)"
-msgstr ""
+msgstr "Démarre même s'il manque des prérequis (l'installation échouera probablement)"
 "Démarre même si des prérequis manquent (l'installation échouera "
 "probablement)"
 
@@ -179,7 +179,7 @@ msgstr ""
 "avant, quoi qu'il arrive)"
 
 msgid "Full report: system prerequisites + prefix status + install status"
-msgstr ""
+msgstr "Rapport complet : prérequis système + état du préfixe + état de l'installation"
 "Rapport complet : prérequis système + état du préfixe + état de "
 "l'installation"
 
@@ -233,7 +233,7 @@ msgid "Checks the shared Proton prefix status (Proton, verbs, DXVK)"
 msgstr "Vérifie l'état du préfixe Proton partagé (Proton, verbs, DXVK)"
 
 msgid "Repairs: downloads Proton-GE, creates the prefix, applies missing verbs"
-msgstr ""
+msgstr "Répare : télécharge Proton-GE, crée le préfixe, applique les verbes manquants"
 "Répare : télécharge Proton-GE, crée le préfixe, applique les verbs "
 "manquants"
 
@@ -325,7 +325,7 @@ msgid "Creates/updates the desktop shortcut (.desktop + icon, application menu)"
 msgstr "Crée/actualise le raccourci bureau (.desktop + icône, menu applications)"
 
 msgid "Removes shortcuts, settings, state and logs (keeps the game by default)"
-msgstr ""
+msgstr "Retire raccourcis, réglages, état et journaux (conserve le jeu par défaut)"
 "Retire les raccourcis, réglages, état et journaux (conserve le jeu par "
 "défaut)"
 
@@ -554,7 +554,7 @@ msgid "path contains '..'"
 msgstr "le chemin contient « .. »"
 
 msgid "symlink — deleting through it would remove an unrelated directory"
-msgstr ""
+msgstr "lien symbolique — supprimer au travers effacerait un répertoire sans rapport"
 "lien symbolique — supprimer à travers emporterait un répertoire sans "
 "rapport"
 
@@ -984,7 +984,7 @@ msgstr "le crée (il n'y a rien aujourd'hui)"
 
 #, python-brace-format
 msgid "Rotation: {count} old automatic backup(s) removed ({names})."
-msgstr ""
+msgstr "Rotation : {count} ancienne(s) sauvegarde(s) automatique(s) supprimée(s) ({names})."
 "Rotation : {count} ancienne(s) sauvegarde(s) automatique(s) retirée(s) "
 "({names})."
 
@@ -1033,7 +1033,7 @@ msgstr ""
 "filet de sécurité)"
 
 msgid "Nothing to save before restoring — there is no current state to keep."
-msgstr ""
+msgstr "Rien à mettre de côté avant de restaurer — il n'y a pas d'état courant à conserver."
 "Rien à sauvegarder avant de restaurer — il n'y a pas d'état courant à "
 "conserver."
 
@@ -1301,7 +1301,7 @@ msgid "Free up space or choose another target (--target)"
 msgstr "Libérer de l'espace ou choisir une autre cible (--target)"
 
 msgid "stalker-gamma-linux install-umu   # automatic, no sudo (official zipapp)"
-msgstr ""
+msgstr "stalker-gamma-linux install-umu   # automatique, sans sudo (zipapp officiel)"
 "stalker-gamma-linux install-umu   # automatique, sans sudo (zipapp "
 "officiel)"
 
@@ -1347,6 +1347,27 @@ msgstr "Tous les prérequis sont satisfaits."
 
 msgid "Missing prerequisites."
 msgstr "Prérequis manquants."
+
+msgid "Update"
+msgstr "Mettre à jour"
+
+msgid "Repairing the mods"
+msgstr "Réparation des mods"
+
+msgid "Checking the mods"
+msgstr "Vérification des mods"
+
+msgid "Backing up"
+msgstr "Sauvegarde"
+
+msgid "Restoring"
+msgstr "Restauration"
+
+msgid "Launching the game"
+msgstr "Lancer le jeu"
+
+msgid "Opening Mod Organizer 2"
+msgstr "Ouvrir Mod Organizer 2"
 
 msgid "unknown free space"
 msgstr "espace libre inconnu"
@@ -1462,7 +1483,7 @@ msgid "Back up now"
 msgstr "Sauvegarder maintenant"
 
 msgid "Profiles, saved games and overwrite — kept until you delete it"
-msgstr ""
+msgstr "Profils, parties sauvegardées et overwrite — conservés jusqu'à ce que tu les supprimes"
 "Profils, sauvegardes de partie et overwrite — conservée jusqu'à ce que tu"
 " la supprimes"
 
@@ -1526,20 +1547,11 @@ msgstr "Impossible d'écrire le rapport : {error}"
 msgid "Report saved to {path}"
 msgstr "Rapport enregistré dans {path}"
 
-msgid "Analyzing system…"
-msgstr "Analyse du système…"
-
 msgid "READY TO PLAY"
 msgstr "PRÊT À JOUER"
 
 msgid "INSTALLATION REQUIRED"
 msgstr "INSTALLATION REQUISE"
-
-msgid "Everything is in place. Click for details."
-msgstr "Tout est en place. Cliquer pour le détail."
-
-msgid "Click to see the diagnostic and install commands."
-msgstr "Cliquer pour voir le diagnostic et les commandes d'installation."
 
 msgid "Enough space"
 msgstr "Espace suffisant"
@@ -1569,17 +1581,14 @@ msgstr "Répertoire d'installation"
 msgid "Choose another directory"
 msgstr "Choisir un autre répertoire"
 
-msgid "Free space on this volume"
-msgstr "Espace libre sur ce volume"
-
-msgid "System prerequisites"
-msgstr "Prérequis système"
-
 msgid "Checking…"
 msgstr "Vérification…"
 
 msgid "Opens the diagnostic, with the command to run for your distribution"
 msgstr "Ouvre le diagnostic, avec la commande à lancer pour ta distribution"
+
+msgid "System prerequisites"
+msgstr "Prérequis système"
 
 msgid "« Play directly » shortcut"
 msgstr "Raccourci « jouer en direct »"
@@ -1620,7 +1629,7 @@ msgstr ""
 " où elle s'était arrêtée."
 
 msgid "Install them before starting — the install cannot succeed without them."
-msgstr ""
+msgstr "Installe-les avant de démarrer — l'installation ne peut pas aboutir sans eux."
 "Installe-les avant de démarrer — l'installation ne peut pas aboutir sans "
 "eux."
 
@@ -1656,9 +1665,6 @@ msgstr "À propos"
 
 msgid "PLAY"
 msgstr "JOUER"
-
-msgid "Update"
-msgstr "Mettre à jour"
 
 msgid "Did the game crash?"
 msgstr "Le jeu a planté ?"
@@ -1717,7 +1723,7 @@ msgid "Import failed"
 msgstr "L'import a échoué"
 
 msgid "Install adopted — press the main button to finish the setup."
-msgstr ""
+msgstr "Installation adoptée — appuie sur le bouton principal pour terminer la configuration."
 "Installation adoptée — appuie sur le bouton principal pour terminer la "
 "mise en place."
 
@@ -1747,24 +1753,6 @@ msgstr "Retirer"
 msgid "{count} item(s) removed. Close the window to finish."
 msgstr "{count} élément(s) retiré(s). Ferme la fenêtre pour terminer."
 
-msgid "Repairing the mods"
-msgstr "Réparation des mods"
-
-msgid "Checking the mods"
-msgstr "Vérification des mods"
-
-msgid "Backing up"
-msgstr "Sauvegarde"
-
-msgid "Restoring"
-msgstr "Restauration"
-
-msgid "Launching the game"
-msgstr "Lancer le jeu"
-
-msgid "Opening Mod Organizer 2"
-msgstr "Ouvrir Mod Organizer 2"
-
 msgid "Reading the last session…"
 msgstr "Lecture de la dernière session…"
 
@@ -1781,7 +1769,7 @@ msgid "Failed — see the console and the log."
 msgstr "Échec — voir la console et le journal."
 
 msgid "Performance CPU governor and priorities — GameMode is not installed yet."
-msgstr ""
+msgstr "Gouverneur CPU performance et priorités — GameMode n'est pas encore installé."
 "Gouverneur CPU performance et priorités — GameMode n'est pas encore "
 "installé."
 
@@ -1819,6 +1807,12 @@ msgstr ""
 msgid " — already done"
 msgstr " — déjà fait"
 
+msgid "Steps"
+msgstr "Étapes"
+
+msgid "Engine log"
+msgstr "Journal du moteur"
+
 msgid "Preparing…"
 msgstr "Préparation…"
 
@@ -1850,6 +1844,24 @@ msgstr "Annulé — reprendra où c'était arrêté."
 
 msgid "Failed."
 msgstr "Échec."
+
+msgid "Analyzing system…"
+msgstr "Analyse du système…"
+
+msgid "Everything is in place. Click for details."
+msgstr "Tout est en place. Cliquer pour le détail."
+
+msgid "Click to see the diagnostic and install commands."
+msgstr "Cliquer pour voir le diagnostic et les commandes d'installation."
+
+msgid "Free space"
+msgstr "Espace libre"
+
+msgid "Mods"
+msgstr "Mods"
+
+msgid "Version"
+msgstr "Version"
 
 #, python-brace-format
 msgid ""
@@ -1922,7 +1934,7 @@ msgstr ""
 " dans les deux cas"
 
 msgid "contains files you added — repairing would delete them along with the mod"
-msgstr ""
+msgstr "contient des fichiers que tu as ajoutés — réparer les supprimerait avec le mod"
 "contient des fichiers que vous avez ajoutés — les réparer les "
 "supprimerait avec le mod"
 
@@ -2283,7 +2295,7 @@ msgstr "Restauration des binaires d'Anomaly…"
 
 #, python-brace-format
 msgid "Warning: {count} enabled mods have no folder and were skipped: {mods}"
-msgstr ""
+msgstr "Attention : {count} mods activés n'ont pas de dossier et ont été ignorés : {mods}"
 "Attention : {count} mods activés n'ont pas de dossier et ont été ignorés "
 ": {mods}"
 
@@ -2373,7 +2385,7 @@ msgstr ""
 "gouverneur CPU reste bloqué, voir `doctor` pour le débloquer."
 
 msgid "GameMode enabled: performance CPU governor and priorities while you play."
-msgstr ""
+msgstr "GameMode activé : gouverneur CPU performance et priorités pendant que tu joues."
 "GameMode activé : gouverneur CPU performance et priorités pendant la "
 "partie."
 
@@ -2424,7 +2436,7 @@ msgid "    … ({count} repeated line(s) omitted)"
 msgstr "    … ({count} ligne(s) répétée(s) omises)"
 
 msgid "The game did not start: the launch failed before the engine ran."
-msgstr ""
+msgstr "Le jeu n'a pas démarré : le lancement a échoué avant l'exécution du moteur."
 "Le jeu n'a pas démarré : le lancement a échoué avant que le moteur ne "
 "tourne."
 
@@ -2449,12 +2461,12 @@ msgid "Last session ended normally — no crash to report."
 msgstr "La dernière session s'est terminée normalement — aucun crash à signaler."
 
 msgid "No engine log found: I cannot tell how the last session ended."
-msgstr ""
+msgstr "Aucun journal du moteur : impossible de dire comment la dernière session s'est terminée."
 "Aucun journal du moteur trouvé : impossible de dire comment la dernière "
 "session s'est terminée."
 
 msgid "The engine log is empty: I cannot tell how the last session ended."
-msgstr ""
+msgstr "Le journal du moteur est vide : impossible de dire comment la dernière session s'est terminée."
 "Le journal du moteur est vide : impossible de dire comment la dernière "
 "session s'est terminée."
 
@@ -2864,7 +2876,7 @@ msgstr ""
 
 #, python-brace-format
 msgid "Unexpected umu-launcher zipapp {release}: no `__main__.py` entry point."
-msgstr ""
+msgstr "Zipapp umu-launcher inattendu ({release}) : pas de point d'entrée `__main__.py`."
 "Zipapp umu-launcher {release} inattendu : pas de point d'entrée "
 "`__main__.py`."
 
@@ -3002,4 +3014,7 @@ msgstr "umu-run opérationnel : {target}"
 #~ "Le jeu a tourné, mais rien "
 #~ "n'indique que les mods étaient montés"
 #~ " (USVFS)."
+
+#~ msgid "Free space on this volume"
+#~ msgstr "Espace libre sur ce volume"
 

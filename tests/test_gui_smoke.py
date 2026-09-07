@@ -108,6 +108,68 @@ def test_le_theme_sinstalle() -> None:
     theme.install_theme()  # idempotent, ne lève pas
 
 
+def test_la_feuille_de_style_est_valide() -> None:
+    """GTK ignore silencieusement une déclaration CSS fautive.
+
+    Sans cette vérification, une propriété mal orthographiée ou retirée d'une
+    version de GTK ne se voyait qu'à l'œil, sur l'écran qu'on n'avait pas
+    rouvert — c'est-à-dire jamais.
+    """
+    assert theme.parse_errors() == ()
+
+
+def test_lartwork_nest_decode_quune_fois() -> None:
+    """Chaque page posée sur l'artwork en chargeait sa propre copie (plusieurs Mio)."""
+    assert theme.texture(theme.BACKGROUND) is theme.texture(theme.BACKGROUND)
+
+
+def test_artwork_manquant_ne_casse_pas_lecran() -> None:
+    """Paquet incomplet : les vues retombent sur le fond uni, sans exception."""
+    assert theme.texture("il-ny-a-pas-cet-asset.jpg") is None
+
+
+def test_puce_de_statut_rend_un_verdict() -> None:
+    from stalker_gamma_linux.gui.summary import SystemSummary
+    from stalker_gamma_linux.gui.windows.status_pill import StatusPill
+
+    pill = StatusPill(on_clicked=lambda: None)
+    pill.show_summary(SystemSummary(blocking=("7z",)))
+
+    assert "chip-warn" in pill.get_css_classes()
+    assert "7z" in pill._label.get_label()
+
+
+def test_tuiles_de_laccueil_affichent_le_sondage() -> None:
+    """Espace disque, mods et version : les trois chiffres arrivent d'un thread."""
+    from stalker_gamma_linux.gui import space, stats, viewmodel
+    from stalker_gamma_linux.gui.windows.hero import HeroBox
+
+    hero = HeroBox()
+    hero.show_state(
+        viewmodel.load_main_window_state(Path("/tmp/gamma-inexistant")),
+    )
+    hero.show_probe(
+        space.SpaceReport(free_bytes=493 * 1024**3, verdict=space.SpaceVerdict.OK),
+        stats.InstallStats(mod_count=412, version="0.6.0"),
+    )
+
+    assert hero._tiles.mods._value.get_label() == "412"
+    assert hero._tiles.version._value.get_label() == "0.6.0"
+
+
+def test_la_tuile_despace_avertit_quand_c_est_juste() -> None:
+    from stalker_gamma_linux.gui import space, stats
+    from stalker_gamma_linux.gui.windows.hero import HeroBox
+
+    hero = HeroBox()
+    hero.show_probe(
+        space.SpaceReport(free_bytes=space.MINIMUM_FREE_BYTES, verdict=space.SpaceVerdict.TIGHT),
+        stats.InstallStats(mod_count=0, version="0.6.0"),
+    )
+
+    assert "tile-value-warn" in hero._tiles.space._value.get_css_classes()
+
+
 def test_fenetre_principale(window) -> None:  # type: ignore[no-untyped-def]
     assert window.get_title()
 
@@ -125,6 +187,27 @@ def test_dialog_installation(window) -> None:  # type: ignore[no-untyped-def]
     # Le sondage des prérequis n'a pas encore rendu : on ne doit surtout pas
     # pouvoir lancer 146 Gio de téléchargement dans cet état.
     assert not dialog._confirm.get_sensitive()
+
+
+def test_la_jauge_du_dialog_porte_le_verdict(window, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """« 143 Gio libres » et « 160 Gio requis » obligeaient à faire la soustraction."""
+    from stalker_gamma_linux.gui import space
+    from stalker_gamma_linux.gui.windows import install_dialog as module
+    from stalker_gamma_linux.gui.windows.install_dialog import InstallDialog
+
+    monkeypatch.setattr(
+        module.space,
+        "assess",
+        lambda _target: space.SpaceReport(
+            free_bytes=10 * 1024**3, verdict=space.SpaceVerdict.INSUFFICIENT
+        ),
+    )
+    dialog = InstallDialog(
+        parent_window=window, preferences=prefs.Preferences(), on_confirmed=lambda _p: None
+    )
+
+    assert "gauge-error" in dialog._space_gauge.get_css_classes()
+    assert dialog._space_gauge.get_fraction() < 0.1
 
 
 def test_dialog_preferences(window) -> None:  # type: ignore[no-untyped-def]
@@ -335,13 +418,28 @@ def test_console_recale_la_vue_sur_le_bas() -> None:
     des dizaines de lignes au-dessus de la dernière, `upper` continuant de
     grandir après le défilement.
     """
-    from stalker_gamma_linux.gui.windows.progress_view import ProgressPage
-
+    page = _progress_page(_blocked_task())
     adjustment = Gtk.Adjustment(value=0, lower=0, upper=1000, page_size=100)
 
-    ProgressPage._pin_console_to_bottom(adjustment)
+    page._pin_console_to_bottom(adjustment)
 
     assert adjustment.get_value() == 900
+
+
+def test_console_ne_defile_pas_quand_tout_tient_dans_la_vue() -> None:
+    """Le cas dégénéré qui vidait la console à l'écran alors que le tampon était plein.
+
+    Quand le journal est plus court que la fenêtre, il n'y a rien à faire
+    défiler : `upper == page_size`. Forcer une valeur laissait la *vue* décalée
+    sous son propre contenu (ajustement à 0, vue affichée à partir de 96 px),
+    et la console paraissait vide.
+    """
+    page = _progress_page(_blocked_task())
+    adjustment = Gtk.Adjustment(value=0, lower=0, upper=200, page_size=200)
+
+    page._pin_console_to_bottom(adjustment)
+
+    assert adjustment.get_value() == 0
 
 
 def test_console_respecte_le_budget_par_tick() -> None:

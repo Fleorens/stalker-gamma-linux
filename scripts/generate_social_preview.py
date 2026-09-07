@@ -29,7 +29,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from generate_background import generate as generate_zone  # noqa: E402
+from artwork import render_zone  # noqa: E402
 
 WIDTH, HEIGHT = 1280, 640
 
@@ -74,7 +74,7 @@ def _load_font(candidates: tuple[str, ...], size: int) -> ImageFont.FreeTypeFont
 
 def _zone_backdrop() -> Image.Image:
     """L'artwork du launcher, recadré en 2:1 et assombri."""
-    zone = generate_zone()
+    zone = render_zone()
     # Recadrage par ratio : on garde la bande centrale (l'horizon et le halo),
     # pas le ciel vide du haut ni le sol du bas.
     target_height = zone.width * HEIGHT // WIDTH
@@ -123,10 +123,25 @@ def generate() -> Image.Image:
     return canvas
 
 
+# GitHub refuse au-delà de 1 Mio, et un PNG vrai-couleur de cette Zone en fait
+# 1,05 : le grain argentique de l'artwork est exactement ce qu'un PNG compresse
+# le plus mal. Une palette de 256 couleurs avec tramage divise le poids par deux
+# sans que la différence se voie en vignette — c'est du grain sur du grain.
+_PALETTE_COLORS = 256
+
+
+def _packed(image: Image.Image) -> Image.Image:
+    return image.quantize(
+        colors=_PALETTE_COLORS,
+        method=Image.Quantize.MEDIANCUT,
+        dither=Image.Dither.FLOYDSTEINBERG,
+    )
+
+
 def main() -> int:
     output = Path(sys.argv[1]) if len(sys.argv) > 1 else _DEFAULT_OUTPUT
     output.parent.mkdir(parents=True, exist_ok=True)
-    generate().save(output, "PNG", optimize=True)
+    _packed(generate()).save(output, "PNG", optimize=True)
     print(f"écrit : {output} ({output.stat().st_size // 1024} Kio)")
     return 0
 

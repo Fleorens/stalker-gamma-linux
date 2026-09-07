@@ -18,7 +18,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("Gdk", "4.0")
 
-from gi.repository import Adw, Gdk, GLib, Gtk  # noqa: E402
+from gi.repository import Adw, Gdk, GLib, Gtk, Pango  # noqa: E402
 
 from stalker_gamma_linux import backups, doctor, state  # noqa: E402
 from stalker_gamma_linux.environment.models import Requirement, Status  # noqa: E402
@@ -28,7 +28,7 @@ from stalker_gamma_linux.environment.plan import (  # noqa: E402
 )
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET  # noqa: E402
 from stalker_gamma_linux.gui.summary import summarize  # noqa: E402
-from stalker_gamma_linux.gui.windows.background import wrap_with_background  # noqa: E402
+from stalker_gamma_linux.gui.windows.background import content_backdrop  # noqa: E402
 from stalker_gamma_linux.i18n import _  # noqa: E402
 from stalker_gamma_linux.report_bundle import build_bundle  # noqa: E402
 
@@ -96,7 +96,7 @@ class DoctorPage(Adw.NavigationPage):
         toolbar_view.set_content(self._stack)
         toolbar_view.add_css_class("over-artwork")
 
-        super().__init__(title=_("Diagnostic"), child=wrap_with_background(toolbar_view))
+        super().__init__(title=_("Diagnostic"), child=content_backdrop(toolbar_view))
 
         self._start_refresh()
 
@@ -138,13 +138,47 @@ class DoctorPage(Adw.NavigationPage):
         return False
 
     def _build_verdict_group(self, report: doctor.DoctorReport) -> Adw.PreferencesGroup:
-        """Verdict d'un coup d'œil en tête de page, même vocabulaire que l'accueil."""
+        """Verdict d'un coup d'œil en tête de page, même vocabulaire que l'accueil.
+
+        Bandeau et non simple puce : c'est la première chose lue sur l'écran
+        qu'on ouvre *parce que* quelque chose cloche. Il porte donc aussi la
+        cible analysée — sans elle, un diagnostic vert sur la mauvaise
+        installation se lit comme un diagnostic vert.
+        """
         verdict = summarize(report.environment)
-        chip = Gtk.Label(label=verdict.label, halign=Gtk.Align.START)
-        chip.add_css_class("chip")
-        chip.add_css_class("chip-ok" if verdict.is_ready else "chip-warn")
+        tone = "chip-ok" if verdict.is_ready else "chip-warn"
+
+        dot = Gtk.Box(valign=Gtk.Align.CENTER)
+        dot.add_css_class("status-dot")
+        dot.add_css_class(tone)
+
+        label = Gtk.Label(label=verdict.label, xalign=0)
+        label.add_css_class("tile-value")
+
+        headline = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        headline.append(dot)
+        headline.append(label)
+
+        target = Gtk.Label(
+            label=str(self._target if self._target is not None else DEFAULT_INSTALL_TARGET),
+            xalign=0,
+            ellipsize=Pango.EllipsizeMode.MIDDLE,
+            selectable=True,
+        )
+        target.add_css_class("hero-subtitle")
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        for side in ("top", "bottom", "start", "end"):
+            getattr(box, f"set_margin_{side}")(16)
+        box.append(headline)
+        box.append(target)
+
+        banner = Gtk.Box()
+        banner.add_css_class("glass")
+        banner.append(box)
+
         group = Adw.PreferencesGroup()
-        group.add(chip)
+        group.add(banner)
         return group
 
     def _build_plan_group(self, plan: InstallPlan) -> Adw.PreferencesGroup:

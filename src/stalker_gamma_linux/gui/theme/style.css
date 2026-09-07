@@ -1,0 +1,471 @@
+/*
+ * Identité visuelle de la GUI — feuille de style unique, aucun CSS inline
+ * dans les vues : elles posent des classes (`deck`, `tile`, `console`…) et ce
+ * fichier décide de leur rendu.
+ *
+ * Trois règles tenues d'un bout à l'autre :
+ *
+ * 1. UNE définition par couleur (`@define-color` ci-dessous), jamais une
+ *    valeur littérale plus bas. `@define-color` et non les variables CSS de
+ *    GTK 4.16 : la cible reste Ubuntu 24.04 (GTK 4.14, libadwaita 1.5).
+ * 2. Rien qui coûte cher au rendu logiciel. La GUI force `GSK_RENDERER=cairo`
+ *    (voir `gui/launch.py` : sans GPU utilisable, la fenêtre ne s'affichait
+ *    pas du tout) — donc des ombres courtes et peu nombreuses, pas de flou
+ *    empilé. Le flou de l'artwork est cuit dans le JPEG, pas calculé ici.
+ * 3. Le focus clavier reste visible partout. Un habillage qui l'efface rend
+ *    l'application inutilisable sans souris — c'est une régression, pas un
+ *    parti pris esthétique.
+ */
+
+/* -- Palette « Zone » ---------------------------------------------------- */
+
+/* Nuit, béton, rouille. Les fonds ne sont jamais noirs : ils tirent vers le
+   bleu-vert, ce qui fait exister le vert de l'accent au lieu de le poser sur
+   du vide. */
+@define-color zone_void #05070a;
+@define-color zone_deep #0a0e11;
+@define-color zone_panel #111a1c;
+@define-color zone_raised #182326;
+@define-color zone_line #2b3a3c;
+
+/* Vert « radiation » : l'accent identitaire, décliné en trois valeurs. */
+@define-color rad_bright #b6ef4c;
+@define-color rad #8fc93a;
+@define-color rad_deep #5f8a2b;
+
+/* Chauds : l'ambre des halos et des avertissements, la rouille des détails. */
+@define-color amber #e8b53a;
+@define-color rust #c87a34;
+@define-color blood #e35c4a;
+
+/* Encres. `ink` n'est pas blanc : un blanc pur sur ce fond « brûle ». */
+@define-color ink #e9f1e0;
+@define-color ink_dim #aebaa8;
+@define-color ink_faint #77857a;
+
+/* Alias libadwaita : boutons suggérés, entrées, sélection de texte. */
+@define-color accent_bg_color @rad_deep;
+@define-color accent_fg_color #f4ffe6;
+@define-color accent_color @rad;
+@define-color destructive_bg_color #8e2f28;
+@define-color window_bg_color @zone_deep;
+@define-color view_bg_color @zone_panel;
+@define-color card_bg_color @zone_panel;
+
+/* -- Fond de fenêtre ------------------------------------------------------ */
+
+window.background {
+  background-color: @zone_void;
+  color: @ink;
+}
+
+/* La fenêtre est un launcher : l'artwork passe sous la barre de titre. */
+.over-artwork headerbar {
+  background: none;
+  box-shadow: none;
+  border: none;
+  min-height: 44px;
+}
+
+/* Les PreferencesPage (Diagnostic) laissent voir l'artwork qui est derrière. */
+.over-artwork preferencespage scrolledwindow,
+.over-artwork preferencespage viewport,
+.over-artwork scrolledwindow,
+.over-artwork viewport {
+  background: transparent;
+}
+
+/* -- Voiles de lisibilité ------------------------------------------------- */
+
+/* Accueil : l'artwork reste visible en haut, le contenu du bas se détache. */
+/* Beaucoup de bornes rapprochées, et non quatre : un dégradé à pentes
+   franches produit une *cassure* visible là où la pente change — sur
+   l'artwork, elle se lit comme une ligne d'horizon en trop. */
+.scrim {
+  background-image: linear-gradient(
+    to bottom,
+    alpha(@zone_void, 0.60) 0%,
+    alpha(@zone_void, 0.30) 12%,
+    alpha(@zone_void, 0.12) 26%,
+    alpha(@zone_void, 0.11) 40%,
+    alpha(@zone_void, 0.16) 52%,
+    alpha(@zone_void, 0.27) 62%,
+    alpha(@zone_void, 0.45) 71%,
+    alpha(@zone_void, 0.66) 79%,
+    alpha(@zone_void, 0.84) 88%,
+    alpha(@zone_void, 0.95) 95%,
+    @zone_void 100%
+  );
+}
+
+/* Pages de contenu : voile plat et dense — on y lit du texte, pas une image. */
+.scrim-content {
+  background-image: linear-gradient(
+    to bottom,
+    alpha(@zone_void, 0.72) 0%,
+    alpha(@zone_void, 0.86) 100%
+  );
+}
+
+/* -- Identité : signature de la barre de titre ---------------------------- */
+
+.wordmark {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: alpha(@ink, 0.72);
+  text-shadow: 0 1px 6px alpha(@zone_void, 0.9);
+}
+
+.wordmark-accent {
+  color: @rad;
+}
+
+/* -- Bandeau bas : le « pont » du launcher -------------------------------- */
+
+/* Le contenu du bas n'est plus posé sur l'image, il repose sur un pont : un
+   filet lumineux le sépare de l'artwork, comme la ligne d'un HUD. */
+.deck {
+  border-top: 1px solid alpha(@rad, 0.16);
+  box-shadow: inset 0 1px 0 alpha(@rad, 0.05);
+}
+
+/* -- Titres --------------------------------------------------------------- */
+
+.hero-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 5px;
+  color: @ink;
+  text-shadow: 0 2px 16px alpha(@zone_void, 0.95);
+}
+
+.hero-subtitle {
+  font-size: 12px;
+  color: alpha(@ink_dim, 0.9);
+  text-shadow: 0 1px 8px alpha(@zone_void, 0.9);
+}
+
+/* Intertitre d'une zone (« JOURNAL », « ÉTAPES ») : petit, espacé, discret. */
+.section-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: @ink_faint;
+}
+
+/* -- Tuiles de statut ----------------------------------------------------- */
+
+/* Une donnée chacune, alignées : c'est ce qui remplace la phrase que
+   personne ne lisait sous le titre. */
+.tile {
+  background-color: alpha(@zone_panel, 0.72);
+  border: 1px solid alpha(@ink, 0.08);
+  border-radius: 10px;
+  padding: 8px 14px;
+}
+
+.tile-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: @ink_faint;
+}
+
+.tile-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: @ink;
+}
+
+.tile-value-accent {
+  color: @rad_bright;
+}
+
+.tile-value-warn {
+  color: @amber;
+}
+
+/* -- Puces d'état --------------------------------------------------------- */
+
+.chip {
+  border-radius: 999px;
+  padding: 5px 14px;
+  min-height: 0;
+  font-size: 12px;
+  font-weight: 700;
+  background-color: alpha(@zone_panel, 0.85);
+  border: 1px solid alpha(@ink, 0.12);
+  color: alpha(@ink, 0.88);
+  transition: background-color 140ms ease-out, border-color 140ms ease-out;
+}
+
+button.chip:hover {
+  background-color: alpha(@zone_raised, 0.95);
+  border-color: alpha(@rad, 0.35);
+}
+
+.chip-ok {
+  background-color: alpha(@rad_deep, 0.28);
+  border-color: alpha(@rad, 0.45);
+  color: @rad_bright;
+}
+
+.chip-warn {
+  background-color: alpha(@amber, 0.16);
+  border-color: alpha(@amber, 0.45);
+  color: @amber;
+}
+
+.chip-error {
+  background-color: alpha(@blood, 0.16);
+  border-color: alpha(@blood, 0.5);
+  color: @blood;
+}
+
+/* Pastille de statut : le point coloré qui précède le libellé. */
+.status-dot {
+  min-width: 8px;
+  min-height: 8px;
+  border-radius: 999px;
+  background-color: @ink_faint;
+}
+
+.status-dot.chip-ok {
+  background-color: @rad_bright;
+  box-shadow: 0 0 8px alpha(@rad, 0.8);
+}
+
+.status-dot.chip-warn {
+  background-color: @amber;
+  box-shadow: 0 0 8px alpha(@amber, 0.7);
+}
+
+.status-dot.chip-error {
+  background-color: @blood;
+  box-shadow: 0 0 8px alpha(@blood, 0.7);
+}
+
+/* -- Actions -------------------------------------------------------------- */
+
+/* JOUER / INSTALLER : le seul élément volontairement criard de l'écran. */
+.action-play {
+  background-image: linear-gradient(160deg, @rad_bright 0%, @rad_deep 100%);
+  color: #101505;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  border: none;
+  border-radius: 12px;
+  box-shadow:
+    0 3px 18px alpha(@rad, 0.30),
+    inset 0 1px 0 alpha(#ffffff, 0.28);
+  transition: box-shadow 160ms ease-out, background-image 160ms ease-out;
+}
+
+.action-play:hover {
+  background-image: linear-gradient(160deg, #c8fb60 0%, #6f9e35 100%);
+  box-shadow:
+    0 4px 24px alpha(@rad, 0.48),
+    inset 0 1px 0 alpha(#ffffff, 0.30);
+}
+
+.action-play:active {
+  background-image: linear-gradient(160deg, @rad 0%, #4d711f 100%);
+  box-shadow: inset 0 2px 6px alpha(@zone_void, 0.45);
+}
+
+.action-play:disabled {
+  background-image: none;
+  background-color: alpha(@ink, 0.07);
+  color: alpha(@ink, 0.32);
+  box-shadow: none;
+}
+
+/* Actions secondaires : verre sombre, contour qui s'allume au survol. */
+.action-secondary {
+  background-color: alpha(@zone_panel, 0.82);
+  border: 1px solid alpha(@ink, 0.13);
+  color: @ink;
+  font-weight: 700;
+  font-size: 13px;
+  border-radius: 10px;
+  transition: background-color 140ms ease-out, border-color 140ms ease-out;
+}
+
+.action-secondary:hover {
+  background-color: alpha(@zone_raised, 0.95);
+  border-color: alpha(@rad, 0.40);
+}
+
+.action-secondary:active {
+  background-color: alpha(@zone_void, 0.9);
+}
+
+/* Focus clavier : visible sur tout, sans exception (cf. règle 3 en tête). */
+.action-play:focus-visible,
+.action-secondary:focus-visible,
+button.chip:focus-visible {
+  outline: 2px solid @rad_bright;
+  outline-offset: 2px;
+}
+
+/* -- Cartes --------------------------------------------------------------- */
+
+.glass {
+  background-color: alpha(@zone_panel, 0.86);
+  border: 1px solid alpha(@ink, 0.09);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 alpha(@ink, 0.05);
+}
+
+/* -- Console -------------------------------------------------------------- */
+
+.console {
+  background-color: alpha(@zone_void, 0.82);
+  border: 1px solid alpha(@rad, 0.14);
+  border-radius: 10px;
+}
+
+.console textview,
+.console text {
+  background-color: transparent;
+  color: #a9c987;
+  font-size: 12px;
+}
+
+/* -- Timeline de phases --------------------------------------------------- */
+
+.phase-pending {
+  color: alpha(@ink, 0.34);
+}
+
+.phase-running {
+  color: @ink;
+  font-weight: 700;
+}
+
+.phase-done {
+  color: alpha(@rad_bright, 0.92);
+}
+
+.phase-skipped {
+  color: alpha(@ink, 0.5);
+}
+
+.phase-failed {
+  color: @blood;
+  font-weight: 700;
+}
+
+/* Posé sur le label de détail lui-même : prime sur la classe d'état héritée
+   de la ligne (couleur et graisse), quel que soit l'état de la phase. */
+.phase-detail {
+  font-size: 11px;
+  font-weight: normal;
+  color: alpha(@ink, 0.48);
+}
+
+/* Le rail vertical qui relie les étapes : une timeline se lit comme un
+   chemin, pas comme une liste de puces. */
+.phase-rail {
+  background-color: alpha(@ink, 0.12);
+  min-width: 2px;
+}
+
+/* Pastille d'état : opaque, donc elle interrompt le rail qui passe derrière —
+   c'est ce qui fait lire la colonne comme un chemin jalonné et non comme un
+   trait posé sur des icônes. */
+.phase-node {
+  background-color: @zone_panel;
+  border-radius: 999px;
+  min-width: 18px;
+  min-height: 18px;
+}
+
+/* -- Progression ---------------------------------------------------------- */
+
+.progress-percent {
+  font-size: 22px;
+  font-weight: 800;
+  color: @rad_bright;
+  font-feature-settings: "tnum";
+}
+
+.elapsed {
+  font-size: 12px;
+  color: alpha(@ink, 0.55);
+  font-feature-settings: "tnum";
+}
+
+progressbar > trough {
+  background-color: alpha(@ink, 0.10);
+  border: none;
+  min-height: 8px;
+  border-radius: 999px;
+}
+
+progressbar > trough > progress {
+  background-image: linear-gradient(90deg, @rad_deep, @rad_bright);
+  box-shadow: 0 0 10px alpha(@rad, 0.5);
+  min-height: 8px;
+  border-radius: 999px;
+}
+
+/* Jauge d'espace disque du dialog d'installation : la même barre que la
+   progression, mais dont la couleur porte le verdict. */
+progressbar.gauge-warn > trough > progress {
+  background-image: linear-gradient(90deg, @rust, @amber);
+  box-shadow: 0 0 10px alpha(@amber, 0.4);
+}
+
+progressbar.gauge-error > trough > progress {
+  background-image: linear-gradient(90deg, #8e2f28, @blood);
+  box-shadow: 0 0 10px alpha(@blood, 0.4);
+}
+
+/* -- Bandeau d'échec ------------------------------------------------------ */
+
+/* La seule chose à lire quand une installation s'arrête : assez présent pour
+   couper la lecture du journal, sans virer à l'alerte système. */
+.error-banner {
+  background-color: alpha(@blood, 0.12);
+  border: 1px solid alpha(@blood, 0.45);
+  border-left: 3px solid @blood;
+  border-radius: 12px;
+}
+
+.error-banner-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: @blood;
+}
+
+.error-banner-hint {
+  color: @ink;
+  opacity: 0.88;
+}
+
+/* -- Divers --------------------------------------------------------------- */
+
+.dim-label {
+  color: @ink_dim;
+}
+
+/* Uniquement les couleurs : la géométrie du curseur (marges négatives, bordure
+   transparente qui sert de zone de préhension) reste celle d'Adwaita — la
+   redéfinir produisait des tailles négatives et un avertissement GTK par
+   redessin. */
+scrollbar {
+  background: transparent;
+}
+
+scrollbar slider {
+  background-color: alpha(@ink, 0.24);
+}
+
+scrollbar slider:hover {
+  background-color: alpha(@rad, 0.5);
+}

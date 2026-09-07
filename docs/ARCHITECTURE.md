@@ -395,10 +395,10 @@ résolu à chaque appel.
 `gui/__init__.py` est vide de tout import : ces modules ne dépendent
 jamais de PyGObject et sont testés par `pytest` comme n'importe quel autre
 module du projet (`tests/test_gui_*.py`), y compris sur une machine sans
-GTK4/libadwaita. Seuls `gui/app.py`, `gui/theme.py` et `gui/windows/*.py`
+GTK4/libadwaita. Seuls `gui/app.py`, `gui/theme/` et `gui/windows/*.py`
 importent `gi`.
 
-Le rendu « launcher » (refonte post-T08) repose sur quatre modules purs
+Le rendu « launcher » (refonte post-T08) repose sur six modules purs
 supplémentaires, chacun avec sa suite de tests :
 
 - **`phases.py`** : timeline immuable des étapes d'install/update. Chaque
@@ -417,13 +417,80 @@ supplémentaires, chacun avec sa suite de tests :
 - **`summary.py`** : compresse l'`EnvironmentReport` (7 prérequis) en une
   puce « Système prêt / N prérequis manquants » pour l'accueil — la collecte
   tourne dans un thread au démarrage et à chaque retour de tâche.
-- **`format.py`** : parsing d'index « n/total », tailles (`Gio`), durées.
+- **`format.py`** : parsing d'index « n/total », tailles (`Gio`), durées, et
+  la constante `UNKNOWN` (« — ») : « je ne sais pas » doit avoir *une* seule
+  apparence dans toute l'interface, et ne jamais s'écrire « 0 ».
+- **`stats.py`** : les chiffres des tuiles de l'accueil — nombre de mods
+  déployés sous `<root>/gamma/mods` (un seul `scandir`, pas de descente
+  récursive : MO2 pose un dossier par mod à plat) et version du launcher.
+  Lu dans le même thread de sondage que l'environnement et l'espace disque.
+- **`jobs.py`** : les sept tâches longues (install, update, verify, backup,
+  restore, play, MO2) décrites hors de GTK — titre, fonction à lancer dans le
+  thread, annulabilité, libellés d'étapes. Chaque `run` appelle exactement la
+  fonction qu'appelle la commande CLI correspondante ; l'intérêt du module est
+  que ces branchements soient vérifiables sans afficher une fenêtre.
 
-L'identité visuelle vit dans `gui/theme.py` (palette « Zone », feuille de
-style unique — aucune vue ne fait de CSS inline) ; l'artwork de fond est
-généré de façon déterministe par `scripts/generate_background.py`
-(numpy + Pillow, seed fixe, jamais importés par le paquet) et embarqué en
-`assets/background.jpg`.
+### Identité visuelle : `gui/theme/`, et l'artwork généré
+
+L'identité visuelle vit dans `gui/theme/` — aucune vue ne fait de CSS inline :
+elles posent des classes (`deck`, `tile`, `console`, `phase-node`…) et
+`theme/style.css` décide de leur rendu. Quatre décisions structurent ce
+fichier :
+
+- **le CSS est un fichier CSS**, pas une chaîne Python. Une feuille de 460
+  lignes dans une f-string oblige à doubler chaque accolade et interdit toute
+  relecture normale. Il est déclaré en `package-data` : sans cette ligne, une
+  installation par `pip` livrerait une GUI sans style ;
+- **une définition par couleur**, en `@define-color` en tête de fichier — et
+  non les variables CSS de GTK 4.16, la cible restant Ubuntu 24.04 (GTK 4.14,
+  libadwaita 1.5) ;
+- **rien qui coûte cher au rendu logiciel**. La GUI force `GSK_RENDERER=cairo`
+  (cf. `gui/launch.py`), donc des ombres courtes et peu nombreuses, aucun flou
+  calculé à l'affichage ;
+- **le focus clavier reste visible partout**. Un habillage qui l'efface rend
+  l'application inutilisable sans souris.
+
+`theme.parse_errors()` recharge la feuille dans un provider jetable et rend les
+erreurs de syntaxe rencontrées : GTK, lui, ignore silencieusement une
+déclaration fautive, et une propriété mal orthographiée ne se voyait qu'à l'œil
+sur l'écran qu'on n'avait pas rouvert. Un test de la suite de fumée l'exige
+vide, et `install_theme()` journalise ce qu'il trouve.
+
+`theme.texture(name)` décode un artwork **une fois pour toute l'application**
+(`lru_cache`). Chaque page posée sur l'artwork en chargeait auparavant sa
+propre copie — trois décodages du même JPEG et trois textures de plusieurs Mio,
+réinstanciées à chaque navigation.
+
+Les artworks sont générés de façon déterministe par
+`scripts/generate_background.py` (numpy + Pillow, seed fixe, jamais importés
+par le paquet), à partir du paquet `scripts/artwork/` : `noise` (fBm, fBm
+déformé, halos), `silhouettes` (le vocabulaire visuel de la Zone — antenne
+Duga, cheminée de la centrale, pylônes, arbres morts, herbes — tracé en
+supersampling puis réduit en BOX, un noyau à lobes négatifs bordant les
+silhouettes d'un liseré clair), `scene` (la composition en plans successifs,
+perspective atmosphérique comprise) et `grade` (bloom, virage bicolore,
+aberration chromatique, vignette, grain). Deux fichiers en sortent :
+
+- `assets/background.jpg` — l'accueil, où l'artwork est le sujet ;
+- `assets/background-blur.jpg` — les pages de contenu (progression,
+  diagnostic), où il n'est qu'une ambiance derrière du texte. Flouté et
+  assombri **à la génération** et en demi-résolution : la lisibilité ne dépend
+  plus d'un voile CSS, et il y a quatre fois moins de pixels à mettre à
+  l'échelle à chaque redessin.
+
+`scripts/generate_social_preview.py` réutilise la même `render_zone()` : la
+carte du dépôt et la fenêtre du launcher montrent le même paysage.
+
+### Captures d'écran de la documentation
+
+`scripts/capture_screenshots.py` régénère `docs/screenshots/`. Il redirige les
+variables XDG vers un dossier temporaire et fabrique une install de
+démonstration (`/home/stalker/Games/GAMMA`) : aucune capture ne publie de
+chemin réel. Chaque écran est construit pour de vrai, puis rendu **hors écran**
+(`Gtk.WidgetPaintable` + `Gsk.CairoRenderer`), sans outil de capture système —
+le résultat est donc le même sous KDE, GNOME ou sur un runner CI. La fenêtre
+doit tout de même être présentée le temps du rendu : GTK n'alloue et ne dessine
+rien tant qu'un widget n'est pas mappé.
 
 - **`viewmodel.py`** : `InstallStatus` (NOT_INSTALLED/INSTALLED) ne lit que
   `state.py` (TOML local, quasi instantané) — **pas**
@@ -1025,7 +1092,7 @@ sa traduction une seule fois, au premier import — une fixture, même
 Hors périmètre gettext (laissé en l'état, ce ne sont pas des chaînes
 traduisibles) : les identifiants internes (`STEPS`, valeurs de l'enum
 `Status`, clés `INSTALL_COMMANDS`) ne sont jamais affichés directement — un
-dict de mapping séparé s'en charge à chaque fois — et le CSS de `gui/theme.py`
+dict de mapping séparé s'en charge à chaque fois — et `gui/theme/style.css`
 (commentaires de code, pas du texte utilisateur).
 
 ## Références

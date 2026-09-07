@@ -161,6 +161,24 @@ ce que seul Linux permet, et les modes d'échec qui font abandonner. Découpage 
   contournement de protection** — on diagnostique, on indique le dépôt manuel
   (`<gamma>/downloads`), on reprend.
 
+- **Refonte de l'interface** ✅ **livrée (2026-09-07)** L'habillage de la GUI
+  reprend la grammaire d'un launcher de jeu : artwork de la Zone redessiné en
+  plans (antenne Duga, cheminée de la centrale, pylônes, brume rasante,
+  anomalie) et étalonné, barre de titre porteuse de l'état système, « pont »
+  bas structuré (identité, chiffres, actions), tuiles de statut — espace libre,
+  mods déployés, version —, jauge d'espace disque au dialog d'installation,
+  timeline de progression jalonnée sur un rail. Côté fondations : la feuille de
+  style devient un vrai fichier CSS (`gui/theme/style.css`, palette en
+  `@define-color`, validée par un test), l'artwork n'est plus décodé qu'une
+  fois pour toute l'application, les sept branchements de tâches longues sortent
+  de `main_window.py` (`gui/jobs.py`, testables sans fenêtre), et
+  `scripts/capture_screenshots.py` régénère la documentation hors écran, sur une
+  install de démonstration. Deux défauts corrigés au passage : la console de
+  progression pouvait s'afficher vide alors que son tampon était plein (vue
+  défilée sous son contenu quand le journal tenait dans la fenêtre), et la
+  feuille de style produisait un avertissement GTK par redessin en redéfinissant
+  la géométrie des barres de défilement d'Adwaita.
+
 **Le frein principal n'est pas fonctionnel.** À la même revue : 5 étoiles, 0
 issue, 0 fork. Trois leviers, hors fiches ci-dessus — un paquet **AUR** puis
 **COPR** (les raisons du retrait de T09, le sandbox contre Wine/Proton, ne

@@ -6,6 +6,10 @@ import re
 
 _GIB = 1024**3
 
+# Ce qu'on affiche quand on ne sait pas — jamais « 0 », qui se lirait comme une
+# mesure. Partagé par toutes les vues pour que « inconnu » ait UNE apparence.
+UNKNOWN = "—"
+
 # URL citée dans un message d'erreur (ex. la page ModDB d'un mod que le
 # téléchargement n'a pas pu servir, cf. `engine.errors`). La ponctuation
 # terminale d'une phrase française n'appartient pas à l'URL : `[^\s<>"']+`

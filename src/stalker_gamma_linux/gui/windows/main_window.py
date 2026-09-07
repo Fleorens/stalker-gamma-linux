@@ -1,17 +1,22 @@
 """Fenêtre principale : un launcher — artwork, héros, gros bouton, statut live.
 
 Toute la logique (install/update/play/mo2) reste dans `orchestrator`/
-`mo2.session` ; ce module compose les vues (héros, dialog d'installation,
-progression) et déclenche ces appels dans un `gui.worker.BackgroundTask`
-(hors du fil GTK). L'analyse d'environnement de la puce « système » tourne
-dans un thread au démarrage et à chaque retour de tâche.
+`mo2.session`, et les sept branchements vers elle sont décrits dans
+`gui.jobs` ; ce module compose les vues (héros, dialog d'installation,
+progression) et pousse ces `Job` dans un `gui.worker.BackgroundTask` (hors du
+fil GTK). Le sondage d'environnement, d'espace disque et de mods tourne dans
+un thread au démarrage et à chaque retour de tâche.
+
+Mise en page : l'artwork occupe tout le fond, l'état du système est en barre
+de titre, et le bas de la fenêtre est un « pont » — identité et chiffres à
+gauche, actions à droite, séparés de l'image par un filet lumineux. C'est la
+grammaire d'un launcher de jeu, pas celle d'une fenêtre de préférences.
 """
 
 from __future__ import annotations
 
-import queue
 import threading
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from pathlib import Path
 
 import gi
@@ -21,51 +26,31 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
-from stalker_gamma_linux import (  # noqa: E402
-    adopt,
-    backups,
-    integrity,
-    orchestrator,
-    uninstall,
-    updates,
-)
-from stalker_gamma_linux import state as state_module  # noqa: E402
+from stalker_gamma_linux import adopt, uninstall, updates  # noqa: E402
 from stalker_gamma_linux.environment.report import build_report  # noqa: E402
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE  # noqa: E402
-from stalker_gamma_linux.gui import prefs, space, summary, viewmodel  # noqa: E402
-from stalker_gamma_linux.gui.windows.background import wrap_with_background  # noqa: E402
+from stalker_gamma_linux.gui import jobs, prefs, space, stats, summary, viewmodel  # noqa: E402
+from stalker_gamma_linux.gui.windows.background import hero_backdrop  # noqa: E402
 from stalker_gamma_linux.gui.windows.doctor_view import DoctorPage  # noqa: E402
 from stalker_gamma_linux.gui.windows.hero import HeroBox  # noqa: E402
 from stalker_gamma_linux.gui.windows.install_dialog import InstallDialog  # noqa: E402
 from stalker_gamma_linux.gui.windows.preferences import PreferencesDialog  # noqa: E402
 from stalker_gamma_linux.gui.windows.progress_view import ProgressPage  # noqa: E402
-from stalker_gamma_linux.gui.worker import (  # noqa: E402
-    BackgroundTask,
-    QueueReporter,
-    ReporterEvent,
-    WorkerEvent,
-)
+from stalker_gamma_linux.gui.windows.status_pill import StatusPill  # noqa: E402
+from stalker_gamma_linux.gui.worker import BackgroundTask  # noqa: E402
 from stalker_gamma_linux.i18n import _  # noqa: E402
-from stalker_gamma_linux.mo2 import session as mo2_session  # noqa: E402
 from stalker_gamma_linux.mo2.paths import Mo2Paths  # noqa: E402
 from stalker_gamma_linux.postmortem.analysis import build_postmortem  # noqa: E402
 from stalker_gamma_linux.postmortem.report import format_postmortem  # noqa: E402
 from stalker_gamma_linux.postmortem.result import Postmortem  # noqa: E402
 from stalker_gamma_linux.report_bundle import version_line  # noqa: E402
 
-JobFunc = Callable[[queue.Queue[WorkerEvent], threading.Event], int]
-
 # Confortable sur l'écran Steam Deck (1280x800, souvent en fenêtré bordless
 # plein écran côté Gaming Mode) tout en restant raisonnable sur un bureau.
-_DEFAULT_WIDTH = 1000
-_DEFAULT_HEIGHT = 700
-_PLAY_WIDTH, _PLAY_HEIGHT = 230, 60
-
-
-def _install_phases(*, shortcut: bool) -> tuple[str, ...]:
-    """Labels du pipeline `run_install`, alignés sur sa numérotation n/total."""
-    steps = state_module.STEPS if shortcut else state_module.STEPS[:-1]
-    return tuple(state_module.STEP_LABELS[step] for step in steps)
+_DEFAULT_WIDTH = 1060
+_DEFAULT_HEIGHT = 720
+_PLAY_WIDTH, _PLAY_HEIGHT = 244, 62
+_SECONDARY_HEIGHT = 38
 
 
 class MainWindow(Adw.ApplicationWindow):
@@ -76,7 +61,7 @@ class MainWindow(Adw.ApplicationWindow):
             default_width=_DEFAULT_WIDTH,
             default_height=_DEFAULT_HEIGHT,
         )
-        self.set_size_request(720, 540)
+        self.set_size_request(760, 560)
         self._preferences = prefs.load_preferences()
         self._current_state: viewmodel.MainWindowState | None = None
         self._probe_generation = 0
@@ -110,7 +95,27 @@ class MainWindow(Adw.ApplicationWindow):
         self.add_action(action)
         return action
 
-    def _build_main_page(self) -> Adw.NavigationPage:
+    @staticmethod
+    def _wordmark() -> Gtk.Widget:
+        """Signature discrète en barre de titre — deux labels, aucun markup.
+
+        Deux `Gtk.Label` plutôt qu'un seul en Pango markup : le markup est un
+        format à balises, et prendre l'habitude de l'employer pour de la
+        décoration finit par le faire employer avec du texte qu'on ne contrôle
+        pas (un chemin, un nom de mod). Ici, rien à échapper — il n'y a rien à
+        interpréter.
+        """
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        accent = Gtk.Label(label="GAMMA")
+        accent.add_css_class("wordmark")
+        accent.add_css_class("wordmark-accent")
+        suffix = Gtk.Label(label="LINUX")
+        suffix.add_css_class("wordmark")
+        box.append(accent)
+        box.append(suffix)
+        return box
+
+    def _build_header(self) -> Adw.HeaderBar:
         menu = Gio.Menu()
         menu.append(_("Check for updates…"), "win.check-update")
         # Le public de l'import (install GOG/Heroic bloquée, dossier partagé
@@ -123,11 +128,15 @@ class MainWindow(Adw.ApplicationWindow):
         menu.append(_("About"), "win.show-about")
         menu_button = Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=menu, primary=True)
 
+        self._status_pill = StatusPill(on_clicked=self._push_doctor)
+
         header_bar = Adw.HeaderBar(show_title=False)
+        header_bar.pack_start(self._wordmark())
         header_bar.pack_end(menu_button)
+        header_bar.pack_end(self._status_pill)
+        return header_bar
 
-        self._hero = HeroBox(on_chip_clicked=self._push_doctor)
-
+    def _build_actions(self) -> Gtk.Widget:
         self._primary_content = Adw.ButtonContent(
             icon_name="media-playback-start-symbolic", label=_("PLAY")
         )
@@ -137,24 +146,15 @@ class MainWindow(Adw.ApplicationWindow):
         self._primary_button.set_receives_default(True)
         self._primary_button.connect("clicked", self._on_primary_action)
 
-        self._mo2_button = Gtk.Button(label="Mod Organizer 2")
-        self._mo2_button.add_css_class("action-secondary")
-        self._mo2_button.set_size_request(-1, 40)
-        self._mo2_button.connect("clicked", lambda _b: self._start_mo2())
-
-        self._update_button = Gtk.Button(label=_("Update"))
-        self._update_button.add_css_class("action-secondary")
-        self._update_button.set_size_request(-1, 40)
-        self._update_button.connect("clicked", lambda _b: self._confirm_update())
-
-        self._postmortem_button = Gtk.Button(label=_("Did the game crash?"))
-        self._postmortem_button.add_css_class("action-secondary")
-        self._postmortem_button.set_size_request(-1, 40)
+        self._mo2_button = self._secondary_button("Mod Organizer 2", self._start_mo2)
+        self._update_button = self._secondary_button(_("Update"), self._confirm_update)
+        self._postmortem_button = self._secondary_button(
+            _("Did the game crash?"), self._start_postmortem
+        )
         self._postmortem_button.set_visible(False)
-        self._postmortem_button.connect("clicked", lambda _b: self._start_postmortem())
 
         secondary_row = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL, spacing=10, halign=Gtk.Align.END
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=8, halign=Gtk.Align.END
         )
         secondary_row.append(self._postmortem_button)
         secondary_row.append(self._mo2_button)
@@ -162,34 +162,50 @@ class MainWindow(Adw.ApplicationWindow):
 
         actions = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
-            spacing=12,
+            spacing=10,
             halign=Gtk.Align.END,
             valign=Gtk.Align.END,
         )
         actions.append(self._primary_button)
         actions.append(secondary_row)
+        return actions
 
-        bottom = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=24)
-        bottom.set_margin_start(32)
-        bottom.set_margin_end(32)
-        bottom.set_margin_bottom(28)
+    def _secondary_button(self, label: str, handler: Callable[[], None]) -> Gtk.Button:
+        button = Gtk.Button(label=label)
+        button.add_css_class("action-secondary")
+        button.set_size_request(-1, _SECONDARY_HEIGHT)
+        button.connect("clicked", lambda _button: handler())
+        return button
+
+    def _build_main_page(self) -> Adw.NavigationPage:
+        self._hero = HeroBox()
         self._hero.set_hexpand(True)
-        bottom.append(self._hero)
-        bottom.append(actions)
+
+        deck_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=28)
+        deck_row.append(self._hero)
+        deck_row.append(self._build_actions())
+
+        deck = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        deck.add_css_class("deck")
+        deck.set_margin_start(30)
+        deck.set_margin_end(30)
+        deck.set_margin_bottom(26)
+        deck_row.set_margin_top(20)
+        deck.append(deck_row)
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        content.append(Gtk.Box(vexpand=True))  # pousse le héros vers le bas
-        content.append(bottom)
+        content.append(Gtk.Box(vexpand=True))  # pousse le pont vers le bas
+        content.append(deck)
 
         toolbar_view = Adw.ToolbarView()
-        toolbar_view.add_top_bar(header_bar)
+        toolbar_view.add_top_bar(self._build_header())
         toolbar_view.set_content(content)
         toolbar_view.add_css_class("over-artwork")
 
         return Adw.NavigationPage(
             title=_("GAMMA Linux Launcher"),
             tag="main",
-            child=wrap_with_background(toolbar_view),
+            child=hero_backdrop(toolbar_view),
         )
 
     # -- état --------------------------------------------------------------
@@ -198,7 +214,7 @@ class MainWindow(Adw.ApplicationWindow):
         result = viewmodel.load_main_window_state(self._preferences.install_path)
         self._current_state = result
 
-        self._hero.show_state(result, free_label=None)
+        self._hero.show_state(result)
         if result.is_installed:
             self._primary_content.set_label(_("PLAY"))
             self._primary_content.set_icon_name("media-playback-start-symbolic")
@@ -215,7 +231,13 @@ class MainWindow(Adw.ApplicationWindow):
         self._start_environment_probe()
 
     def _start_environment_probe(self) -> None:
-        """Analyse d'environnement + espace disque, hors du fil GTK (sous-process)."""
+        """Environnement, espace disque et mods déployés, hors du fil GTK.
+
+        Une seule passe pour les trois : l'analyse d'environnement lance des
+        sous-process (`which`, `ldconfig`, `vulkaninfo`), le décompte des mods
+        touche le disque — aucun des deux n'a sa place sur le fil qui doit
+        repeindre la fenêtre.
+        """
         self._probe_generation += 1
         generation = self._probe_generation
         target = self._preferences.install_path
@@ -223,7 +245,8 @@ class MainWindow(Adw.ApplicationWindow):
         def worker() -> None:
             env_summary = summary.summarize(build_report(target))
             space_report = space.assess(target)
-            GLib.idle_add(self._apply_probe, generation, env_summary, space_report)
+            install_stats = stats.collect(target)
+            GLib.idle_add(self._apply_probe, generation, env_summary, space_report, install_stats)
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -232,11 +255,12 @@ class MainWindow(Adw.ApplicationWindow):
         generation: int,
         env_summary: summary.SystemSummary,
         space_report: space.SpaceReport,
+        install_stats: stats.InstallStats,
     ) -> bool:
         if generation != self._probe_generation or self._current_state is None:
             return False  # une analyse plus récente est en route, ne pas écraser
-        self._hero.show_summary(env_summary)
-        self._hero.show_state(self._current_state, free_label=space_report.free_label)
+        self._status_pill.show_summary(env_summary)
+        self._hero.show_probe(space_report, install_stats)
         return False
 
     def _show_toast(self, text: str) -> None:
@@ -464,115 +488,34 @@ class MainWindow(Adw.ApplicationWindow):
     # -- tâches longues (hors fil GTK) ----------------------------------
 
     def _start_install(self) -> None:
-        target = self._preferences.install_path
-        shortcut = self._preferences.create_steam_shortcut
-        proton_release = self._preferences.proton_release
-
-        def job(events: queue.Queue[WorkerEvent], cancel_event: threading.Event) -> int:
-            reporter = QueueReporter(events)
-            return orchestrator.run_install(
-                target,
-                shortcut=shortcut,
-                reporter=reporter,
-                cancel_event=cancel_event,
-                proton_release=proton_release,
+        self._push_job(
+            jobs.install(
+                self._preferences.install_path,
+                shortcut=self._preferences.create_steam_shortcut,
+                proton_release=self._preferences.proton_release,
             )
-
-        self._push_task(
-            _("Installation"),
-            job,
-            cancellable=True,
-            phase_labels=_install_phases(shortcut=shortcut),
         )
 
     def _start_update(self) -> None:
-        target = self._preferences.install_path
-
-        def job(events: queue.Queue[WorkerEvent], cancel_event: threading.Event) -> int:
-            reporter = QueueReporter(events)
-            return orchestrator.run_update(target, reporter=reporter, cancel_event=cancel_event)
-
-        # Les libellés viennent d'`orchestrator` : la GUI ne redérive pas la
-        # liste des étapes, elle la lit là où la numérotation est décidée.
-        self._push_task(
-            _("Update"),
-            job,
-            cancellable=True,
-            phase_labels=orchestrator.update_phase_labels(),
-        )
+        self._push_job(jobs.update(self._preferences.install_path))
 
     def _start_verify(self, repair: bool) -> None:
-        """Vérification d'intégrité des mods installés, depuis la vue Diagnostic.
-
-        Comme partout ailleurs : la GUI ne fait que fournir un `Reporter` et un
-        `cancel_event` à `integrity.run_verify` — le scan, le diff et la
-        réparation sont exactement ceux de `stalker-gamma-linux verify`.
-        """
-        target = self._preferences.install_path
-
-        def job(events: queue.Queue[WorkerEvent], cancel_event: threading.Event) -> int:
-            reporter = QueueReporter(events)
-            return integrity.run_verify(
-                target, repair_damaged=repair, reporter=reporter, cancel_event=cancel_event
-            )
-
-        self._push_task(
-            _("Repairing the mods") if repair else _("Checking the mods"),
-            job,
-            cancellable=True,
-            phase_labels=integrity.verify_phase_labels(repair_damaged=repair),
-        )
+        self._push_job(jobs.verify(self._preferences.install_path, repair=repair))
 
     def _start_backup(self) -> None:
-        """Sauvegarde explicite des trois ensembles, depuis la vue Diagnostic.
-
-        Rien n'est décidé ici : `backups.run_backup` est exactement ce que fait
-        `stalker-gamma-linux backup`, reporter compris.
-        """
-        target = self._preferences.install_path
-
-        def job(events: queue.Queue[WorkerEvent], _cancel: threading.Event) -> int:
-            return backups.run_backup(target, reporter=QueueReporter(events))
-
-        self._push_task(_("Backing up"), job, cancellable=False)
+        self._push_job(jobs.backup(self._preferences.install_path))
 
     def _start_restore(self, identifier: str) -> None:
-        target = self._preferences.install_path
-
-        def job(events: queue.Queue[WorkerEvent], _cancel: threading.Event) -> int:
-            return backups.run_restore(identifier, target, reporter=QueueReporter(events))
-
-        self._push_task(_("Restoring"), job, cancellable=False)
+        self._push_job(jobs.restore(identifier, self._preferences.install_path))
 
     def _start_play(self) -> None:
-        target = self._preferences.install_path
-        use_gamemode = self._preferences.use_gamemode
         self._played_this_session = True
-
-        def job(events: queue.Queue[WorkerEvent], cancel_event: threading.Event) -> int:
-            return mo2_session.run_play(
-                target,
-                use_gamemode=use_gamemode,
-                on_progress=lambda msg: events.put(ReporterEvent("progress", msg)),
-                cancel_event=cancel_event,
-            )
-
-        # Annulable : un premier lancement télécharge le runtime umu et compile
-        # des shaders — ça peut durer très longtemps, et si MO2 ne rend jamais
-        # la main, tuer la fenêtre était la seule issue.
-        self._push_task(_("Launching the game"), job, cancellable=True)
+        self._push_job(
+            jobs.play(self._preferences.install_path, use_gamemode=self._preferences.use_gamemode)
+        )
 
     def _start_mo2(self) -> None:
-        target = self._preferences.install_path
-
-        def job(events: queue.Queue[WorkerEvent], cancel_event: threading.Event) -> int:
-            return mo2_session.run_mo2(
-                target,
-                on_progress=lambda msg: events.put(ReporterEvent("progress", msg)),
-                cancel_event=cancel_event,
-            )
-
-        self._push_task(_("Opening Mod Organizer 2"), job, cancellable=True)
+        self._push_job(jobs.mod_organizer(self._preferences.install_path))
 
     def _start_postmortem(self) -> None:
         """Analyse la dernière session, hors du fil GTK, et présente le verdict.
@@ -598,6 +541,7 @@ class MainWindow(Adw.ApplicationWindow):
         # replier, une trace recoupée n'étant plus recopiable dans une issue.
         scroller = Gtk.ScrolledWindow(min_content_height=320, min_content_width=520)
         scroller.set_child(details)
+        scroller.add_css_class("console")
 
         dialog = Adw.AlertDialog(heading=_("Last game session"))
         dialog.set_extra_child(scroller)
@@ -605,21 +549,13 @@ class MainWindow(Adw.ApplicationWindow):
         dialog.present(self)
         return False
 
-    def _push_task(
-        self,
-        title: str,
-        job: JobFunc,
-        *,
-        cancellable: bool,
-        phase_labels: Sequence[str] | None = None,
-    ) -> None:
-        task = BackgroundTask(job)
+    def _push_job(self, job: jobs.Job) -> None:
         page = ProgressPage(
-            title=title,
-            task=task,
-            cancellable=cancellable,
+            title=job.title,
+            task=BackgroundTask(job.run),
+            cancellable=job.cancellable,
             on_finished=self._on_task_finished,
-            phase_labels=phase_labels,
+            phase_labels=job.phase_labels,
         )
         self._nav_view.push(page)
 

@@ -239,10 +239,11 @@ for debug output on the console; a full rotating log is always kept under
 ### GUI
 
 The GUI (`stalker-gamma-linux-gui`) is a real **launcher**, not a generic
-settings window: procedurally generated Zone artwork, the GAMMA logo, a big
-PLAY/INSTALL button, and everything you need to know at a glance — install
-target, free disk space on that volume, and a live "system ready / N
-prerequisites missing" chip that opens the full Diagnostic view.
+settings window: procedurally generated Zone artwork under a transparent
+header, the GAMMA logo, a big PLAY/INSTALL button, and everything you need to
+know at a glance — install target, and stat tiles for free disk space,
+deployed mod count and launcher version. A live "system ready / N prerequisites
+missing" pill sits in the title bar and opens the full Diagnostic view.
 
 | | |
 |---|---|
@@ -279,7 +280,12 @@ download. The CLI remains fully independent and usable on its own.
 
 The background artwork is generated deterministically by
 `scripts/generate_background.py` (numpy + Pillow, fixed seed) — no external
-asset, reproducible at any time.
+asset, reproducible at any time. It draws the Zone at dusk (the Duga array, the
+plant chimney, dead pylons, ground mist, an anomaly glow) in layers, then
+grades the result; the same landscape is reused for the repository's social
+card. The screenshots above are regenerated the same way, by
+`scripts/capture_screenshots.py`: it builds every screen against a throwaway
+demo install and renders it off-screen, so no personal path is ever published.
 
 ### Language
 

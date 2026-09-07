@@ -36,7 +36,7 @@ from gi.repository import Adw, Gdk, GLib, Gtk, Pango  # noqa: E402
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE  # noqa: E402
 from stalker_gamma_linux.gui import phases  # noqa: E402
 from stalker_gamma_linux.gui.format import first_url, format_duration  # noqa: E402
-from stalker_gamma_linux.gui.windows.background import wrap_with_background  # noqa: E402
+from stalker_gamma_linux.gui.windows.background import content_backdrop  # noqa: E402
 from stalker_gamma_linux.gui.worker import (  # noqa: E402
     BackgroundTask,
     DoneEvent,
@@ -80,6 +80,12 @@ _LOG_MAX_LINES = 5000
 # suppression dans un `TextBuffer` invalidant la géométrie du TextView.
 _LOG_TRIM_CHUNK = 500
 
+# Géométrie du rail de la timeline : largeur de la colonne d'icônes, et demi-
+# hauteur d'une icône — le rail s'arrête au centre des pastilles extrêmes
+# plutôt que de dépasser en haut et en bas.
+_RAIL_OFFSET = 9
+_RAIL_INSET = 11
+
 _STATUS_ICON = {
     phases.PhaseStatus.PENDING: "media-record-symbolic",
     # `object-select-symbolic` : la coche toujours présente dans Adwaita —
@@ -109,7 +115,9 @@ class _PhaseRow(Gtk.Box):
         self._stack.add_named(self._icon, "icon")
         self._stack.add_named(self._spinner, "spinner")
         self._stack.set_valign(Gtk.Align.START)
-        self._stack.set_margin_top(2)
+        # La pastille est opaque : c'est elle qui « coupe » le rail vertical qui
+        # passe derrière, et donne à la colonne son allure de chemin jalonné.
+        self._stack.add_css_class("phase-node")
         self.append(self._stack)
 
         self._label = Gtk.Label(label=label, xalign=0, wrap=True)
@@ -175,18 +183,11 @@ class ProgressPage(Adw.NavigationPage):
         self._task_end: DoneEvent | FailedEvent | None = None
         self._scroll_pending = False
 
-        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
         for side in ("top", "bottom", "start", "end"):
-            getattr(content, f"set_margin_{side}")(24)
+            getattr(content, f"set_margin_{side}")(26)
 
-        self._status_label = Gtk.Label(label=_("Preparing…"), xalign=0, wrap=True)
-        self._status_label.add_css_class("title-3")
-        self._elapsed_label = Gtk.Label(label="", xalign=1, hexpand=True)
-        self._elapsed_label.add_css_class("elapsed")
-        status_line = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        status_line.append(self._status_label)
-        status_line.append(self._elapsed_label)
-        content.append(status_line)
+        content.append(self._build_headline())
 
         # Le remède actionnable partait dans la console, mêlé à des centaines de
         # lignes de sortie moteur : personne ne le lisait. Il a maintenant sa
@@ -194,16 +195,10 @@ class ProgressPage(Adw.NavigationPage):
         content.append(self._build_error_banner())
 
         if self._timeline is not None:
+            content.append(self._section_label(_("Steps")))
             content.append(self._build_timeline_card())
 
-        self._percent_label = Gtk.Label(xalign=1)
-        self._percent_label.add_css_class("progress-percent")
-        self._progress_bar = Gtk.ProgressBar(hexpand=True, valign=Gtk.Align.CENTER)
-        progress_line = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        progress_line.append(self._progress_bar)
-        progress_line.append(self._percent_label)
-        content.append(progress_line)
-
+        content.append(self._section_label(_("Engine log")))
         content.append(self._build_console())
 
         self._cancel_button = Gtk.Button(label=_("Cancel"))
@@ -214,7 +209,7 @@ class ProgressPage(Adw.NavigationPage):
         self._cancel_button.connect("clicked", self._on_cancel_clicked)
         content.append(self._cancel_button)
 
-        clamp = Adw.Clamp(child=content, maximum_size=700)
+        clamp = Adw.Clamp(child=content, maximum_size=760)
         scroller = Gtk.ScrolledWindow(child=clamp, vexpand=True)
 
         header_bar = Adw.HeaderBar()
@@ -223,7 +218,7 @@ class ProgressPage(Adw.NavigationPage):
         toolbar_view.set_content(scroller)
         toolbar_view.add_css_class("over-artwork")
 
-        super().__init__(title=title, child=wrap_with_background(toolbar_view), can_pop=False)
+        super().__init__(title=title, child=content_backdrop(toolbar_view), can_pop=False)
 
         self._render_timeline()
         self._task.start()
@@ -234,18 +229,79 @@ class ProgressPage(Adw.NavigationPage):
 
     # -- construction ------------------------------------------------------
 
+    @staticmethod
+    def _section_label(text: str) -> Gtk.Widget:
+        label = Gtk.Label(label=text, xalign=0)
+        label.add_css_class("section-label")
+        label.set_margin_top(4)
+        return label
+
+    def _build_headline(self) -> Gtk.Widget:
+        """Étape en cours, pourcentage, temps écoulé, barre — en un bloc.
+
+        Ces quatre informations répondent à la même question (« où en est-on ? »)
+        et étaient dispersées de part et d'autre de la timeline. Réunies, elles
+        se lisent sans balayer l'écran, et le pourcentage peut enfin être écrit
+        assez gros pour se voir depuis un canapé — c'est aussi une install qu'on
+        surveille du coin de l'œil pendant des heures.
+        """
+        self._status_label = Gtk.Label(label=_("Preparing…"), xalign=0, wrap=True, hexpand=True)
+        self._status_label.add_css_class("title-3")
+        self._elapsed_label = Gtk.Label(label="", xalign=1)
+        self._elapsed_label.add_css_class("elapsed")
+        self._percent_label = Gtk.Label(xalign=1)
+        self._percent_label.add_css_class("progress-percent")
+
+        readout = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0, valign=Gtk.Align.CENTER)
+        readout.append(self._percent_label)
+        readout.append(self._elapsed_label)
+
+        top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+        top.append(self._status_label)
+        top.append(readout)
+
+        self._progress_bar = Gtk.ProgressBar(hexpand=True)
+
+        headline = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        headline.append(top)
+        headline.append(self._progress_bar)
+        return headline
+
     def _build_timeline_card(self) -> Gtk.Widget:
+        """Les étapes, jalonnées le long d'un rail vertical.
+
+        Le rail est posé *sous* les rangées, dans un `Gtk.Overlay` dont l'enfant
+        principal ne sert qu'à le porter : les enfants d'overlay se dessinent
+        au-dessus de l'enfant principal, donc l'ordre inverse ferait passer le
+        trait par-dessus les pastilles. `set_measure_overlay` est nécessaire
+        pour que la hauteur vienne des rangées et non du rail, qui n'en a pas.
+        """
         assert self._timeline is not None
-        rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        for side in ("top", "bottom", "start", "end"):
-            getattr(rows, f"set_margin_{side}")(16)
+        rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
         for phase in self._timeline.phases:
             row = _PhaseRow(phase.label)
             self._phase_rows.append(row)
             rows.append(row)
+
+        self._rail = Gtk.Box(halign=Gtk.Align.START, valign=Gtk.Align.FILL)
+        self._rail.add_css_class("phase-rail")
+        self._rail.set_margin_start(_RAIL_OFFSET)
+        self._rail.set_margin_top(_RAIL_INSET)
+        self._rail.set_margin_bottom(_RAIL_INSET)
+
+        rail_layer = Gtk.Box()
+        rail_layer.append(self._rail)
+
+        stack = Gtk.Overlay()
+        stack.set_child(rail_layer)
+        stack.add_overlay(rows)
+        stack.set_measure_overlay(rows, True)
+        for side in ("top", "bottom", "start", "end"):
+            getattr(stack, f"set_margin_{side}")(18)
+
         card = Gtk.Box()
         card.add_css_class("glass")
-        card.append(rows)
+        card.append(stack)
         return card
 
     def _build_console(self) -> Gtk.Widget:
@@ -264,7 +320,7 @@ class ProgressPage(Adw.NavigationPage):
             left_margin=12,
             right_margin=12,
         )
-        scroller = Gtk.ScrolledWindow(child=self._log_view, min_content_height=140, vexpand=True)
+        scroller = Gtk.ScrolledWindow(child=self._log_view, min_content_height=170, vexpand=True)
         scroller.add_css_class("console")
         # `scroll_to_mark` seul ne suffit pas à rester collé au bas : GTK valide
         # la hauteur des lignes par petits paquets, bien après l'insertion, et
@@ -277,10 +333,28 @@ class ProgressPage(Adw.NavigationPage):
         scroller.get_vadjustment().connect("changed", self._pin_console_to_bottom)
         return scroller
 
-    @staticmethod
-    def _pin_console_to_bottom(adjustment: Gtk.Adjustment) -> None:
+    def _pin_console_to_bottom(self, adjustment: Gtk.Adjustment) -> None:
+        """Recale la console sur sa dernière ligne, à chaque révision de géométrie.
+
+        Deux gestes, et les deux sont nécessaires :
+
+        - `scroll_to_mark` passe par la **vue**, qui met alors son décalage
+          interne et son ajustement d'accord. Sans lui, un tampon plus court que
+          la fenêtre restait défilé *sous* son contenu — l'ajustement annonçait
+          0, la vue affichait à partir de 96 px, et la console paraissait vide
+          alors qu'elle contenait tout (constaté sur une console redimensionnée
+          par la refonte : le cas ne se produisait pas tant que le tampon
+          dépassait toujours la hauteur visible) ;
+        - le calage exact de l'ajustement ensuite, parce que `scroll_to_mark`
+          se contente de rendre la marque *visible* : sur un journal de
+          plusieurs milliers de lignes, ça laisse la dernière à ras du bord.
+
+        Rien à faire quand tout tient dans la vue : `bottom` vaut alors le bas
+        de la plage, et forcer une valeur ne ferait que rouvrir le décalage.
+        """
+        self._log_view.scroll_to_mark(self._log_end_mark, 0.0, False, 0.0, 1.0)
         bottom = adjustment.get_upper() - adjustment.get_page_size()
-        if adjustment.get_value() != bottom:
+        if bottom > adjustment.get_lower() and adjustment.get_value() != bottom:
             adjustment.set_value(bottom)
 
     # -- événements ----------------------------------------------------------
