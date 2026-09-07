@@ -42,16 +42,66 @@ utilisateur, ~150 lignes avec ses tests), puis T13 (même famille), puis T12
 qui est la vraie fonctionnalité manquante. T14/T15/T16 sont du polish, et deux
 d'entre elles peuvent se conclure sans changement de code.
 
+### Phase 5 — Adoption (issues de la revue du 2026-09-07)
+
+Revue comparative avec le launcher Windows officiel. Constat de départ : le
+launcher officiel a **trois boutons** (*First Install Initialization*,
+*Install / Update GAMMA*, *Play*). Nous sommes déjà devant sur les
+fonctionnalités. Ces six tâches ne rattrapent donc pas un retard : elles visent
+ce que seul Linux permet, et les modes d'échec qui font abandonner.
+
+| # | Tâche | Modèle recommandé | Dépend de | Priorité |
+|---|-------|-------------------|-----------|----------|
+| T17 | Sauvegarde/restauration + fusion de la modlist | **Opus 5**, effort maximal | T07, T12 | 🔴 perte de données utilisateur |
+| T18 | Post-mortem de session : crash attribué au mod | **Opus 5**, effort élevé | T05, T12, T14 | 🟠 support |
+| T19 | Steam / mode Gaming en un clic (`shortcuts.vdf`) | **Opus 5**, effort élevé | T06, T11 | 🟠 public Deck/Bazzite |
+| T20 | MangoHud, gamescope/FSR, vkBasalt | **Opus 5**, effort maximal | T04, T05 | 🟠 avantage Linux |
+| T21 | Cache de shaders conservé hors préfixe | **Sonnet 5**, effort moyen | T04, T05 | 🟡 première impression |
+| T22 | Résilience ModDB : dépôt manuel, reprise ciblée | **Sonnet 5**, effort élevé | T03, T07, T12 | 🟠 installation bloquée |
+
+Ordre conseillé : **T17 d'abord** — c'est la plainte n°1 de GAMMA toutes
+plateformes (« *your modlist, settings, and mod settings will reset* », wiki
+officiel), et nous en faisons déjà la moitié sans le savoir
+(`orchestrator.backup_mo2_profiles`). Puis **T18**, dont le code est écrit à
+80 % et inutilisé depuis T15. Puis **T22** (une install bloquée ne pardonne
+pas), **T19** et **T20** (le public qui grossit), **T21** en dernier.
+
+Deux tâches revoient une décision antérieure et doivent commencer par la relire :
+**T19** revient sur le hors-scope `shortcuts.vdf` de T06, **T18** termine la
+moitié laissée ouverte par T14.
+
+Hors périmètre de ces fiches, mais identifié à la même revue : le frein
+principal aujourd'hui n'est pas fonctionnel. Le dépôt est à **5 étoiles, 0
+issue, 0 fork** — le produit est meilleur que la concurrence et personne ne le
+sait. Les trois leviers sont un **paquet AUR puis COPR** (les raisons du retrait
+de T09 — le sandbox contre Wine/Proton — ne s'appliquent pas à un paquet
+natif), une **présence dans les guides Linux du wiki GAMMA et son Discord**, et
+l'**i18n au-delà de en/fr** (ru/uk/pl/de : le workflow gettext est déjà en
+place, c'est du volume, pas de la complexité).
+
 ## Règle de choix des modèles
 
-- **Fable 5** : ce qui demande de la recherche, du raisonnement système ou du
+Chaque fiche annonce un modèle **et un niveau d'effort** : à modèle égal,
+c'est l'effort qui décide de la profondeur de raisonnement, et l'oublier revient
+à ne rien avoir choisi.
+
+- **Opus 5** : ce qui demande de la recherche, du raisonnement système ou du
   debug non documenté (Wine/Proton/USVFS, comportements de MO2, spec initiale).
   C'est là que le modèle le plus fort rapporte le plus.
+  *Effort maximal* quand le résultat n'est pas connu d'avance (comportement à
+  mesurer, données utilisateur irréversibles) ; *effort élevé* quand le problème
+  est cerné mais dense.
 - **Sonnet 5** : le développement bien cadré — une fois la spec écrite, ces
   tâches sont du code Python/YAML classique. Rapide et largement suffisant.
+  *Effort élevé* s'il y a des cas limites à couvrir, *moyen* sinon.
 - **Haiku 4.5** : retouches mécaniques (YAML de CI, doc, renommages).
 - En cas de blocage sur une tâche Sonnet (bug Wine bizarre, comportement
-  Proton non documenté) : repasser la session en Fable 5 plutôt que d'insister.
+  Proton non documenté) : repasser la session en Opus 5 à effort maximal plutôt
+  que d'insister.
+
+> Les fiches T01 à T16 mentionnent **Fable 5**, indisponible sur ce compte.
+> C'est un état de fait à la date de leur rédaction, laissé tel quel : partout
+> où elles le citent, lire « Opus 5 à effort maximal ».
 
 ## Hygiène commune à toutes les tâches
 

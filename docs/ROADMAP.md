@@ -69,9 +69,11 @@ couvertes chez nous ; six deviennent des tâches.
   réparation des seuls mods amont abîmés, ajouts de l'utilisateur jamais
   touchés — y compris le dossier de mod qui en contient. Voir
   docs/ARCHITECTURE.md « Intégrité des mods installés ».
-- **T13** 🟠 Verrou « préfixe occupé ». Rien n'empêche `prefix-doctor --repair`,
-  `update` ou `install --only prefix` de travailler sur un préfixe pendant que
-  MO2 ou le jeu tournent dedans.
+- **T13** ✅ Verrou « préfixe occupé » (commit `9b8e44a`).
+  `prefix.session.require_free` est branché sur les quatre opérations
+  destructrices — `install --only prefix` (`orchestrator.py`), `update`,
+  `prefix-doctor --repair` et `uninstall --game-data` — avec `--force` partout.
+  Détection par `wineserver` du préfixe, puis MO2, puis le jeu.
 - **T14** 🟡 Diagnostic du log de lancement : `mo2/diagnostics.py` couvre
   l'USVFS mais pas les échecs qui surviennent en amont (`concrt140.dll`,
   `version mismatch` d'un préfixe construit par un autre Proton).
@@ -94,6 +96,55 @@ GitHub (`updates.py` le documente ; `prefix/umu.py` et `prefix/download.py` ont
 leurs replis `FALLBACK_*`), distinction compat-data / `pfx`
 (`prefix/paths.py`), préservation des clés inconnues de `ModOrganizer.ini`
 (`mo2/ini.py`), packaging AppImage (hors périmètre depuis T09).
+
+## Phase 5 — Adoption (ouverte le 2026-09-07)
+
+Issue d'une revue comparative avec le **launcher Windows officiel**. Le constat
+qui oriente toute la phase : le launcher officiel a *trois boutons* (*First
+Install Initialization*, *Install / Update GAMMA*, *Play*). Nous avons déjà en
+plus la reprise après interruption, `verify --repair`, `doctor`,
+`prefix-doctor`, `import`, le verrou de préfixe et le rapport d'issue anonymisé.
+**Il n'y a pas de parité à rattraper.** Ces six tâches visent donc deux choses :
+ce que seul Linux permet, et les modes d'échec qui font abandonner. Découpage :
+[../tasks/](../tasks/).
+
+- **T17** 🔴 Sauvegarde/restauration + **fusion de la modlist**. Plainte n°1 de
+  GAMMA toutes plateformes : le wiki officiel écrit que chaque « Install /
+  Update GAMMA » réinitialise modlist, réglages et réglages de mods. Nous en
+  faisons déjà la moitié (`orchestrator.backup_mo2_profiles` sauvegarde
+  `profiles/` avant chaque update) mais **aucune commande ne restaure**, les
+  sauvegardes de partie ne sont pas couvertes, et `<root>/backups/` n'est jamais
+  purgé. Objectif : passer de « réversible » à « ça ne se perd plus ».
+- **T18** 🟠 Post-mortem de session. `mo2/diagnostics.py` sait diagnostiquer,
+  mais depuis T15 `run_play` ne l'appelle plus (le jeu tourne encore ⇒ faux
+  négatif) et **aucune commande ne le rappelle après coup** : le diagnostic est
+  écrit et mort. Manque aussi la lecture du log X-Ray lui-même, seul endroit où
+  un crash s'attribue à un mod — via `integrity.report.mod_of`, déjà écrit.
+- **T19** 🟠 Steam / mode Gaming en un clic (`shortcuts.vdf`). **Revient sur le
+  hors-scope de T06** : le « gain limité aux joueurs Deck » est devenu le public
+  qui grossit, et en mode Gaming l'utilisateur *ne peut pas* suivre notre
+  consigne (« Ajouter un jeu non-Steam » exige le mode Bureau).
+- **T20** 🟠 MangoHud, gamescope/FSR, vkBasalt. Aucune trace dans le code, alors
+  que le README promet vkBasalt en équivalent du ReShade que nous retirons.
+  Seul lot où l'on passe devant Windows au lieu de l'égaler. Point dur à
+  mesurer avant de coder : la visibilité des couches Vulkan **dans** le
+  conteneur pressure-vessel (cf. le cas `libgamemode.so` déjà documenté).
+- **T21** 🟡 Cache de shaders hors préfixe. `install --only prefix` est notre
+  remède officiel au « prefix has an invalid version » — et il fait
+  silencieusement perdre des heures de compilation. Les caches DXVK/pilote
+  doivent vivre sous `<root>/cache/`, comme `TMPDIR` déjà.
+- **T22** 🟠 Résilience ModDB. Issue amont **ouverte** (#282, captchas
+  Cloudflare), plus #286/#284/#283. `engine.runner.verify` sait déjà classer ces
+  marqueurs en avertissement ; le raisonnement n'a jamais été porté sur le
+  chemin du téléchargement, où il bloque. Périmètre explicite : **aucun
+  contournement de protection** — on diagnostique, on indique le dépôt manuel
+  (`<gamma>/downloads`), on reprend.
+
+**Le frein principal n'est pas fonctionnel.** À la même revue : 5 étoiles, 0
+issue, 0 fork. Trois leviers, hors fiches ci-dessus — un paquet **AUR** puis
+**COPR** (les raisons du retrait de T09, le sandbox contre Wine/Proton, ne
+s'appliquent pas à un paquet natif) ; une présence dans les **guides Linux du
+wiki GAMMA** et son Discord ; l'**i18n au-delà de en/fr** (ru/uk/pl/de).
 
 ## Hors scope (assumé)
 - Portage natif du moteur X-Ray Monolith (sans Proton) : projet d'une autre
