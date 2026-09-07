@@ -420,9 +420,13 @@ supplémentaires, chacun avec sa suite de tests :
 - **`format.py`** : parsing d'index « n/total », tailles (`Gio`), durées, et
   la constante `UNKNOWN` (« — ») : « je ne sais pas » doit avoir *une* seule
   apparence dans toute l'interface, et ne jamais s'écrire « 0 ».
-- **`stats.py`** : les chiffres des tuiles de l'accueil — nombre de mods
-  déployés sous `<root>/gamma/mods` (un seul `scandir`, pas de descente
-  récursive : MO2 pose un dossier par mod à plat) et version du launcher.
+- **`stats.py`** : les chiffres des tuiles de l'accueil — mods **actifs /
+  installés** (« 579 / 728 ») et version du launcher. Le dénominateur vient
+  d'un seul `scandir` sur `<root>/gamma/mods` (pas de descente récursive : MO2
+  pose un dossier par mod à plat), le numérateur du `modlist.txt` du profil
+  `G.A.M.M.A` — c'est le nombre qu'affiche Mod Organizer lui-même. Les
+  séparateurs sont exclus des deux : ce sont de vrais dossiers, mais jamais des
+  mods actifs, et au dénominateur ils rendraient la fraction inatteignable.
   Lu dans le même thread de sondage que l'environnement et l'espace disque.
 - **`jobs.py`** : les sept tâches longues (install, update, verify, backup,
   restore, play, MO2) décrites hors de GTK — titre, fonction à lancer dans le

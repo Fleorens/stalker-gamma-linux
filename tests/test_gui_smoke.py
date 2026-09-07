@@ -150,10 +150,10 @@ def test_tuiles_de_laccueil_affichent_le_sondage() -> None:
     )
     hero.show_probe(
         space.SpaceReport(free_bytes=493 * 1024**3, verdict=space.SpaceVerdict.OK),
-        stats.InstallStats(mod_count=412, version="0.6.0"),
+        stats.InstallStats(mod_count=728, active_mod_count=579, version="0.6.0"),
     )
 
-    assert hero._tiles.mods._value.get_label() == "412"
+    assert hero._tiles.mods._value.get_label() == "579 / 728"
     assert hero._tiles.version._value.get_label() == "0.6.0"
 
 
@@ -164,7 +164,7 @@ def test_la_tuile_despace_avertit_quand_c_est_juste() -> None:
     hero = HeroBox()
     hero.show_probe(
         space.SpaceReport(free_bytes=space.MINIMUM_FREE_BYTES, verdict=space.SpaceVerdict.TIGHT),
-        stats.InstallStats(mod_count=0, version="0.6.0"),
+        stats.InstallStats(mod_count=0, active_mod_count=0, version="0.6.0"),
     )
 
     assert "tile-value-warn" in hero._tiles.space._value.get_css_classes()

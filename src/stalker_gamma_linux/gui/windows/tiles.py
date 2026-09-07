@@ -54,6 +54,11 @@ class StatStrip(Gtk.Box):
         super().__init__(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         self.space = StatTile(_("Free space"))
         self.mods = StatTile(_("Mods"))
+        # La tuile affiche une fraction (« 579 / 728 ») : sans explication, on
+        # se demande pourquoi Mod Organizer annonce un autre nombre.
+        self.mods.set_tooltip_text(
+            _("Enabled in the G.A.M.M.A profile / installed on disk (separators excluded)")
+        )
         self.version = StatTile(_("Version"))
         for tile in (self.space, self.mods, self.version):
             self.append(tile)

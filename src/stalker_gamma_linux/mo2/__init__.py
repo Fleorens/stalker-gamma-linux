@@ -42,7 +42,13 @@ from stalker_gamma_linux.mo2.launch import (
     launch_mo2,
     moshortcut,
 )
-from stalker_gamma_linux.mo2.modlist import ModEntry, enabled_mods, parse_modlist, read_modlist
+from stalker_gamma_linux.mo2.modlist import (
+    ModEntry,
+    enabled_mods,
+    modlist_path,
+    parse_modlist,
+    read_modlist,
+)
 from stalker_gamma_linux.mo2.paths import Mo2Paths
 from stalker_gamma_linux.mo2.session import resolve_anomaly, run_mo2, run_play
 from stalker_gamma_linux.mo2.winepath import to_windows_path
@@ -65,6 +71,7 @@ __all__ = [
     "diagnose_launch_log",
     "diagnose_usvfs",
     "enabled_mods",
+    "modlist_path",
     "flat_dir",
     "is_configured",
     "latest_usvfs_log",

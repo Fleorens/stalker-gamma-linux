@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-07 23:01+0200\n"
+"POT-Creation-Date: 2026-09-07 23:21+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1577,6 +1577,9 @@ msgid "Free space"
 msgstr ""
 
 msgid "Mods"
+msgstr ""
+
+msgid "Enabled in the G.A.M.M.A profile / installed on disk (separators excluded)"
 msgstr ""
 
 msgid "Version"

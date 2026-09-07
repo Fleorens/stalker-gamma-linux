@@ -55,9 +55,19 @@ def parse_modlist(text: str, *, include_separators: bool = False) -> tuple[ModEn
     return tuple(entries)
 
 
+def modlist_path(profile_dir: Path) -> Path:
+    """Chemin du `modlist.txt` du profil.
+
+    Exposé parce que `read_modlist` rend un tuple vide aussi bien pour un
+    fichier absent que pour un modlist vide : qui doit distinguer les deux
+    (l'accueil affiche « — » dans un cas, « 0 » dans l'autre) teste l'existence.
+    """
+    return profile_dir / _MODLIST_FILE
+
+
 def read_modlist(profile_dir: Path) -> tuple[ModEntry, ...]:
     """Entrées du `modlist.txt` du profil, ou tuple vide si le fichier est absent."""
-    text = system.read_text(profile_dir / _MODLIST_FILE)
+    text = system.read_text(modlist_path(profile_dir))
     if text is None:
         return ()
     return parse_modlist(text)
