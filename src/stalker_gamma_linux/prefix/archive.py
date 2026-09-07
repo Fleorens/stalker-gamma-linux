@@ -15,7 +15,9 @@ conteneur Debian 12 le reproduit — d'où le job `install-script` de ci.yml.
 
 On ne se contente donc pas de retirer le `filter=` (ce serait rétablir la faille
 sur les vieux 3.11) : quand il est absent, on valide nous-mêmes chaque membre
-avant extraction, avec les mêmes refus que `data_filter`.
+avant extraction, avec les mêmes refus que `data_filter` — et le même masque de
+mode (`_DATA_FILTER_MODE_MASK`), parce que refuser les membres dangereux ne dit
+rien des permissions de ceux qu'on accepte.
 """
 
 from __future__ import annotations
@@ -30,6 +32,28 @@ from stalker_gamma_linux.prefix.errors import UnsafeArchiveError
 # `data_filter` et le paramètre `filter=` d'`extractall` sont arrivés ensemble :
 # tester l'un renseigne sur l'autre, sans dépendre du numéro de version exact.
 _HAS_DATA_FILTER = hasattr(tarfile, "data_filter")
+
+# Le masque que `data_filter` applique au mode de chaque membre (« Strip high
+# bits & group/other write bits », `tarfile._get_filtered_attrs`). Trois familles
+# de bits tombent, et chacune pour sa raison :
+#
+# - **setuid/setgid** (0o4000, 0o2000) : ils n'ont aucun sens dans un zipapp ou
+#   une release précompilée, et deviendraient une élévation de privilèges si
+#   l'archive était un jour extraite sous un autre propriétaire que celui qui a
+#   posé le bit ;
+# - **sticky** (0o1000) : sans objet sur un fichier ordinaire, et le poser hors
+#   d'un répertoire partagé n'apporte rien qu'un comportement surprenant ;
+# - **écriture groupe/autres** (0o022) : c'est le bit qui compte vraiment ici.
+#   On extrait dans `compatibilitytools.d` et `~/.local/bin`, puis on exécute ce
+#   qu'on vient d'y poser. Un membre en 0o777 laisserait, sur une machine
+#   multi-utilisateurs, n'importe quel compte local réécrire un binaire que
+#   l'utilisateur lancera ensuite.
+#
+# Cette branche ne tourne que sur Python < 3.11.4 (Debian 12) : ailleurs, c'est
+# `data_filter` lui-même qui applique ce masque — la valeur est donc reprise de
+# la bibliothèque standard, pas inventée, pour que le repli tienne la promesse
+# de parité annoncée en tête de module.
+_DATA_FILTER_MODE_MASK = 0o755
 
 
 def _is_within(base: Path, candidate: str) -> bool:
@@ -79,10 +103,6 @@ def safe_extractall(tar: tarfile.TarFile, dest: Path) -> None:
         tar.extractall(dest, filter="data")
         return
     validate_members(tar, dest)
-    # data_filter normalise aussi le mode des fichiers : efface les bits setuid/setgid
-    # qui n'ont aucun sens dans un zipapp ou une release précompilée, et constitueraient
-    # une faille de privilèges si l'extraction se fait sous un propriétaire autre que
-    # celui qui poserait ces bits.
     for member in tar.getmembers():
-        member.mode &= ~(0o4000 | 0o2000)
+        member.mode &= _DATA_FILTER_MODE_MASK
     tar.extractall(dest)  # noqa: S202 - membres validés juste au-dessus

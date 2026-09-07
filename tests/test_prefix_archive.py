@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from stalker_gamma_linux.prefix import archive
 from stalker_gamma_linux.prefix.archive import safe_extractall, validate_members
 from stalker_gamma_linux.prefix.errors import UnsafeArchiveError
 
@@ -142,3 +143,42 @@ class TestSafeExtractall:
         # Vérifier que le bit setuid (04000) est absent.
         mode = stat.S_IMODE(extracted.stat().st_mode)
         assert not (mode & stat.S_ISUID)
+
+    def test_repli_applique_le_masque_de_data_filter(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Le repli normalise le mode exactement comme `data_filter` : `& 0o755`.
+
+        Deux précautions, sans lesquelles ce test serait vert quoi qu'il arrive :
+
+        - `_HAS_DATA_FILTER` est forcé à False, sinon c'est la branche stdlib qui
+          s'exécute et le repli n'est jamais atteint ;
+        - les modes sont relevés **au moment de l'appel** à `extractall`, pas sur
+          le disque après coup. Depuis Python 3.14, `extractall()` sans `filter=`
+          applique `data_filter` par défaut (PEP 706) : il rattraperait un masque
+          défaillant sur la machine de dev et en CI, c'est-à-dire partout sauf
+          sur la Debian 12 que ce repli existe pour servir.
+        """
+        monkeypatch.setattr(archive, "_HAS_DATA_FILTER", False)
+        members = [
+            _regular("setuid.sh", mode=0o4755),
+            _regular("setgid.sh", mode=0o2755),
+            _regular("sticky.sh", mode=0o1755),
+            _regular("worldwrite.sh", mode=0o777),
+        ]
+        with _tar_with(members, tmp_path) as tar:
+            dest = tmp_path / "dest"
+            dest.mkdir()
+            submitted: dict[str, int] = {}
+            extractall = tar.extractall
+
+            def spy(*args: object, **kwargs: object) -> None:
+                submitted.update({member.name: member.mode for member in tar.getmembers()})
+                extractall(*args, **kwargs)  # type: ignore[arg-type]
+
+            monkeypatch.setattr(tar, "extractall", spy)
+            safe_extractall(tar, dest)
+
+        assert submitted == dict.fromkeys(
+            ("setuid.sh", "setgid.sh", "sticky.sh", "worldwrite.sh"), 0o755
+        )
