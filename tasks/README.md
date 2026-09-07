@@ -52,7 +52,7 @@ ce que seul Linux permet, et les modes d'échec qui font abandonner.
 
 | # | Tâche | Modèle recommandé | Dépend de | Priorité |
 |---|-------|-------------------|-----------|----------|
-| T17 | Sauvegarde/restauration + fusion de la modlist | **Opus 5**, effort maximal | T07, T12 | 🔴 perte de données utilisateur |
+| T17 | Sauvegarde/restauration + fusion de la modlist — ✅ livrée (2026-09-07) | **Opus 5**, effort maximal | T07, T12 | 🔴 perte de données utilisateur |
 | T18 | Post-mortem de session : crash attribué au mod | **Opus 5**, effort élevé | T05, T12, T14 | 🟠 support |
 | T19 | Steam / mode Gaming en un clic (`shortcuts.vdf`) | **Opus 5**, effort élevé | T06, T11 | 🟠 public Deck/Bazzite |
 | T20 | MangoHud, gamescope/FSR, vkBasalt | **Opus 5**, effort maximal | T04, T05 | 🟠 avantage Linux |
@@ -61,10 +61,12 @@ ce que seul Linux permet, et les modes d'échec qui font abandonner.
 
 Ordre conseillé : **T17 d'abord** — c'est la plainte n°1 de GAMMA toutes
 plateformes (« *your modlist, settings, and mod settings will reset* », wiki
-officiel), et nous en faisons déjà la moitié sans le savoir
-(`orchestrator.backup_mo2_profiles`). Puis **T18**, dont le code est écrit à
-80 % et inutilisé depuis T15. Puis **T22** (une install bloquée ne pardonne
-pas), **T19** et **T20** (le public qui grossit), **T21** en dernier.
+officiel), et nous en faisions déjà la moitié sans le savoir. ✅ Livrée le
+2026-09-07 : paquet `backups/` (sauvegarde, inventaire, restauration,
+rotation) et fusion à trois voies de `modlist.txt` à chaque update. Puis
+**T18**, dont le code est écrit à 80 % et inutilisé depuis T15. Puis **T22**
+(une install bloquée ne pardonne pas), **T19** et **T20** (le public qui
+grossit), **T21** en dernier.
 
 Deux tâches revoient une décision antérieure et doivent commencer par la relire :
 **T19** revient sur le hors-scope `shortcuts.vdf` de T06, **T18** termine la

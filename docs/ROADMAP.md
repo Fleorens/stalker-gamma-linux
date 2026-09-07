@@ -108,13 +108,22 @@ plus la reprise après interruption, `verify --repair`, `doctor`,
 ce que seul Linux permet, et les modes d'échec qui font abandonner. Découpage :
 [../tasks/](../tasks/).
 
-- **T17** 🔴 Sauvegarde/restauration + **fusion de la modlist**. Plainte n°1 de
-  GAMMA toutes plateformes : le wiki officiel écrit que chaque « Install /
-  Update GAMMA » réinitialise modlist, réglages et réglages de mods. Nous en
-  faisons déjà la moitié (`orchestrator.backup_mo2_profiles` sauvegarde
-  `profiles/` avant chaque update) mais **aucune commande ne restaure**, les
-  sauvegardes de partie ne sont pas couvertes, et `<root>/backups/` n'est jamais
-  purgé. Objectif : passer de « réversible » à « ça ne se perd plus ».
+- **T17** ✅ **validé en réel (2026-09-07, install de test, GAMMA 920)**
+  Sauvegarde/restauration + **fusion de la modlist**. Plainte n°1 de GAMMA
+  toutes plateformes : le wiki officiel écrit que chaque « Install / Update
+  GAMMA » réinitialise modlist, réglages et réglages de mods. Livré : paquet
+  `backups/` (profils, **sauvegardes de partie**, `overwrite/`), commandes
+  `backup [--list]` / `restore <id> [--dry-run]` + boutons dans la vue
+  Diagnostic, manifeste TOML, rotation à 5 automatiques qui épargne toujours
+  les sauvegardes explicites, et `paths_safety` devant chaque `rmtree` ;
+  `orchestrator.backup_mo2_profiles` a été **déplacé** là, pas dupliqué. La
+  moitié qui compte : une **fusion à trois voies** de `modlist.txt` à chaque
+  update (`mo2/modlist_merge.py`), qui rejoue les désactivations, l'ordre et
+  les ajouts du joueur par-dessus la liste amont — et s'abstient en le disant
+  plutôt que de deviner. `update --no-merge` garde l'ancien comportement.
+  Emplacement réel des parties **constaté avant d'être codé** (voir
+  docs/ARCHITECTURE.md « Sauvegarde, restauration, et fusion de la modlist »).
+  Objectif atteint : on passe de « réversible » à « ça ne se perd plus ».
 - **T18** 🟠 Post-mortem de session. `mo2/diagnostics.py` sait diagnostiquer,
   mais depuis T15 `run_play` ne l'appelle plus (le jeu tourne encore ⇒ faux
   négatif) et **aucune commande ne le rappelle après coup** : le diagnostic est

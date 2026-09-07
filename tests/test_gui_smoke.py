@@ -20,6 +20,7 @@ tick, plafond du tampon) n'a de sens que face au vrai widget.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -145,6 +146,35 @@ def test_vue_diagnostic_avec_verification_integrite() -> None:
     from stalker_gamma_linux.gui.windows.doctor_view import DoctorPage
 
     DoctorPage(target=None, show_toast=lambda _t: None, on_verify=lambda _repair: None)
+
+
+def test_vue_diagnostic_construit_tous_ses_groupes(tmp_path: Path) -> None:
+    """`__init__` ne bâtit rien : les groupes n'existent qu'au retour de la collecte.
+
+    Sans boucle GTK, le `GLib.idle_add` du thread ne se déclenche jamais — on
+    appelle donc `_apply_report` directement, ce qui est le seul moyen de faire
+    passer le rendu des groupes (dont celui des sauvegardes) sous un test.
+    """
+    from stalker_gamma_linux import doctor
+    from stalker_gamma_linux.backups import create
+    from stalker_gamma_linux.gui.windows.doctor_view import DoctorPage
+
+    profile = tmp_path / "gamma" / "profiles" / "G.A.M.M.A"
+    profile.mkdir(parents=True)
+    (profile / "modlist.txt").write_text("+MonMod\n", encoding="utf-8")
+    create.create_backup(tmp_path)
+    (tmp_path / "backups" / "un-dossier-a-moi").mkdir()
+
+    page = DoctorPage(
+        target=tmp_path,
+        show_toast=lambda _t: None,
+        on_verify=lambda _repair: None,
+        on_backup=lambda: None,
+        on_restore=lambda _identifier: None,
+    )
+    page._apply_report(doctor.build_full_report(tmp_path))
+
+    assert page._groups
 
 
 def test_vue_progression_pipeline() -> None:

@@ -21,7 +21,14 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
-from stalker_gamma_linux import adopt, integrity, orchestrator, uninstall, updates  # noqa: E402
+from stalker_gamma_linux import (  # noqa: E402
+    adopt,
+    backups,
+    integrity,
+    orchestrator,
+    uninstall,
+    updates,
+)
 from stalker_gamma_linux import state as state_module  # noqa: E402
 from stalker_gamma_linux.environment.report import build_report  # noqa: E402
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE  # noqa: E402
@@ -50,13 +57,6 @@ JobFunc = Callable[[queue.Queue[WorkerEvent], threading.Event], int]
 _DEFAULT_WIDTH = 1000
 _DEFAULT_HEIGHT = 700
 _PLAY_WIDTH, _PLAY_HEIGHT = 230, 60
-
-# Étapes de `orchestrator.run_update`, dans l'ordre de ses événements 1/3..3/3.
-_UPDATE_PHASES = (
-    _("G.A.M.M.A modpack (incremental download)"),
-    _("Removing ReShade + purging the shader cache"),
-    _("Verification (MD5 of mod archives)"),
-)
 
 
 def _install_phases(*, shortcut: bool) -> tuple[str, ...]:
@@ -279,18 +279,21 @@ class MainWindow(Adw.ApplicationWindow):
         """Prévient de ce que la mise à jour va réellement faire, puis lance.
 
         `full-install` remplace `profiles/G.A.M.M.A/modlist.txt` par la liste
-        amont : le joueur perd ses activations/désactivations et ses ajouts
-        manuels. `orchestrator.backup_mo2_profiles` en fait une copie, mais il
-        faut le dire avant, pas le découvrir après.
+        amont. Depuis T17 on rejoue les écarts du joueur par-dessus, et on met
+        de côté profils **et** parties avant de commencer — mais la fusion peut
+        s'abstenir (voir `mo2.modlist_merge`), donc la promesse annoncée reste
+        celle du filet, pas celle du miracle.
         """
         dialog = Adw.AlertDialog(
             heading=_("Update the modpack?"),
             body=_(
                 "Only what changed upstream is re-downloaded. Your saves and your "
                 "in-game settings are preserved.\n\n"
-                "⚠ Your MO2 mod list (enabled/disabled mods, load order, mods you "
-                "added yourself) is reset to the upstream one. A backup is written "
-                "to <target>/backups/ first."
+                "The update rewrites your MO2 mod list with the upstream one, then "
+                "your own changes (enabled/disabled mods, load order, mods you added) "
+                "are reapplied on top. Your profiles and saved games are backed up to "
+                "<target>/backups/ before anything starts — restore them from the "
+                "Diagnostic view if the result is not what you expected."
             ),
         )
         dialog.add_response("cancel", _("Cancel"))
@@ -370,6 +373,8 @@ class MainWindow(Adw.ApplicationWindow):
                 target=self._preferences.install_path,
                 show_toast=self._show_toast,
                 on_verify=self._start_verify,
+                on_backup=self._start_backup,
+                on_restore=self._start_restore,
             )
         )
 
@@ -472,7 +477,14 @@ class MainWindow(Adw.ApplicationWindow):
             reporter = QueueReporter(events)
             return orchestrator.run_update(target, reporter=reporter, cancel_event=cancel_event)
 
-        self._push_task(_("Update"), job, cancellable=True, phase_labels=_UPDATE_PHASES)
+        # Les libellés viennent d'`orchestrator` : la GUI ne redérive pas la
+        # liste des étapes, elle la lit là où la numérotation est décidée.
+        self._push_task(
+            _("Update"),
+            job,
+            cancellable=True,
+            phase_labels=orchestrator.update_phase_labels(),
+        )
 
     def _start_verify(self, repair: bool) -> None:
         """Vérification d'intégrité des mods installés, depuis la vue Diagnostic.
@@ -495,6 +507,27 @@ class MainWindow(Adw.ApplicationWindow):
             cancellable=True,
             phase_labels=integrity.verify_phase_labels(repair_damaged=repair),
         )
+
+    def _start_backup(self) -> None:
+        """Sauvegarde explicite des trois ensembles, depuis la vue Diagnostic.
+
+        Rien n'est décidé ici : `backups.run_backup` est exactement ce que fait
+        `stalker-gamma-linux backup`, reporter compris.
+        """
+        target = self._preferences.install_path
+
+        def job(events: queue.Queue[WorkerEvent], _cancel: threading.Event) -> int:
+            return backups.run_backup(target, reporter=QueueReporter(events))
+
+        self._push_task(_("Backing up"), job, cancellable=False)
+
+    def _start_restore(self, identifier: str) -> None:
+        target = self._preferences.install_path
+
+        def job(events: queue.Queue[WorkerEvent], _cancel: threading.Event) -> int:
+            return backups.run_restore(identifier, target, reporter=QueueReporter(events))
+
+        self._push_task(_("Restoring"), job, cancellable=False)
 
     def _start_play(self) -> None:
         target = self._preferences.install_path

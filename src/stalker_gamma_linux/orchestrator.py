@@ -8,6 +8,12 @@ persisté (`state.py`) : une relance après interruption saute les étapes déj�
 validées. Le lancement au quotidien (MO2/USVFS) reste dans `mo2/` (commandes
 `mo2`/`play`).
 
+`run_update` fait deux choses de plus depuis T17, et l'ordre compte : il met à
+l'abri ce qui ne se retélécharge pas (`backups.protect_before_update`) **avant**
+de lancer le moteur, puis rejoue par-dessus la liste amont fraîchement écrite
+les écarts du joueur (`mo2.modlist_sync.merge_upstream_modlist`). La sauvegarde
+rend la perte réversible ; la fusion fait qu'elle n'a pas lieu.
+
 `run_install`/`run_update` ne connaissent que `output.Reporter` (T08) : la CLI
 passe `output.console_reporter` (défaut, comportement inchangé) et la GUI sa
 propre implémentation qui pousse les événements vers ses widgets — aucune
@@ -18,14 +24,13 @@ annulation propre depuis la GUI ; la CLI ne le passe jamais.
 
 from __future__ import annotations
 
-import shutil
 import threading
 from collections.abc import Callable, Sequence
-from datetime import UTC, datetime
 from pathlib import Path
 
-from stalker_gamma_linux import engine, output
+from stalker_gamma_linux import backups, engine, output
 from stalker_gamma_linux import state as state_module
+from stalker_gamma_linux.backups.errors import BackupError
 from stalker_gamma_linux.desktop import install_shortcut
 from stalker_gamma_linux.desktop.errors import DesktopError
 from stalker_gamma_linux.engine.errors import EngineCancelledError, EngineError
@@ -37,8 +42,9 @@ from stalker_gamma_linux.environment.report import (
 )
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE
 from stalker_gamma_linux.i18n import _
-from stalker_gamma_linux.mo2 import instance
-from stalker_gamma_linux.mo2.errors import Mo2Error
+from stalker_gamma_linux.mo2 import instance, modlist_sync
+from stalker_gamma_linux.mo2.errors import Mo2Error, ModlistSyncError
+from stalker_gamma_linux.mo2.modlist_merge import MergeOutcome
 from stalker_gamma_linux.mo2.paths import Mo2Paths
 from stalker_gamma_linux.mo2.session import resolve_anomaly
 from stalker_gamma_linux.prefix import provision, session
@@ -177,6 +183,11 @@ def run_install(
 
     def install_gamma() -> None:
         engine.install_gamma(install, on_progress=reporter.progress, cancel_event=cancel_event)
+        # Instantané pris ici, et nulle part ailleurs : le profil vient d'être
+        # écrit par le moteur, donc `modlist.txt` EST la liste amont. Le
+        # prendre plus tard enregistrerait la liste du joueur comme référence
+        # amont, et la première fusion ne verrait plus aucun de ses écarts.
+        _record_modlist_snapshot(root, reporter=reporter)
 
     try:
         run_step(1, "anomaly", install_anomaly)
@@ -211,25 +222,60 @@ def run_install(
     return 0
 
 
-def backup_mo2_profiles(root: Path) -> Path | None:
-    """Copie `<gamma>/profiles/` avant une mise à jour. Retourne le dossier créé.
+def update_phase_labels(*, merge_modlist: bool = True) -> tuple[str, ...]:
+    """Libellés des étapes de `run_update`, alignés sur sa numérotation `n/total`.
 
-    `full-install` réécrit `profiles/G.A.M.M.A/modlist.txt` avec la liste amont
-    (`_install_modorganizer_profile` dans gamma-launcher) : les mods
-    activés/désactivés, l'ordre de chargement et les mods ajoutés à la main
-    disparaissent. Constaté sur une install réelle — 757 lignes personnalisées
-    contre 752 en amont, dont un patch de traduction ajouté par le joueur.
-
-    On ne peut pas empêcher l'amont de le faire, mais on peut rendre la perte
-    réversible. Retourne None s'il n'y a pas de profil à sauvegarder.
+    Exposé pour que la GUI dessine sa timeline sans redériver la liste (même
+    contrat que `integrity.verify_phase_labels`).
     """
-    profiles = Mo2Paths.under(root).profiles
-    if not profiles.is_dir():
+    merge = (_("Reapplying your mod list"),) if merge_modlist else ()
+    return (
+        _("G.A.M.M.A modpack (incremental download)"),
+        *merge,
+        _("Removing ReShade + purging the shader cache"),
+        _("Verification (MD5 of mod archives)"),
+    )
+
+
+def _record_modlist_snapshot(root: Path, *, reporter: output.Reporter) -> None:
+    """Enregistre la liste amont de référence. Un échec n'arrête jamais le pipeline."""
+    try:
+        modlist_sync.record_upstream_snapshot(root)
+    except ModlistSyncError as error:
+        reporter.warn(str(error))
+
+
+def _merge_player_modlist(
+    root: Path, previous_text: str | None, *, reporter: output.Reporter
+) -> MergeOutcome | None:
+    """Rejoue les écarts du joueur sur la liste amont. Ne fait jamais échouer l'update.
+
+    À ce point, la mise à jour a réussi et la sauvegarde d'avant-update est en
+    place : ce qui se joue ici est un confort, pas une donnée. Une abstention
+    (`merged=False`) comme une erreur d'écriture sortent donc en avertissement,
+    avec de quoi agir — l'utilisateur garde l'amont et sa sauvegarde.
+    """
+    if previous_text is None:
+        # Il n'y avait pas de liste avant (install neuve, profil absent) : rien
+        # n'a été perdu, donc rien à signaler. On se contente d'enregistrer la
+        # référence pour que la *prochaine* mise à jour, elle, puisse fusionner.
+        _record_modlist_snapshot(root, reporter=reporter)
         return None
-    destination = root / "backups" / f"profiles-{datetime.now(UTC):%Y%m%d-%H%M%S}"
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(profiles, destination)
-    return destination
+    try:
+        outcome = modlist_sync.merge_upstream_modlist(root, previous_text)
+    except ModlistSyncError as error:
+        reporter.warn(str(error))
+        return None
+    if not outcome.merged:
+        reporter.warn(
+            _(
+                "Mod list left as upstream wrote it: {reason}.\n"
+                "Your previous list is in the backup written just before this update."
+            ).format(reason=outcome.reason)
+        )
+        return outcome
+    reporter.progress(outcome.report)
+    return outcome
 
 
 def run_update(
@@ -238,6 +284,7 @@ def run_update(
     reporter: output.Reporter = output.console_reporter,
     cancel_event: threading.Event | None = None,
     force: bool = False,
+    merge_modlist: bool = True,
 ) -> int:
     """Met à jour le modpack GAMMA, retire ReShade et re-vérifie l'installation.
 
@@ -247,6 +294,12 @@ def run_update(
     `CANCELLED_EXIT_CODE` si `cancel_event` (GUI) a été levé. Refuse de démarrer
     si MO2 ou le jeu tournent dans le préfixe partagé (`force` passe outre) —
     voir `prefix.session`.
+
+    `merge_modlist` (défaut) rejoue ensuite les écarts du joueur sur la liste
+    amont fraîchement écrite (T17). `--no-merge` le désactive et rend le
+    comportement historique — écrasement amont + sauvegarde — sans rien perdre
+    de la sauvegarde ni de l'instantané : la fusion est un défaut, pas une
+    obligation.
     """
     root = target if target is not None else DEFAULT_INSTALL_TARGET
     install = InstallPaths.under(root)
@@ -259,31 +312,41 @@ def run_update(
         reporter.error(str(error))
         return 1
 
+    # Lu **avant** le moteur : c'est le `ours` de la fusion à trois voies, et
+    # dans quelques minutes ce fichier aura été remplacé par la liste amont.
     try:
-        backup = backup_mo2_profiles(root)
-    except OSError as error:
+        player_modlist = modlist_sync.read_verbatim(modlist_sync.modlist_path(root))
+    except ModlistSyncError as error:
+        reporter.warn(str(error))
+        player_modlist = None
+
+    try:
+        backups.protect_before_update(root, reporter=reporter)
+    except BackupError as error:
         # Refuser d'avancer : mieux vaut ne pas mettre à jour que de perdre une
-        # liste de mods sans filet.
+        # liste de mods — ou des parties — sans filet.
         reporter.error(
-            _("Could not back up the MO2 profiles: {error}").format(error=error),
+            str(error),
             hint=_("Free some space or check permissions, then try again."),
         )
         return 1
-    if backup is not None:
-        reporter.progress(
-            _(
-                "MO2 profiles backed up to {path}\n"
-                "(the update resets the mod list to the upstream one — this is your safety net)"
-            ).format(path=backup)
-        )
 
+    labels = update_phase_labels(merge_modlist=merge_modlist)
+    total = len(labels)
     try:
-        reporter.step("1/3", _("G.A.M.M.A modpack (incremental download)…"))
+        reporter.step(f"1/{total}", _("G.A.M.M.A modpack (incremental download)…"))
         engine.update_gamma(install, on_progress=reporter.progress, cancel_event=cancel_event)
-        reporter.step("2/3", _("Removing ReShade + purging the shader cache…"))
+        if merge_modlist:
+            reporter.step(f"2/{total}", _("Reapplying your mod list (three-way merge)…"))
+            _merge_player_modlist(root, player_modlist, reporter=reporter)
+        else:
+            # Même sans fusion, la référence amont est mise à jour : sinon un
+            # `--no-merge` isolé rendrait fausse la fusion de la fois suivante.
+            _record_modlist_snapshot(root, reporter=reporter)
+        reporter.step(f"{total - 1}/{total}", _("Removing ReShade + purging the shader cache…"))
         engine.remove_reshade(install, on_progress=reporter.progress, cancel_event=cancel_event)
         engine.purge_shader_cache(install, on_progress=reporter.progress, cancel_event=cancel_event)
-        reporter.step("3/3", _("Verification (MD5 of mod archives)…"))
+        reporter.step(f"{total}/{total}", _("Verification (MD5 of mod archives)…"))
         unverifiable = engine.verify(
             install, on_progress=reporter.progress, cancel_event=cancel_event
         )

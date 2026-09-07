@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 
 from stalker_gamma_linux import cli
+from stalker_gamma_linux.backups import ALL_SETS, BackupSet
 
 
 def test_build_parser_install_default_target() -> None:
@@ -63,7 +64,7 @@ def test_build_parser_update_default_target() -> None:
 def test_main_dispatches_to_update(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[Path | None] = []
 
-    def fake_run_update(target: Path | None, *, force: bool) -> int:
+    def fake_run_update(target: Path | None, *, force: bool, merge_modlist: bool) -> int:
         calls.append(target)
         return 0
 
@@ -429,3 +430,78 @@ class TestRefusDesChemins:
 
         assert cli.main(["shortcut", "--target", "/tmp/a\nExec=/bin/sh"]) == 1
         assert not (tmp_path / "applications").exists()
+
+
+def test_build_parser_backup_defaults_to_every_set() -> None:
+    """« Sauvegarder » sans précision doit tout couvrir : c'est le geste avant de bricoler."""
+    args = cli.build_parser().parse_args(["backup"])
+
+    assert cli._selected_sets(args) == ALL_SETS
+
+
+def test_build_parser_backup_honours_a_single_set() -> None:
+    args = cli.build_parser().parse_args(["backup", "--saves"])
+
+    assert cli._selected_sets(args) == (BackupSet.SAVES,)
+
+
+def test_main_dispatches_to_backup(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[Path | None, tuple[BackupSet, ...], bool]] = []
+
+    def fake_run_backup(
+        target: Path | None, *, sets: tuple[BackupSet, ...], list_only: bool
+    ) -> int:
+        calls.append((target, sets, list_only))
+        return 0
+
+    monkeypatch.setattr(cli, "run_backup", fake_run_backup)
+
+    assert cli.main(["backup", "--target", "/mnt/disk/GAMMA", "--profiles", "--saves"]) == 0
+    assert calls == [(Path("/mnt/disk/GAMMA"), (BackupSet.PROFILES, BackupSet.SAVES), False)]
+
+
+def test_main_dispatches_to_backup_list(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[bool] = []
+
+    def fake_run_backup(
+        _target: Path | None, *, sets: tuple[BackupSet, ...], list_only: bool
+    ) -> int:
+        seen.append(list_only)
+        return 0
+
+    monkeypatch.setattr(cli, "run_backup", fake_run_backup)
+
+    assert cli.main(["backup", "--list"]) == 0
+    assert seen == [True]
+
+
+def test_main_dispatches_to_restore(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, Path | None, bool, bool]] = []
+
+    def fake_run_restore(
+        identifier: str, target: Path | None, *, dry_run: bool, force: bool
+    ) -> int:
+        calls.append((identifier, target, dry_run, force))
+        return 0
+
+    monkeypatch.setattr(cli, "run_restore", fake_run_restore)
+
+    code = cli.main(
+        ["restore", "profiles-20260907-142530", "--target", "/mnt/disk/GAMMA", "--dry-run"]
+    )
+
+    assert code == 0
+    assert calls == [("profiles-20260907-142530", Path("/mnt/disk/GAMMA"), True, False)]
+
+
+def test_main_dispatches_update_without_merge(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[bool] = []
+
+    def fake_run_update(_target: Path | None, *, force: bool, merge_modlist: bool) -> int:
+        seen.append(merge_modlist)
+        return 0
+
+    monkeypatch.setattr(cli, "run_update", fake_run_update)
+
+    assert cli.main(["update", "--no-merge"]) == 0
+    assert seen == [False]

@@ -46,3 +46,19 @@ class AnomalyNotFoundError(Mo2InstanceError):
                 "MO2 needs to know as `gamePath`."
             ).format(directory=anomaly_dir)
         )
+
+
+class ModlistSyncError(Mo2Error):
+    """Le `modlist.txt` du profil (ou son instantané amont) n'a pas pu être lu/écrit.
+
+    Jamais fatale pour la mise à jour qui l'entoure : quand elle survient,
+    l'amont est déjà en place et la sauvegarde d'avant-update aussi — c'est un
+    confort perdu, pas une donnée. L'appelant la rapporte en avertissement.
+    """
+
+    def __init__(self, path: Path, error: OSError) -> None:
+        self.path = path
+        self.error = error
+        super().__init__(
+            _("Could not read or write the mod list {path}: {error}").format(path=path, error=error)
+        )

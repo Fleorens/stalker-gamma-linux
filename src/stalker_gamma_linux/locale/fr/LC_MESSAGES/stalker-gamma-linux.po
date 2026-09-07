@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-06 23:27+0200\n"
+"POT-Creation-Date: 2026-09-07 15:18+0200\n"
 "PO-Revision-Date: 2026-07-26 10:23+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -170,6 +170,14 @@ msgstr ""
 msgid "Updates even if Mod Organizer 2 or the game are still using the prefix"
 msgstr "Met à jour même si Mod Organizer 2 ou le jeu utilisent encore le préfixe"
 
+msgid ""
+"Does not reapply your mod list over the upstream one: the update "
+"overwrites it, as it always did (a backup is still written first)"
+msgstr ""
+"Ne rejoue pas ta liste de mods par-dessus celle de l'amont : la mise à "
+"jour l'écrase, comme elle l'a toujours fait (une sauvegarde est écrite "
+"avant, quoi qu'il arrive)"
+
 msgid "Full report: system prerequisites + prefix status + install status"
 msgstr ""
 "Rapport complet : prérequis système + état du préfixe + état de "
@@ -201,14 +209,14 @@ msgid ""
 " cable or non-ECC RAM), which leaves both untouched. Costs a full reread "
 "of the mods folder"
 msgstr ""
-"Relit et rehache chaque fichier. Par défaut, un fichier dont la taille "
-"et la date de modification n'ont pas bougé depuis la référence n'est "
-"pas relu : ça détecte tout ce qui passe par le système de fichiers — "
-"écriture tronquée, fichier écrasé par un autre outil, extraction "
-"interrompue — puisque tout cela déplace la taille ou la date. --full "
-"sert à ce que ça ne peut pas voir : un contenu altéré sous le système "
-"de fichiers (bitrot, câble ou barrette de RAM défaillants), qui laisse "
-"les deux intacts. Coûte une relecture complète du dossier des mods"
+"Relit et rehache chaque fichier. Par défaut, un fichier dont la taille et"
+" la date de modification n'ont pas bougé depuis la référence n'est pas "
+"relu : ça détecte tout ce qui passe par le système de fichiers — écriture"
+" tronquée, fichier écrasé par un autre outil, extraction interrompue — "
+"puisque tout cela déplace la taille ou la date. --full sert à ce que ça "
+"ne peut pas voir : un contenu altéré sous le système de fichiers (bitrot,"
+" câble ou barrette de RAM défaillants), qui laisse les deux intacts. "
+"Coûte une relecture complète du dossier des mods"
 
 msgid ""
 "Repairs the damaged mods that come from the modpack: removes them (folder"
@@ -268,6 +276,42 @@ msgstr "Dossier contenant l'installation existante (Anomaly + Mod Organizer 2)"
 
 msgid "Shows what would be adopted and linked, without writing anything"
 msgstr "Affiche ce qui serait adopté et lié, sans rien écrire"
+
+msgid ""
+"Backs up what you cannot download again: MO2 profiles (mod list, load "
+"order), saved games, and the MO2 overwrite folder"
+msgstr ""
+"Sauvegarde ce qui ne se retélécharge pas : les profils MO2 (liste de "
+"mods, ordre de chargement), les sauvegardes de partie et le dossier "
+"overwrite de MO2"
+
+msgid "Lists the backups already there (date, contents, size) and exits"
+msgstr "Liste les sauvegardes présentes (date, contenu, taille) puis s'arrête"
+
+msgid "MO2 profiles: mod list, load order, MCM settings"
+msgstr "Profils MO2 : liste de mods, ordre de chargement, réglages MCM"
+
+msgid "saved games"
+msgstr "sauvegardes de partie"
+
+msgid "the MO2 overwrite folder"
+msgstr "le dossier overwrite de MO2"
+
+msgid ""
+"Puts a backup back in place (the current state is backed up first). "
+"Backup ids come from `backup --list`"
+msgstr ""
+"Remet une sauvegarde en place (l'état courant est sauvegardé d'abord). "
+"Les identifiants viennent de `backup --list`"
+
+msgid "Backup to restore, e.g. profiles-20260907-142530"
+msgstr "Sauvegarde à restaurer, par ex. profiles-20260907-142530"
+
+msgid "Shows exactly what would be replaced, without writing anything"
+msgstr "Affiche exactement ce qui serait remplacé, sans rien écrire"
+
+msgid "Restores even if Mod Organizer 2 or the game are still using the prefix"
+msgstr "Restaure même si Mod Organizer 2 ou le jeu utilisent encore le préfixe"
 
 msgid "Creates/updates the desktop shortcut (.desktop + icon, application menu)"
 msgstr "Crée/actualise le raccourci bureau (.desktop + icône, menu applications)"
@@ -411,6 +455,27 @@ msgstr ""
 "  stalker-gamma-linux play --target {root}   # jouer (Anomaly via MO2, "
 "USVFS)"
 
+msgid "Reapplying your mod list"
+msgstr "Réapplication de ta liste de mods"
+
+msgid "G.A.M.M.A modpack (incremental download)"
+msgstr "Modpack G.A.M.M.A (téléchargement incrémental)"
+
+msgid "Removing ReShade + purging the shader cache"
+msgstr "Retrait de ReShade + purge du cache de shaders"
+
+msgid "Verification (MD5 of mod archives)"
+msgstr "Vérification des archives de mods (MD5)"
+
+#, python-brace-format
+msgid ""
+"Mod list left as upstream wrote it: {reason}.\n"
+"Your previous list is in the backup written just before this update."
+msgstr ""
+"Liste de mods laissée telle que l'amont l'a écrite : {reason}.\n"
+"Ta liste précédente est dans la sauvegarde faite juste avant cette mise à"
+" jour."
+
 #, python-brace-format
 msgid "Updating S.T.A.L.K.E.R. G.A.M.M.A. in {root}"
 msgstr "Mise à jour de S.T.A.L.K.E.R. G.A.M.M.A. dans {root}"
@@ -418,25 +483,14 @@ msgstr "Mise à jour de S.T.A.L.K.E.R. G.A.M.M.A. dans {root}"
 msgid "updating"
 msgstr "mettre à jour"
 
-#, python-brace-format
-msgid "Could not back up the MO2 profiles: {error}"
-msgstr "Impossible de sauvegarder les profils MO2 : {error}"
-
 msgid "Free some space or check permissions, then try again."
 msgstr "Libère de la place ou vérifie les permissions, puis réessaie."
 
-#, python-brace-format
-msgid ""
-"MO2 profiles backed up to {path}\n"
-"(the update resets the mod list to the upstream one — this is your safety"
-" net)"
-msgstr ""
-"Profils MO2 sauvegardés dans {path}\n"
-"(la mise à jour remet la liste de mods à celle de l'amont — voici ton "
-"filet de sécurité)"
-
 msgid "G.A.M.M.A modpack (incremental download)…"
 msgstr "Modpack G.A.M.M.A (téléchargement incrémental)…"
+
+msgid "Reapplying your mod list (three-way merge)…"
+msgstr "Réapplication de ta liste de mods (fusion à trois voies)…"
 
 msgid "Removing ReShade + purging the shader cache…"
 msgstr "Retrait de ReShade + purge du cache de shaders…"
@@ -613,9 +667,6 @@ msgstr "Anomaly (jeu de base)"
 msgid "G.A.M.M.A modpack (mods + MO2 instance)"
 msgstr "Modpack G.A.M.M.A (mods + instance MO2)"
 
-msgid "Removing ReShade + purging the shader cache"
-msgstr "Retrait de ReShade + purge du cache de shaders"
-
 msgid "Shared Proton prefix"
 msgstr "Préfixe Proton partagé"
 
@@ -766,6 +817,226 @@ msgstr ""
 "Lance `stalker-gamma-linux update` pour l'appliquer. Attention : cela "
 "remet la liste de mods MO2 à celle de l'amont (une sauvegarde est écrite "
 "avant)."
+
+#, python-brace-format
+msgid ""
+"Nothing to back up under {root}: none of the selected sets ({sets}) holds"
+" any file.\n"
+"Install the modpack first, or pick another --target."
+msgstr ""
+"Rien à sauvegarder sous {root} : aucun des ensembles choisis ({sets}) ne "
+"contient de fichier.\n"
+"Installe d'abord le modpack, ou choisis un autre --target."
+
+#, python-brace-format
+msgid "Could not write the backup to {path}: {error}"
+msgstr "Impossible d'écrire la sauvegarde dans {path} : {error}"
+
+#, python-brace-format
+msgid "Unusable backup manifest {path}: {reason}"
+msgstr "Manifeste de sauvegarde inutilisable {path} : {reason}"
+
+#, python-brace-format
+msgid ""
+"No backup named « {identifier} » under {root}.\n"
+"List what is available with `stalker-gamma-linux backup --list`."
+msgstr ""
+"Aucune sauvegarde nommée « {identifier} » sous {root}.\n"
+"Liste ce qui est disponible avec `stalker-gamma-linux backup --list`."
+
+#, python-brace-format
+msgid "Could not restore {path}: {error}"
+msgstr "Impossible de restaurer {path} : {error}"
+
+#, python-brace-format
+msgid ""
+"No backup under {path} yet.\n"
+"One is written automatically before each update; create one now with "
+"`stalker-gamma-linux backup`."
+msgstr ""
+"Aucune sauvegarde sous {path} pour l'instant.\n"
+"Il en est écrit une automatiquement avant chaque mise à jour ; tu peux en"
+" créer une maintenant avec `stalker-gamma-linux backup`."
+
+#, python-brace-format
+msgid "Backups under {path}:"
+msgstr "Sauvegardes sous {path} :"
+
+msgid "Folders that are not usable backups:"
+msgstr "Dossiers qui ne sont pas des sauvegardes utilisables :"
+
+#, python-brace-format
+msgid "Restore one with: stalker-gamma-linux restore <id> --target {root}"
+msgstr "Restaure-en une avec : stalker-gamma-linux restore <id> --target {root}"
+
+msgid "kept (created by you)"
+msgstr "conservée (créée par toi)"
+
+msgid "automatic"
+msgstr "automatique"
+
+#, python-brace-format
+msgid "  {identifier}   {date}   [{kind}]"
+msgstr "  {identifier}   {date}   [{kind}]"
+
+#, python-brace-format
+msgid "      holds: {sets}"
+msgstr "      contient : {sets}"
+
+msgid "      (written before this tool recorded manifests — size unknown)"
+msgstr "      (écrite avant que l'outil ne tienne un manifeste — taille inconnue)"
+
+#, python-brace-format
+msgid "      {files} files, {size}"
+msgstr "      {files} fichiers, {size}"
+
+#, python-brace-format
+msgid "      G.A.M.M.A definition {version}"
+msgstr "      définition G.A.M.M.A {version}"
+
+msgid "no manifest, and the folder name carries no date"
+msgstr "pas de manifeste, et le nom du dossier ne porte aucune date"
+
+#, python-brace-format
+msgid "not valid TOML ({error})"
+msgstr "TOML invalide ({error})"
+
+msgid "missing [backup] section"
+msgstr "section [backup] absente"
+
+msgid "no entry: the backup does not say what it holds"
+msgstr "aucune entrée : la sauvegarde ne dit pas ce qu'elle contient"
+
+msgid "malformed entry"
+msgstr "entrée malformée"
+
+#, python-brace-format
+msgid "unknown set « {set} »"
+msgstr "ensemble inconnu « {set} »"
+
+#, python-brace-format
+msgid "unusable slot « {slot} »"
+msgstr "emplacement inutilisable « {slot} »"
+
+msgid "empty destination"
+msgstr "destination vide"
+
+#, python-brace-format
+msgid "absolute destination ({path})"
+msgstr "destination absolue ({path})"
+
+#, python-brace-format
+msgid "destination contains '..' ({path})"
+msgstr "la destination contient « .. » ({path})"
+
+#, python-brace-format
+msgid "destination contains a path separator or a NUL ({path})"
+msgstr "la destination contient un séparateur de chemin ou un NUL ({path})"
+
+#, python-brace-format
+msgid "unreadable date « {value} »"
+msgstr "date illisible « {value} »"
+
+msgid "missing creation date"
+msgstr "date de création absente"
+
+msgid "MO2 profiles (mod list, load order, MCM settings)"
+msgstr "profils MO2 (liste de mods, ordre de chargement, réglages MCM)"
+
+msgid "MO2 overwrite folder"
+msgstr "dossier overwrite de MO2"
+
+#, python-brace-format
+msgid "the backup announces « {slot} » but that folder is missing"
+msgstr "la sauvegarde annonce « {slot} » mais ce dossier est absent"
+
+#, python-brace-format
+msgid "Backup {identifier} ({date})"
+msgstr "Sauvegarde {identifier} ({date})"
+
+#, python-brace-format
+msgid "  holds: {sets}"
+msgstr "  contient : {sets}"
+
+#, python-brace-format
+msgid "  G.A.M.M.A definition at backup time: {version}"
+msgstr "  définition G.A.M.M.A au moment de la sauvegarde : {version}"
+
+msgid "The following would be replaced:"
+msgstr "Les éléments suivants seraient remplacés :"
+
+msgid "replaces the current folder"
+msgstr "remplace le dossier actuel"
+
+msgid "creates it (nothing there today)"
+msgstr "le crée (il n'y a rien aujourd'hui)"
+
+#, python-brace-format
+msgid "Rotation: {count} old automatic backup(s) removed ({names})."
+msgstr ""
+"Rotation : {count} ancienne(s) sauvegarde(s) automatique(s) retirée(s) "
+"({names})."
+
+#, python-brace-format
+msgid "Backing up what cannot be downloaded again, from {root}"
+msgstr "Sauvegarde de ce qui ne se retélécharge pas, depuis {root}"
+
+#, python-brace-format
+msgid ""
+"Backup complete.\n"
+"Put it back with: stalker-gamma-linux restore {identifier} --target {root}"
+msgstr ""
+"Sauvegarde terminée.\n"
+"Remets-la en place avec : stalker-gamma-linux restore {identifier} "
+"--target {root}"
+
+#, python-brace-format
+msgid "Restoring backup {identifier} into {root}"
+msgstr "Restauration de la sauvegarde {identifier} dans {root}"
+
+msgid "restoring a backup"
+msgstr "restaurer une sauvegarde"
+
+#, python-brace-format
+msgid "Restored: {path}"
+msgstr "Restauré : {path}"
+
+#, python-brace-format
+msgid ""
+"\n"
+"Restore complete. Open Mod Organizer 2 to check the mod list (`stalker-"
+"gamma-linux mo2 --target {root}`)."
+msgstr ""
+"\n"
+"Restauration terminée. Ouvre Mod Organizer 2 pour vérifier la liste de "
+"mods (`stalker-gamma-linux mo2 --target {root}`)."
+
+#, python-brace-format
+msgid ""
+"Backed up before updating: {summary}\n"
+"(the update resets the mod list to the upstream one — this is your safety"
+" net)"
+msgstr ""
+"Sauvegardé avant la mise à jour : {summary}\n"
+"(la mise à jour remet la liste de mods à celle de l'amont — voici ton "
+"filet de sécurité)"
+
+msgid "Nothing to save before restoring — there is no current state to keep."
+msgstr ""
+"Rien à sauvegarder avant de restaurer — il n'y a pas d'état courant à "
+"conserver."
+
+#, python-brace-format
+msgid "Current state saved first as {identifier} ({path})."
+msgstr "État courant mis de côté d'abord sous {identifier} ({path})."
+
+#, python-brace-format
+msgid "{sets} → {path} ({files} files, {size})"
+msgstr "{sets} → {path} ({files} fichiers, {size})"
+
+#, python-brace-format
+msgid "Could not remove the old backup {identifier}: {reason}"
+msgstr "Impossible de retirer l'ancienne sauvegarde {identifier} : {reason}"
 
 msgid "Play GAMMA (direct)"
 msgstr "Jouer à GAMMA (direct)"
@@ -959,8 +1230,8 @@ msgid ""
 "can write outside the extraction directory); sources {minimum}+ required "
 "(upstream UnRAR 6.12)"
 msgstr ""
-"version {version} détectée, vulnérable à CVE-2022-30333 (une archive "
-".rar peut écrire hors du répertoire d'extraction) ; sources {minimum}+ "
+"version {version} détectée, vulnérable à CVE-2022-30333 (une archive .rar"
+" peut écrire hors du répertoire d'extraction) ; sources {minimum}+ "
 "requises (UnRAR amont 6.12)"
 
 msgid "Vulkan GPU"
@@ -1163,6 +1434,50 @@ msgstr "Réparer"
 msgid "Check"
 msgstr "Vérifier"
 
+msgid "Backups"
+msgstr "Sauvegardes"
+
+msgid ""
+"Your MO2 profiles (mod list, load order), your saved games and the "
+"overwrite folder. One is written automatically before each update; the "
+"ones you create here are never rotated away."
+msgstr ""
+"Tes profils MO2 (liste de mods, ordre de chargement), tes sauvegardes de "
+"partie et le dossier overwrite. Il en est écrit une automatiquement avant"
+" chaque mise à jour ; celles que tu crées ici ne partent jamais à la "
+"rotation."
+
+msgid "Back up now"
+msgstr "Sauvegarder maintenant"
+
+msgid "Profiles, saved games and overwrite — kept until you delete it"
+msgstr ""
+"Profils, sauvegardes de partie et overwrite — conservée jusqu'à ce que tu"
+" la supprimes"
+
+msgid "Back up"
+msgstr "Sauvegarder"
+
+msgid "size unknown (written before manifests)"
+msgstr "taille inconnue (écrite avant les manifestes)"
+
+msgid "Restore"
+msgstr "Restaurer"
+
+msgid "Restore this backup?"
+msgstr "Restaurer cette sauvegarde ?"
+
+#, python-brace-format
+msgid ""
+"{sets} will be replaced by what this backup holds. Your current state is "
+"backed up first, so this can be undone."
+msgstr ""
+"{sets} vont être remplacés par ce que contient cette sauvegarde. Ton état"
+" courant est sauvegardé d'abord : c'est réversible."
+
+msgid "Cancel"
+msgstr "Annuler"
+
 msgid ""
 "Removes the damaged mods that come from the modpack and reinstalls them —"
 " this re-downloads them and takes a while"
@@ -1185,9 +1500,6 @@ msgstr ""
 "par-dessus votre dossier de mods, donc d'autres mods peuvent être mis à "
 "jour au passage. Rien de ce que vous avez ajouté n'est supprimé — ni vos "
 "propres mods, ni un fichier déposé dans l'un d'eux."
-
-msgid "Cancel"
-msgstr "Annuler"
 
 msgid "Copy the command"
 msgstr "Copier la commande"
@@ -1313,12 +1625,6 @@ msgstr "Répertoire inutilisable"
 msgid "OK"
 msgstr "OK"
 
-msgid "G.A.M.M.A modpack (incremental download)"
-msgstr "Modpack G.A.M.M.A (téléchargement incrémental)"
-
-msgid "Verification (MD5 of mod archives)"
-msgstr "Vérification des archives de mods (MD5)"
-
 msgid "GAMMA Linux Launcher"
 msgstr "Lanceur GAMMA (Linux)"
 
@@ -1365,16 +1671,21 @@ msgid ""
 "Only what changed upstream is re-downloaded. Your saves and your in-game "
 "settings are preserved.\n"
 "\n"
-"⚠ Your MO2 mod list (enabled/disabled mods, load order, mods you added "
-"yourself) is reset to the upstream one. A backup is written to "
-"<target>/backups/ first."
+"The update rewrites your MO2 mod list with the upstream one, then your "
+"own changes (enabled/disabled mods, load order, mods you added) are "
+"reapplied on top. Your profiles and saved games are backed up to "
+"<target>/backups/ before anything starts — restore them from the "
+"Diagnostic view if the result is not what you expected."
 msgstr ""
 "Seul ce qui a changé en amont est retéléchargé. Tes sauvegardes et tes "
 "réglages in-game sont préservés.\n"
 "\n"
-"⚠ Ta liste de mods MO2 (mods activés/désactivés, ordre de chargement, "
-"mods que tu as ajoutés toi-même) est remise à celle de l'amont. Une "
-"sauvegarde est écrite dans <cible>/backups/ avant."
+"La mise à jour réécrit ta liste de mods MO2 avec celle de l'amont, puis "
+"tes propres changements (mods activés/désactivés, ordre de chargement, "
+"mods que tu as ajoutés) sont réappliqués par-dessus. Tes profils et tes "
+"sauvegardes de partie sont mis à l'abri dans <cible>/backups/ avant que "
+"quoi que ce soit ne démarre — restaure-les depuis la vue Diagnostic si le"
+" résultat ne te convient pas."
 
 msgid "Choose the folder holding your GAMMA install"
 msgstr "Choisis le dossier qui contient ton installation GAMMA"
@@ -1427,6 +1738,12 @@ msgstr "Réparation des mods"
 
 msgid "Checking the mods"
 msgstr "Vérification des mods"
+
+msgid "Backing up"
+msgstr "Sauvegarde"
+
+msgid "Restoring"
+msgstr "Restauration"
 
 msgid "Launching the game"
 msgstr "Lancer le jeu"
@@ -1619,8 +1936,8 @@ msgid ""
 "Of those, {count} were unchanged in size and date and were not reread — "
 "`verify --full` rehashes everything instead."
 msgstr ""
-"Dont {count} inchangés en taille et en date, donc non relus — "
-"« verify --full » rehache tout à la place."
+"Dont {count} inchangés en taille et en date, donc non relus — « verify "
+"--full » rehache tout à la place."
 
 #, python-brace-format
 msgid ""
@@ -1714,9 +2031,9 @@ msgid ""
 "The reference predates size/date recording: everything is rehashed this "
 "once, and the new reference will make the next run much quicker."
 msgstr ""
-"La référence est antérieure à l'enregistrement de la taille et de la "
-"date : tout est rehaché cette fois-ci, et la nouvelle référence rendra "
-"le passage suivant bien plus rapide."
+"La référence est antérieure à l'enregistrement de la taille et de la date"
+" : tout est rehaché cette fois-ci, et la nouvelle référence rendra le "
+"passage suivant bien plus rapide."
 
 msgid ""
 "Run this check again after an update, or the day the game starts "
@@ -1759,8 +2076,8 @@ msgid ""
 "Reference upgraded with each file's size and date ({count} files) — the "
 "next check only rereads what moved."
 msgstr ""
-"Référence complétée avec la taille et la date de chaque fichier "
-"({count} fichiers) — le prochain contrôle ne relira que ce qui a bougé."
+"Référence complétée avec la taille et la date de chaque fichier ({count} "
+"fichiers) — le prochain contrôle ne relira que ce qui a bougé."
 
 msgid ""
 "Nothing can be repaired automatically: none of the damaged mods comes "
@@ -1896,6 +2213,10 @@ msgstr ""
 "MO2 doit connaître comme `gamePath`."
 
 #, python-brace-format
+msgid "Could not read or write the mod list {path}: {error}"
+msgstr "Impossible de lire ou d'écrire la liste de mods {path} : {error}"
+
+#, python-brace-format
 msgid ""
 "Flat install not found: {executable} does not exist.\n"
 "Build it first with gamma-launcher (`usvfs-workaround`) — that's what "
@@ -1945,6 +2266,75 @@ msgid "Warning: {count} enabled mods have no folder and were skipped: {mods}"
 msgstr ""
 "Attention : {count} mods activés n'ont pas de dossier et ont été ignorés "
 ": {mods}"
+
+#, python-brace-format
+msgid ""
+"Mod list merged: {toggled} mod(s) re-enabled/disabled the way you had "
+"them ({reactivated} enabled, {deactivated} disabled), {reinserted} mod(s)"
+" you added put back in place, {removed} entry(ies) removed upstream not "
+"restored."
+msgstr ""
+"Liste de mods fusionnée : {toggled} mod(s) réactivé(s)/désactivé(s) selon"
+" tes réglages ({reactivated} activé(s), {deactivated} désactivé(s)), "
+"{reinserted} mod(s) ajouté(s) par toi réinséré(s), {removed} entrée(s) "
+"retirée(s) en amont non restaurée(s)."
+
+#, python-brace-format
+msgid ""
+"{count} entry(ies) you had removed from the list are back: upstream still"
+" ships them, and dropping a line MO2 would re-add on its own is not "
+"something this merge decides for you."
+msgstr ""
+"{count} entrée(s) que tu avais retirée(s) de la liste sont de retour : "
+"l'amont les livre toujours, et supprimer une ligne que MO2 remettrait de "
+"lui-même n'est pas une décision que cette fusion prend à ta place."
+
+msgid ""
+"Load order: kept as upstream wrote it — your reordering and the upstream "
+"one could not be reconciled without guessing."
+msgstr ""
+"Ordre de chargement : conservé tel que l'amont l'a écrit — ton "
+"réordonnancement et le sien ne pouvaient pas être conciliés sans deviner."
+
+msgid "your mod list was empty — there was nothing of yours to carry over"
+msgstr "ta liste de mods était vide — il n'y avait rien de toi à reporter"
+
+msgid "the new upstream mod list is empty — refusing to merge onto nothing"
+msgstr "la nouvelle liste amont est vide — refus de fusionner sur du vide"
+
+msgid "the recorded upstream snapshot is empty — nothing to compare against"
+msgstr "l'instantané amont enregistré est vide — rien à quoi comparer"
+
+msgid "upstream snapshot"
+msgstr "l'instantané amont"
+
+msgid "your list"
+msgstr "ta liste"
+
+msgid "the new upstream list"
+msgstr "la nouvelle liste amont"
+
+#, python-brace-format
+msgid "{name} lists the same mod twice — refusing to guess"
+msgstr "{name} contient deux fois le même mod — refus de deviner"
+
+#, python-brace-format
+msgid "{name} holds lines this tool does not understand: {line}"
+msgstr "{name} contient des lignes que cet outil ne comprend pas : {line}"
+
+#, python-brace-format
+msgid "no mod list at {path} after the update"
+msgstr "aucune liste de mods dans {path} après la mise à jour"
+
+msgid "there was no mod list before the update — nothing to carry over"
+msgstr "il n'y avait pas de liste de mods avant la mise à jour — rien à reporter"
+
+msgid ""
+"no upstream snapshot recorded yet — this update records one, and the next"
+" one will keep your mod list"
+msgstr ""
+"aucun instantané amont enregistré pour l'instant — cette mise à jour en "
+"enregistre un, et la suivante gardera ta liste de mods"
 
 msgid "Launching Mod Organizer 2…"
 msgstr "Lancement de Mod Organizer 2…"
@@ -2295,7 +2685,6 @@ msgstr ""
 msgid "a Wine process using this prefix"
 msgstr "un processus Wine utilisant ce préfixe"
 
-#, python-brace-format
 msgid "Mod Organizer 2 and/or the game"
 msgstr "Mod Organizer 2 et/ou le jeu"
 
@@ -2455,4 +2844,7 @@ msgstr "umu-run opérationnel : {target}"
 
 #~ msgid "libunrar detected"
 #~ msgstr "libunrar détectée"
+
+#~ msgid "Could not back up the MO2 profiles: {error}"
+#~ msgstr "Impossible de sauvegarder les profils MO2 : {error}"
 

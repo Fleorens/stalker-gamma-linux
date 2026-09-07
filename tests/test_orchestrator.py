@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 from stalker_gamma_linux import engine, orchestrator, state
+from stalker_gamma_linux.backups.errors import BackupWriteError
 from stalker_gamma_linux.engine.errors import EngineCancelledError, EngineExecutionError
 from stalker_gamma_linux.engine.paths import InstallPaths
 from stalker_gamma_linux.environment.distro import Distro, DistroFamily
@@ -13,9 +14,10 @@ from stalker_gamma_linux.environment.models import (
     Requirement,
     Status,
 )
-from stalker_gamma_linux.mo2 import instance
+from stalker_gamma_linux.mo2 import instance, modlist_sync
 from stalker_gamma_linux.prefix import provision, session
 from stalker_gamma_linux.prefix.proton import ProtonBuild
+from tests.conftest import RecordingReporter
 
 
 def _patch_engine(monkeypatch: pytest.MonkeyPatch, events: list[str]) -> None:
@@ -484,25 +486,20 @@ class TestPrerequisMBloquants:
         assert code == 0
 
 
-class TestSauvegardeDuProfil:
-    """`full-install` écrase modlist.txt : la copie de secours n'est pas optionnelle."""
+class TestSauvegardeAvantMiseAJour:
+    """`full-install` écrase modlist.txt : la copie de secours n'est pas optionnelle.
+
+    La copie elle-même vit désormais dans `backups/` (T17) — l'orchestrateur ne
+    fait que l'appeler. Ce qu'on vérifie ici, c'est le contrat côté `run_update` :
+    elle est posée **avant** que le moteur ne tourne, et son échec empêche la
+    mise à jour.
+    """
 
     def _profile(self, tmp_path: Path) -> Path:
         profile = tmp_path / "gamma" / "profiles" / "G.A.M.M.A"
         profile.mkdir(parents=True)
         (profile / "modlist.txt").write_text("+MonMod\n-ModDesactive\n")
         return profile
-
-    def test_le_profil_est_copie_avant_la_mise_a_jour(self, tmp_path: Path) -> None:
-        self._profile(tmp_path)
-
-        backup = orchestrator.backup_mo2_profiles(tmp_path)
-
-        assert backup is not None
-        assert (backup / "G.A.M.M.A" / "modlist.txt").read_text() == "+MonMod\n-ModDesactive\n"
-
-    def test_sans_profil_rien_a_faire(self, tmp_path: Path) -> None:
-        assert orchestrator.backup_mo2_profiles(tmp_path) is None
 
     def test_run_update_sauvegarde_avant_de_toucher_au_modpack(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -512,8 +509,8 @@ class TestSauvegardeDuProfil:
 
         def fake_update(paths: Any, **kwargs: Any) -> None:
             # Au moment où le moteur tourne, la copie doit déjà exister.
-            backups = sorted((tmp_path / "backups").glob("profiles-*"))
-            seen["backup"] = backups[0].name if backups else ""
+            written = sorted((tmp_path / "backups").glob("profiles-*"))
+            seen["backup"] = written[0].name if written else ""
             # …et le moteur est en droit d'écraser la liste juste après.
             (profile / "modlist.txt").write_text("+ListeAmont\n")
 
@@ -524,8 +521,29 @@ class TestSauvegardeDuProfil:
 
         assert orchestrator.run_update(tmp_path) == 0
         assert seen["backup"].startswith("profiles-")
-        restored = tmp_path / "backups" / seen["backup"] / "G.A.M.M.A" / "modlist.txt"
+        restored = tmp_path / "backups" / seen["backup"] / "profiles" / "G.A.M.M.A" / "modlist.txt"
         assert restored.read_text() == "+MonMod\n-ModDesactive\n"
+
+    def test_une_sauvegarde_impossible_annule_la_mise_a_jour(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._profile(tmp_path)
+        touched: list[str] = []
+        monkeypatch.setattr(engine, "update_gamma", lambda *a, **k: touched.append("engine"))
+        monkeypatch.setattr(
+            orchestrator.backups,
+            "protect_before_update",
+            _raise_backup_error,
+        )
+        reporter = _RecordingReporter()
+
+        assert orchestrator.run_update(tmp_path, reporter=reporter) == 1
+        assert touched == []
+        assert any(kind == "error" for kind, _message in reporter.events)
+
+
+def _raise_backup_error(root: Path, **kwargs: Any) -> None:
+    raise BackupWriteError(root / "backups", OSError("No space left on device"))
 
 
 def test_run_install_only_replays_the_named_step(
@@ -602,3 +620,107 @@ def test_run_install_rejects_an_unknown_step(
 
     assert code == 1
     assert events == []
+
+
+class TestFusionDeLaModlist:
+    """`update` rejoue les écarts du joueur sur la liste amont (T17, partie 2)."""
+
+    def _profile(self, tmp_path: Path, text: str) -> Path:
+        profile = tmp_path / "gamma" / "profiles" / "G.A.M.M.A"
+        profile.mkdir(parents=True, exist_ok=True)
+        modlist = profile / "modlist.txt"
+        modlist.write_text(text, encoding="utf-8")
+        return modlist
+
+    def _engine_writes(self, monkeypatch: pytest.MonkeyPatch, modlist: Path, upstream: str) -> None:
+        monkeypatch.setattr(
+            engine, "update_gamma", lambda *a, **k: modlist.write_text(upstream, encoding="utf-8")
+        )
+        for name in ("remove_reshade", "purge_shader_cache"):
+            monkeypatch.setattr(engine, name, lambda *a, **k: None)
+        monkeypatch.setattr(engine, "verify", lambda *a, **k: ())
+
+    def test_les_reglages_du_joueur_sont_rejoues_et_comptes(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        modlist_sync.write_snapshot(tmp_path, "+A\n+B\n+Retire\n")
+        modlist = self._profile(tmp_path, "+A\n-B\n+MonMod\n+Retire\n")
+        self._engine_writes(monkeypatch, modlist, "+A\n+B\n+Nouveau\n")
+        reporter = _RecordingReporter()
+
+        assert orchestrator.run_update(tmp_path, reporter=reporter) == 0
+        assert modlist.read_text() == "+A\n-B\n+MonMod\n+Nouveau\n"
+        text = "\n".join(message for _kind, message in reporter.events)
+        assert "1 mod(s) re-enabled/disabled" in text
+        assert "1 mod(s) you added put back in place" in text
+        assert "1 entry(ies) removed upstream not restored" in text
+
+    def test_no_merge_garde_le_comportement_historique(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        modlist_sync.write_snapshot(tmp_path, "+A\n+B\n")
+        modlist = self._profile(tmp_path, "+A\n-B\n+MonMod\n")
+        self._engine_writes(monkeypatch, modlist, "+A\n+B\n+Nouveau\n")
+
+        assert orchestrator.run_update(tmp_path, merge_modlist=False) == 0
+        assert modlist.read_text() == "+A\n+B\n+Nouveau\n"
+        # …mais la référence suit quand même l'amont, sinon la fusion suivante
+        # comparerait à une liste périmée.
+        assert modlist_sync.read_snapshot(tmp_path) == "+A\n+B\n+Nouveau\n"
+
+    def test_sans_instantane_on_previent_au_lieu_de_deviner(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        modlist = self._profile(tmp_path, "+A\n-B\n")
+        self._engine_writes(monkeypatch, modlist, "+A\n+B\n")
+        reporter = _RecordingReporter()
+
+        assert orchestrator.run_update(tmp_path, reporter=reporter) == 0
+        assert modlist.read_text() == "+A\n+B\n"
+        warnings = [message for kind, message in reporter.events if kind == "warn"]
+        assert any("no upstream snapshot" in message for message in warnings)
+
+    def test_une_install_neuve_ne_dit_rien_de_la_fusion(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Rien n'a été perdu : signaler une fusion impossible serait du bruit."""
+        for name in ("update_gamma", "remove_reshade", "purge_shader_cache"):
+            monkeypatch.setattr(engine, name, lambda *a, **k: None)
+        monkeypatch.setattr(engine, "verify", lambda *a, **k: ())
+        reporter = _RecordingReporter()
+
+        assert orchestrator.run_update(tmp_path, reporter=reporter) == 0
+        assert [message for kind, message in reporter.events if kind == "warn"] == []
+
+    def test_les_etapes_sont_numerotees_sur_quatre_avec_fusion(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        modlist = self._profile(tmp_path, "+A\n")
+        self._engine_writes(monkeypatch, modlist, "+A\n")
+        # Le reporter partagé garde l'index « n/total », que celui de ce fichier
+        # laisse tomber — et c'est exactement ce qu'on vérifie ici.
+        reporter = RecordingReporter()
+
+        orchestrator.run_update(tmp_path, reporter=reporter)
+
+        steps = reporter.of_kind("step")
+        assert [step.split()[0] for step in steps] == ["1/4", "2/4", "3/4", "4/4"]
+        assert len(orchestrator.update_phase_labels()) == 4
+        assert len(orchestrator.update_phase_labels(merge_modlist=False)) == 3
+
+    def test_linstall_enregistre_la_reference_apres_le_moteur(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Sans ça, la première mise à jour après une install ne saurait rien fusionner."""
+        events: list[str] = []
+        _patch_all(monkeypatch, events)
+        profile = tmp_path / "gamma" / "profiles" / "G.A.M.M.A"
+        profile.mkdir(parents=True)
+        monkeypatch.setattr(
+            engine,
+            "install_gamma",
+            lambda *a, **k: (profile / "modlist.txt").write_text("+Amont\n", encoding="utf-8"),
+        )
+
+        assert orchestrator.run_install(tmp_path) == 0
+        assert modlist_sync.read_snapshot(tmp_path) == "+Amont\n"

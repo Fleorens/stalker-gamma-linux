@@ -9,6 +9,7 @@ from pathlib import Path
 
 from stalker_gamma_linux import logging_setup, output, sizing, state
 from stalker_gamma_linux.adopt import run_import
+from stalker_gamma_linux.backups import ALL_SETS, BackupSet, run_backup, run_restore
 from stalker_gamma_linux.desktop import run_shortcut
 from stalker_gamma_linux.doctor import run_doctor
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE
@@ -99,6 +100,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--force",
         action="store_true",
         help=_("Updates even if Mod Organizer 2 or the game are still using the prefix"),
+    )
+    update_parser.add_argument(
+        "--no-merge",
+        action="store_true",
+        help=_(
+            "Does not reapply your mod list over the upstream one: the update "
+            "overwrites it, as it always did (a backup is still written first)"
+        ),
     )
 
     doctor_parser = subparsers.add_parser(
@@ -222,6 +231,51 @@ def build_parser() -> argparse.ArgumentParser:
         help=_("Shows what would be adopted and linked, without writing anything"),
     )
 
+    backup_parser = subparsers.add_parser(
+        "backup",
+        help=_(
+            "Backs up what you cannot download again: MO2 profiles (mod list, "
+            "load order), saved games, and the MO2 overwrite folder"
+        ),
+    )
+    backup_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
+    backup_parser.add_argument(
+        "--list",
+        action="store_true",
+        dest="list_backups",
+        help=_("Lists the backups already there (date, contents, size) and exits"),
+    )
+    for set_name, set_help in (
+        ("profiles", _("MO2 profiles: mod list, load order, MCM settings")),
+        ("saves", _("saved games")),
+        ("overwrite", _("the MO2 overwrite folder")),
+    ):
+        backup_parser.add_argument(f"--{set_name}", action="store_true", help=set_help)
+
+    restore_parser = subparsers.add_parser(
+        "restore",
+        help=_(
+            "Puts a backup back in place (the current state is backed up first). "
+            "Backup ids come from `backup --list`"
+        ),
+    )
+    restore_parser.add_argument(
+        "identifier",
+        metavar="ID",
+        help=_("Backup to restore, e.g. profiles-20260907-142530"),
+    )
+    restore_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
+    restore_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=_("Shows exactly what would be replaced, without writing anything"),
+    )
+    restore_parser.add_argument(
+        "--force",
+        action="store_true",
+        help=_("Restores even if Mod Organizer 2 or the game are still using the prefix"),
+    )
+
     shortcut_parser = subparsers.add_parser(
         "shortcut",
         help=_("Creates/updates the desktop shortcut (.desktop + icon, application menu)"),
@@ -292,13 +346,24 @@ def _validate_path_arguments(args: argparse.Namespace) -> None:
             validate_install_target(value)
 
 
+def _selected_sets(args: argparse.Namespace) -> tuple[BackupSet, ...]:
+    """Ensembles demandés par les drapeaux de `backup`. Aucun drapeau = les trois.
+
+    « Sauvegarder » sans précision doit sauvegarder *tout* ce qui ne se
+    retélécharge pas : c'est le geste qu'on veut voir posé avant de bricoler,
+    et le seul qui n'oublie rien.
+    """
+    chosen = tuple(name for name in ALL_SETS if getattr(args, str(name), False))
+    return chosen or ALL_SETS
+
+
 def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "install":
         return run_install(args.target, shortcut=args.shortcut, force=args.force, only=args.only)
     if args.command == "update":
         if args.check:
             return run_update_check(args.target)
-        return run_update(args.target, force=args.force)
+        return run_update(args.target, force=args.force, merge_modlist=not args.no_merge)
     if args.command == "doctor":
         if args.report is not None:
             # `-` = sortie standard, pour un `| xclip` ou une redirection.
@@ -320,6 +385,10 @@ def _dispatch(args: argparse.Namespace) -> int:
         )
     if args.command == "import":
         return run_import(args.source, args.target, dry_run=args.dry_run)
+    if args.command == "backup":
+        return run_backup(args.target, sets=_selected_sets(args), list_only=args.list_backups)
+    if args.command == "restore":
+        return run_restore(args.identifier, args.target, dry_run=args.dry_run, force=args.force)
     if args.command == "shortcut":
         return run_shortcut(args.target)
     if args.command == "install-umu":

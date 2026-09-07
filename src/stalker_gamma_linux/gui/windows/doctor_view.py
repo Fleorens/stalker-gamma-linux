@@ -20,12 +20,13 @@ gi.require_version("Gdk", "4.0")
 
 from gi.repository import Adw, Gdk, GLib, Gtk  # noqa: E402
 
-from stalker_gamma_linux import doctor, state  # noqa: E402
+from stalker_gamma_linux import backups, doctor, state  # noqa: E402
 from stalker_gamma_linux.environment.models import Requirement, Status  # noqa: E402
 from stalker_gamma_linux.environment.plan import (  # noqa: E402
     InstallPlan,
     build_install_plan,
 )
+from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET  # noqa: E402
 from stalker_gamma_linux.gui.summary import summarize  # noqa: E402
 from stalker_gamma_linux.gui.windows.background import wrap_with_background  # noqa: E402
 from stalker_gamma_linux.i18n import _  # noqa: E402
@@ -39,6 +40,8 @@ class DoctorPage(Adw.NavigationPage):
         target: Path | None,
         show_toast: Callable[[str], None],
         on_verify: Callable[[bool], None] | None = None,
+        on_backup: Callable[[], None] | None = None,
+        on_restore: Callable[[str], None] | None = None,
     ) -> None:
         self._target = target
         self._show_toast = show_toast
@@ -46,6 +49,10 @@ class DoctorPage(Adw.NavigationPage):
         # vue progression. Rien de la vérification elle-même n'est décidé ici —
         # elle vit dans `integrity.run_verify`, partagée avec la CLI.
         self._on_verify = on_verify
+        # Idem pour la sauvegarde/restauration : `backups.run_backup` et
+        # `backups.run_restore` sont exactement les commandes CLI.
+        self._on_backup = on_backup
+        self._on_restore = on_restore
         self._groups: list[Adw.PreferencesGroup] = []
 
         # `Gtk.Spinner` et non `Adw.Spinner` : ce dernier n'existe qu'à partir de
@@ -121,6 +128,8 @@ class DoctorPage(Adw.NavigationPage):
         )
         if self._on_verify is not None:
             groups.append(self._build_integrity_group())
+        if self._on_backup is not None:
+            groups.append(self._build_backups_group())
         self._groups = groups
         for group in self._groups:
             self._preferences_page.add(group)
@@ -267,6 +276,87 @@ class DoctorPage(Adw.NavigationPage):
         row.add_suffix(self._verify_button(_("Check"), repair=False))
         group.add(row)
         return group
+
+    def _build_backups_group(self) -> Adw.PreferencesGroup:
+        """« J'ai perdu ma liste de mods » : le geste, et les points de retour.
+
+        La liste vient de `backups.list_backups`, c'est-à-dire des manifestes —
+        pas d'un parcours de dossiers refait ici. Une sauvegarde illisible est
+        affichée comme telle plutôt que masquée : elle occupe de la place, et
+        l'utilisateur doit savoir qu'on ne sait pas la remettre.
+        """
+        root = self._target if self._target is not None else DEFAULT_INSTALL_TARGET
+        group = Adw.PreferencesGroup(
+            title=_("Backups"),
+            description=_(
+                "Your MO2 profiles (mod list, load order), your saved games and the "
+                "overwrite folder. One is written automatically before each update; "
+                "the ones you create here are never rotated away."
+            ),
+        )
+        create_row = Adw.ActionRow(
+            title=_("Back up now"),
+            subtitle=_("Profiles, saved games and overwrite — kept until you delete it"),
+        )
+        create_row.set_subtitle_lines(2)
+        button = Gtk.Button(label=_("Back up"), valign=Gtk.Align.CENTER)
+        button.add_css_class("suggested-action")
+        button.connect("clicked", lambda _b: self._on_backup() if self._on_backup else None)
+        create_row.add_suffix(button)
+        group.add(create_row)
+
+        listing = backups.list_backups(root)
+        for stored in listing.backups:
+            group.add(self._backup_row(stored))
+        for path, reason in listing.unreadable:
+            row = Adw.ActionRow(title=path.name, subtitle=reason)
+            row.set_subtitle_lines(2)
+            row.add_prefix(_status_icon(Status.MISSING))
+            group.add(row)
+        return group
+
+    def _backup_row(self, stored: backups.StoredBackup) -> Adw.ActionRow:
+        manifest = stored.manifest
+        size = (
+            _("size unknown (written before manifests)")
+            if manifest.legacy
+            else backups.format_size(manifest.size_bytes)
+        )
+        row = Adw.ActionRow(
+            title=f"{manifest.created_at:%Y-%m-%d %H:%M}",
+            subtitle=f"{backups.describe_sets(manifest.sets)}\n{size}",
+        )
+        row.set_subtitle_lines(2)
+        row.add_suffix(self._restore_button(stored))
+        return row
+
+    def _restore_button(self, stored: backups.StoredBackup) -> Gtk.Button:
+        button = Gtk.Button(label=_("Restore"), valign=Gtk.Align.CENTER)
+        button.add_css_class("destructive-action")
+        button.connect("clicked", lambda _b: self._confirm_restore(stored))
+        return button
+
+    def _confirm_restore(self, stored: backups.StoredBackup) -> None:
+        dialog = Adw.AlertDialog(
+            heading=_("Restore this backup?"),
+            body=_(
+                "{sets} will be replaced by what this backup holds. Your current "
+                "state is backed up first, so this can be undone."
+            ).format(sets=backups.describe_sets(stored.manifest.sets)),
+        )
+        dialog.add_response("cancel", _("Cancel"))
+        dialog.add_response("restore", _("Restore"))
+        dialog.set_response_appearance("restore", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_default_response("cancel")
+        dialog.set_close_response("cancel")
+        dialog.connect("response", self._on_restore_response, stored.identifier)
+        dialog.present(self)
+
+    def _on_restore_response(
+        self, _dialog: Adw.AlertDialog, response: str, identifier: str
+    ) -> None:
+        if response == "restore" and self._on_restore is not None:
+            self._on_restore(identifier)
 
     def _verify_button(self, label: str, *, repair: bool) -> Gtk.Button:
         button = Gtk.Button(label=label, valign=Gtk.Align.CENTER)

@@ -141,7 +141,10 @@ stalker-gamma-linux install --target /mnt/disk --shortcut   # custom disk, + des
 stalker-gamma-linux import /path/to/existing     # adopt an install already on disk — no re-download
 stalker-gamma-linux play                         # launch Anomaly through MO2 (USVFS, mods active, GameMode if installed)
 stalker-gamma-linux mo2                          # open Mod Organizer 2 itself (enable/disable mods)
-stalker-gamma-linux update                       # update the modpack, re-verify, remove ReShade again if needed
+stalker-gamma-linux update                       # update the modpack, re-verify, keep your mod list
+stalker-gamma-linux backup                       # back up profiles + saved games + overwrite (kept, never rotated)
+stalker-gamma-linux backup --list                # what you can go back to (date, contents, size)
+stalker-gamma-linux restore <id>                 # put one back (the current state is saved first)
 stalker-gamma-linux shortcut                     # (re)create the .desktop menu entry
 stalker-gamma-linux install --only prefix        # replay one step (troubleshooting), even if done
 stalker-gamma-linux verify                       # check the installed mods against their reference fingerprint
@@ -150,6 +153,32 @@ stalker-gamma-linux prefix-doctor --repair        # repair the shared Proton pre
 stalker-gamma-linux uninstall                    # remove shortcuts/settings/logs (keeps the game)
 stalker-gamma-linux doctor --report              # write a report to attach to an issue
 ```
+
+**Your mod list survives updates.** On Windows, `Install / Update GAMMA` resets
+your modlist, your load order and the mods you added — the official wiki says so
+itself, and tells you to make backups first. Here, `update` does three things
+instead: it backs up your MO2 profiles **and your saved games** to
+`<target>/backups/` before touching anything, it lets the engine write the new
+upstream list, then it **replays your own changes on top** and tells you what it
+put back ("3 mods re-enabled/disabled the way you had them, 2 mods you added put
+back in place, 1 entry removed upstream not restored").
+
+Mods removed upstream are never resurrected (their folder is gone; MO2 would
+show them as missing), and when your reordering and the upstream one genuinely
+conflict, the upstream order wins and the report says so — a silently wrong
+merge is worse than a manual restore. Use `update --no-merge` for the old
+behaviour (upstream overwrites, backup still written).
+
+The first update after installing this version has no reference to compare
+against yet: it records one, says so, and merges from the next update on.
+
+**Went too far?** `stalker-gamma-linux backup --list` shows every restore point
+(five automatic ones are kept, plus every backup you created yourself — those
+are never rotated away), and `restore <id>` puts one back after saving the
+current state first. `restore <id> --dry-run` shows exactly what it would
+replace — and being read-only, it always works. The restore itself refuses to
+run while Mod Organizer 2 or the game are still using the prefix (`--force`
+overrides). The same buttons are in the GUI's Diagnostic view.
 
 **Already have GAMMA on disk?** Don't download it twice. `stalker-gamma-linux
 import /path/to/it` finds Anomaly and the Mod Organizer 2 instance by their
@@ -223,6 +252,9 @@ prerequisites missing" chip that opens the full Diagnostic view.
   copy-paste remediation commands per distro, and an **Installed mods** check
   that compares the mod files on disk to their reference fingerprint
   (*Check*), with a confirmed *Repair* for the damaged modpack mods.
+- **Backups** — the same Diagnostic view lists every restore point (date,
+  contents, size) with a *Restore* button each, and a *Back up now* that keeps
+  your profiles, saved games and overwrite folder out of the rotation.
 
 It needs GTK4 + libadwaita + PyGObject from your distribution (not
 pip-installable — no manylinux wheel exists for PyGObject); running the

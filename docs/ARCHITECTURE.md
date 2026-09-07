@@ -678,6 +678,175 @@ mod comme `101- Mod A [pack]` — les crochets sont courants dans le modpack —
 autour d'un message échappé. L'échappement ne concerne que le rendu console :
 le logger et le `Reporter` de la GUI reçoivent toujours le message brut.
 
+## Sauvegarde, restauration, et fusion de la modlist (T17)
+
+C'est la plainte n°1 de G.A.M.M.A., toutes plateformes confondues. Le wiki
+officiel l'écrit lui-même : « *every time you click Install / Update GAMMA,
+your modlist, settings, and mod settings will reset. This is on purpose […]
+remember to make backups before clicking that button* ». Sous Windows, la
+réponse tient donc en un conseil que personne n'applique.
+
+Deux moitiés, et elles ne font pas la même chose : le paquet `backups/` rend
+la perte **réversible**, la fusion de `mo2/modlist_merge.py` fait qu'elle
+**n'a pas lieu**.
+
+### Où vivent les sauvegardes de partie — constaté, pas supposé
+
+Anomaly est portable (`fsgame.ltx` : `$game_saves$ = $app_data_root$ |
+savedgames\`), mais sous MO2 l'USVFS peut rediriger ces écritures vers
+`overwrite/` ou vers le profil selon la configuration de l'instance. La
+question a donc été tranchée **sur l'installation de test** avant d'être codée
+(`/mnt/games_samsung/Games/GAMMA`, GAMMA 920, MO2 2.5.2, relevé le
+2026-09-07, parties jouées jusqu'au 26 août) :
+
+| Constat | Mesure |
+|---|---|
+| `anomaly/appdata/savedgames/` | 29 fichiers, 39 Mio, horodatés à la minute de la dernière session de jeu |
+| `gamma/overwrite/` | **vide** — créé le 22 août, jamais écrit |
+| `profiles/G.A.M.M.A/settings.ini` | `LocalSaves=false`, et aucun `profiles/G.A.M.M.A/saves/` |
+| dernier `usvfs-*.log` | **aucune** correspondance pour `savedgames` ; les seules entrées sous `appdata\` concernent `shaders_cache`, et elles mappent le chemin réel sur lui-même |
+
+Conclusion : sur la configuration livrée par GAMMA, le jeu écrit ses
+sauvegardes **en direct** dans `anomaly/appdata/savedgames`, sans passer par
+`overwrite/`. Les deux autres emplacements restent atteignables par
+configuration (`LocalSaves=true` range les parties par profil ; l'USVFS
+dévierait vers `overwrite/` une écriture faite dans un dossier virtualisé) :
+ils sont donc sauvegardés **aussi**, quand ils existent et ne sont pas vides.
+Trois `is_dir()` contre le risque de rater l'emplacement réel, le choix est
+vite fait. Quand deux ensembles se recouvrent (`gamma/overwrite/appdata/
+savedgames` vit sous `gamma/overwrite`), le plus large gagne — sinon la
+sauvegarde doublerait de taille et la restauration aurait deux vérités.
+
+### Format, rotation, restauration
+
+Un dossier horodaté par sauvegarde sous `<root>/backups/`, **au nommage
+historique** `profiles-%Y%m%d-%H%M%S` : les sauvegardes déjà posées par
+l'ancien `orchestrator.backup_mo2_profiles` restent ainsi reconnues et
+restaurables (`manifest.legacy_manifest` en synthétise le manifeste à partir
+de ce qu'on sait d'elles avec certitude — le dossier *est* une copie de
+`profiles/`, et son nom porte la date). Le préfixe est donc un vestige
+assumé : c'est le **manifeste** (`backup.toml` : date, version GAMMA,
+ensembles, destinations, tailles) qui dit ce qu'il y a dedans, et c'est lui
+que lit `--list`, jamais un `stat` du dossier.
+
+Trois règles portent le reste :
+
+1. **Rotation** — cinq sauvegardes automatiques au plus, la plus ancienne part
+   au-delà. Une sauvegarde créée explicitement (`stalker-gamma-linux backup`)
+   n'y entre **jamais** : c'est un point de retour, pas un cache. Toute
+   suppression passe par `paths_safety.validate_removable_child` — c'est un
+   `rmtree` sur un chemin dérivé de `--target`, exactement le périmètre de T11.
+2. **Restauration** — `restore <id>` sauvegarde l'état courant **avant** de
+   l'écraser (une restauration ratée ne doit pas être un aller simple), refuse
+   de tourner si MO2 ou le jeu occupent le préfixe (`prefix.session`, T13 ;
+   `--force` passe outre), et affiche son plan avec `--dry-run` comme
+   `uninstall` et `import`. Chaque destination est reconstruite **à côté**
+   puis échangée par deux `rename` : un échec de copie laisse le dossier du
+   joueur intact, et un échec de l'échange le remet.
+3. **Ce qui est mis à l'abri avant un `update`** — les profils (le motif
+   d'origine : `full-install` les réécrit) **et les parties**. Le même update
+   appelle `purge-shader-cache`, donc un `rmtree` amont *dans `appdata/`*, à
+   côté de `savedgames/` ; quelques dizaines de Mio pour couvrir la seule
+   donnée du joueur qui ne se retélécharge pas.
+
+Vérifié sur l'installation réelle le 2026-09-07 : `backup --saves` produit une
+sauvegarde de 29 fichiers/38,9 Mio, `restore` la remet en place après avoir
+mis l'état courant de côté, et les 29 fichiers ressortent avec les **mêmes
+MD5** qu'avant — y compris celui qui avait été retiré pour l'essai. Aucun
+résidu d'échange (`.sgl-restore-tmp`/`.sgl-restore-old`) derrière.
+
+### Fusion à trois voies de `modlist.txt`
+
+`full-install` réécrit `profiles/G.A.M.M.A/modlist.txt` avec la liste amont
+(`_install_modorganizer_profile` chez gamma-launcher). Trois choses distinctes
+disparaissent : les mods **désactivés** par le joueur, l'**ordre** qu'il a
+ajusté, et les mods qu'il a **ajoutés**. `mo2/modlist_merge.py` rejoue
+par-dessus la nouvelle liste amont les seuls écarts qui lui sont imputables ;
+`mo2/modlist_sync.py` est la couche disque, et `update --no-merge` rend le
+comportement historique (écrasement amont + sauvegarde).
+
+**Pourquoi un instantané maison, et pas le `modlist.txt` de définition du
+modpack.** Le premier réflexe est d'utiliser
+`gamma/.Grok's Modpack Installer/G.A.M.M.A/modpack_data/modlist.txt` comme
+`base` : il est là, il est amont, il est gratuit. Comparé au profil réel de
+l'installation de test — 751 entrées contre 756, écrits le même jour par le
+même `full-install` — il en diffère de **27 entrées**, dont une douzaine ne
+sont démontrablement *pas* des écarts du joueur :
+
+- une sentinelle `-End` (ligne 2) que MO2 ne reprend pas ;
+- un doublon : `G.A.M.M.A. Vehicles in Darkscape` y figure deux fois ;
+- deux lignes à blanc terminal (`-G.A.M.M.A. FDDA Rework ` avec une espace,
+  `+425- Dynamic News Manager Fixes and Tweaks - dEmergence` avec une
+  tabulation), que MO2 réécrit rognées ;
+- des noms qui ne correspondent pas au dossier réellement posé sous `mods/`
+  (`272- Grulag's Dead Bushes - Grulag` contre `Grulag's Dead Bushes`), et
+  au moins une coquille amont corrigée en passant (`DarkasleQif's` →
+  `Darkasleif's`).
+
+L'utiliser comme `base` inventerait donc une douzaine de faux « ajouts du
+joueur » et autant de fausses suppressions. On enregistre **notre propre
+instantané** (`<root>/backups/upstream-modlist.txt`),
+pris juste après que le moteur a écrit le profil — à la fin de l'étape
+`gamma` d'un `install`, et à chaque `update`. Conséquence assumée : sur une
+installation qui n'a jamais vu cette version de l'outil, la première mise à
+jour ne fusionne pas, elle enregistre la référence, et le dit.
+
+**L'ordre et l'état sont deux problèmes séparés.** L'ordre est une suite de
+noms, l'état (`+` activé, `-` désactivé, `*` non géré) une propriété de chaque
+nom. Les mélanger produit les fusions subtilement fausses que cette tâche
+existe pour éviter — un mod déplacé *et* désactivé n'est pas deux fois le même
+écart.
+
+- **L'ordre** passe par un diff3 classique sur la suite des noms : région que
+  le joueur n'a pas touchée → l'amont ; région que l'amont n'a pas touchée →
+  le joueur ; **région modifiée des deux côtés → l'amont**, et on le dit.
+- **L'état** se décide nom par nom : si le joueur l'a changé depuis `base`,
+  c'est le sien ; sinon c'est celui de l'amont, qui a pu légitimement activer
+  ou désactiver un mod dans la nouvelle version. Le marqueur entier est repris,
+  pas seulement « activé/désactivé » : transformer un `*` en `+` changerait le
+  sens de la ligne.
+
+Cinq règles qui n'ont rien d'évident, et que le code applique :
+
+1. `modlist.txt` se lit **de bas en haut** (priorité croissante vers le haut).
+   Raisonner « ligne N » se trompe de sens un jour sur deux : rien n'est indexé
+   en absolu ici, tout est positionné par rapport à des **voisins nommés**.
+2. Un mod **retiré en amont** n'est jamais ressuscité — son dossier n'existe
+   plus sous `mods/`, MO2 l'afficherait en « missing ». L'ensemble des noms du
+   résultat est contraint à `theirs ∪ (ours − base)`, et rien d'autre ; si le
+   diff3 ne peut pas tenir cette contrainte, on retombe sur l'ordre amont, qui
+   est complet par construction.
+3. Un mod **ajouté par le joueur** est réinséré auprès de son voisin conservé
+   le plus proche (on s'éloigne d'un cran à la fois, en regardant d'abord
+   au-dessus), jamais empilé en fin de liste. Un ajout déjà replacé devient
+   lui-même un ancrage : une grappe de mods ajoutés ensemble garde son ordre
+   interne — le cas réel du haut de liste d'une install GAMMA.
+4. Les **séparateurs** sont des entrées comme les autres — c'est ce qui fait
+   qu'un mod réinséré retombe dans la bonne section — mais ne sont pas comptés
+   comme des mods dans le rapport.
+5. **En cas de doute, on ne fusionne pas** : liste vide, même mod deux fois,
+   ligne incomprise → on garde l'amont, on conserve la sauvegarde, et on
+   l'annonce. Une fusion silencieusement fausse est pire qu'une restauration
+   manuelle.
+
+Après fusion, le rapport dit ce qui a été réappliqué (« N mods
+réactivés/désactivés selon tes réglages, M mods ajoutés par toi réinsérés, K
+entrées retirées en amont non restaurées »). Sans ce compte rendu,
+l'utilisateur ne sait pas s'il doit ouvrir MO2 pour vérifier.
+
+**Fins de ligne.** L'instance MO2 vient de Windows : le `modlist.txt` de
+l'install de test est en CRLF. `Path.read_text` applique la traduction
+universelle des sauts de ligne et rendrait un texte en LF — le fichier
+réécrit changerait alors d'encodage de ligne d'un bout à l'autre sans que
+personne l'ait demandé. D'où `open(..., newline="")` en lecture **et** en
+écriture, et une écriture toujours atomique (fichier voisin puis
+`os.replace`) : une coupure en plein milieu laisse l'ancien fichier intact,
+jamais un `modlist.txt` tronqué qui ferait démarrer MO2 sans aucun mod.
+
+Validé hors ligne sur la vraie liste (756 entrées, CRLF) : les réglages du
+joueur reviennent, ses ajouts retrouvent leur position, le mod retiré en amont
+n'est pas ressuscité, aucun doublon, et le fichier reste intégralement en CRLF.
+
 ## Dimensionnement disque (`sizing.py`)
 
 Le volume qu'exige une installation est une donnée **unique**, dans
