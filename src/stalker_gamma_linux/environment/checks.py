@@ -6,7 +6,14 @@ import re
 from pathlib import Path
 
 from stalker_gamma_linux import sizing
-from stalker_gamma_linux.environment import gamemode, gamescope, mangohud, system, vkbasalt
+from stalker_gamma_linux.environment import (
+    gamemode,
+    gamescope,
+    mangohud,
+    system,
+    vkbasalt,
+    vulkan,
+)
 from stalker_gamma_linux.environment.commands import INSTALL_COMMANDS
 from stalker_gamma_linux.environment.distro import DistroFamily
 from stalker_gamma_linux.environment.models import Requirement, Status
@@ -152,6 +159,45 @@ def check_gamemode(family: DistroFamily) -> Requirement:
     )
 
 
+# ABI du processus qui rend le jeu. Anomaly tourne en 64 bits sous Proton
+# (vérifié en réel le 2026-09-08 : `AnomalyDX11.exe` est un ELF 64 bits), et
+# c'est cette ABI-là que les couches Vulkan doivent servir.
+GAME_ABI_BITS = 64
+
+
+def _abi_gap(stem: str) -> bool:
+    """La couche est installée, mais pas dans l'ABI du jeu — donc muette.
+
+    Voir `environment.vulkan` : un manifeste présent ne garantit rien, et le
+    mode d'échec est silencieux. `UNKNOWN` ne déclenche rien (ne pas savoir
+    n'est pas une raison d'alarmer).
+    """
+    return vulkan.layer_abi_support(stem, GAME_ABI_BITS) is vulkan.AbiSupport.MISSING
+
+
+def _abi_gap_requirement(
+    *, name: str, key: str, manifest: Path, family: DistroFamily
+) -> Requirement:
+    """Verdict « manifeste là, bibliothèque de la bonne ABI absente ».
+
+    Reste en `OPTIONAL` et non en `MISSING` : ces couches sont cosmétiques, et
+    les passer en bloquant ferait sortir `doctor` en erreur pour un overlay
+    absent. C'est le détail qui porte la nuance, pas le statut.
+    """
+    return Requirement(
+        name=name,
+        status=Status.OPTIONAL,
+        detail=_(
+            "manifest present ({manifest}) but no {bits}-bit library behind it — "
+            "the game renders in a {bits}-bit process, so the layer stays unloaded "
+            "and says nothing. Install the {bits}-bit package."
+        ).format(manifest=manifest, bits=GAME_ABI_BITS),
+        install_hint=INSTALL_COMMANDS[key].for_family(family),
+        key=key,
+        needed_to_install=False,
+    )
+
+
 def check_mangohud(family: DistroFamily) -> Requirement:
     """MangoHud : facultatif, et **jamais** actif sans que l'utilisateur l'ait demandé.
 
@@ -161,6 +207,10 @@ def check_mangohud(family: DistroFamily) -> Requirement:
     """
     manifest = mangohud.layer_manifest()
     if manifest is not None:
+        if _abi_gap(mangohud.LAYER_STEM):
+            return _abi_gap_requirement(
+                name="MangoHud", key="mangohud", manifest=manifest, family=family
+            )
         return Requirement(
             name="MangoHud",
             status=Status.OK,
@@ -211,6 +261,10 @@ def check_vkbasalt(family: DistroFamily) -> Requirement:
     """vkBasalt : facultatif, l'équivalent Linux du ReShade que l'installation retire."""
     manifest = vkbasalt.layer_manifest()
     if manifest is not None:
+        if _abi_gap(vkbasalt.LAYER_STEM):
+            return _abi_gap_requirement(
+                name="vkBasalt", key="vkbasalt", manifest=manifest, family=family
+            )
         return Requirement(
             name="vkBasalt",
             status=Status.OK,

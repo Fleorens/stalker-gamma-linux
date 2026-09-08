@@ -154,9 +154,8 @@ ce que seul Linux permet, et les modes d'échec qui font abandonner. Découpage 
   champ à champ des raccourcis des autres, `--remove` qui rend le fichier tel
   qu'avant. Vérifié de bout en bout sur la vraie install Steam de la machine le
   2026-09-08 (ajout, non-duplication, retrait à l'octet près).
-- **T20** ✅ **livré (2026-09-08)** — couche Vulkan **mesurée dans le conteneur**
-  le même jour ; reste la capture en jeu et gamescope/vkBasalt (paquets absents
-  de la machine de dev). MangoHud, gamescope/FSR et vkBasalt en couches
+- **T20** ✅ **livré et vérifié en jeu (2026-09-08)** — seule la mesure
+  avant/après de gamescope + FSR reste à faire. MangoHud, gamescope/FSR et vkBasalt en couches
   optionnelles, composées autour du lancement par `environment/performance.py` :
   gamescope à l'extérieur (compositeur), `gamemoderun` au contact d'`umu-run`,
   les deux couches Vulkan par variables d'environnement — l'ordre et ses raisons
@@ -175,14 +174,26 @@ ce que seul Linux permet, et les modes d'échec qui font abandonner. Découpage 
   `/run/host/usr/lib64/mangohud/libMangoHud.so` sur `MANGOHUD=1`, et notre
   fichier de configuration sous `~/.config/stalker-gamma-linux/` est lu depuis
   le conteneur — journal CSV à l'appui, en-tête `os = Steam Runtime 4`. Le repli
-  `VK_ADD_LAYER_PATH` n'est donc **pas** nécessaire ici. **Restent à faire** : la
-  capture de l'overlay en jeu (DXVK par-dessus la chaîne prouvée), et la mesure
-  avant/après de FSR ainsi que l'effet du préset vkBasalt, qui demandent
-  d'installer `gamescope` et `vkBasalt` (les deux ABI). Trouvaille de lecture,
+  `VK_ADD_LAYER_PATH` n'est donc **pas** nécessaire ici. **Puis confirmé en
+  jeu**, GAMMA lancé : `libMangoHud.so` et `libvkbasalt.so` sont tous deux
+  chargés dans `AnomalyDX11.exe` (ELF 64 bits) depuis `/run/host/usr/lib64/`, et
+  vkBasalt journalise avoir lu notre préset (`effects = cas:lut`, notre LUT) sans
+  une erreur. **Un bug trouvé au passage et corrigé** : `doctor` affichait
+  `[ OK ] vkBasalt` sur la foi du seul manifeste, alors que Fedora livre deux RPM
+  pour un manifeste unique en `/usr/$LIB/` — avec le seul paquet 32 bits, la
+  couche ne se chargeait pas dans le jeu 64 bits, en silence total.
+  `vulkan.layer_abi_support()` lit désormais la classe ELF de la bibliothèque
+  réellement atteignable. **Reste à faire** : la mesure avant/après de FSR, qui
+  demande une partie lancée sous gamescope. Trouvaille de lecture,
   toujours à confirmer : umu vide `LD_PRELOAD` dès que
   `XDG_CURRENT_DESKTOP=gamescope` — ce que gamescope pose lui-même pour ses
   enfants — sans conséquence sur GameMode (déjà chargé dans `umu-run`), mais de
   nature à faire disparaître le bruit `gamemodeauto: dlopen failed` du journal.
+  ⚠ **Dette connue** : l'amont de vkBasalt est mort (dernier commit oct. 2023,
+  80 issues ouvertes). On le garde parce qu'il est le seul empaqueté et qu'il
+  fonctionne ; le successeur à surveiller est vkShade, à basculer quand il
+  quittera la pre-alpha **et** entrera dans les dépôts (raisonnement complet
+  dans docs/ARCHITECTURE.md).
 - **T21** 🟡 Cache de shaders hors préfixe. `install --only prefix` est notre
   remède officiel au « prefix has an invalid version » — et il fait
   silencieusement perdre des heures de compilation. Les caches DXVK/pilote

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-08 16:19+0200\n"
+"POT-Creation-Date: 2026-09-08 17:20+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1075,6 +1075,13 @@ msgstr ""
 msgid ""
 "absent — optional: performance CPU governor and priorities while you "
 "play, applied automatically once installed"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"manifest present ({manifest}) but no {bits}-bit library behind it — the "
+"game renders in a {bits}-bit process, so the layer stays unloaded and "
+"says nothing. Install the {bits}-bit package."
 msgstr ""
 
 #, python-brace-format

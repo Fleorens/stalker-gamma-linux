@@ -14,6 +14,7 @@ Ce que ces tests protègent, dans l'ordre d'importance :
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -54,6 +55,11 @@ def equipped(monkeypatch: pytest.MonkeyPatch) -> None:
         vulkan,
         "find_implicit_layer",
         lambda stem, environ=None: Path(f"/usr/share/vulkan/implicit_layer.d/{stem}.json"),
+    )
+    # Sans ça, `checks._abi_gap` interrogerait le vrai système : le verdict
+    # dépendrait des paquets de la machine qui fait tourner les tests.
+    monkeypatch.setattr(
+        vulkan, "layer_abi_support", lambda stem, bits=64, environ=None: vulkan.AbiSupport.PRESENT
     )
 
 
@@ -460,6 +466,151 @@ def test_arch_gets_the_32_bit_mangohud_package() -> None:
 
     assert hint is not None
     assert hint.startswith("sudo pacman -S mangohud lib32-mangohud")
+
+
+# --- ABI de la couche (le manifeste ne suffit pas) ---------------------------
+#
+# Régression du 2026-09-08 : sur la machine de dev, seul `vkBasalt.i686` était
+# installé. Le manifeste — unique et partagé entre les deux RPM — était bien là,
+# `doctor` annonçait « [ OK ] vkBasalt », et la couche ne se chargeait pas :
+# le jeu est un processus 64 bits, et `/usr/lib64/vkbasalt/` n'existait pas.
+# Échec strictement silencieux, mesuré dans le conteneur (zéro occurrence de
+# `VK_LAYER_VKBASALT`).
+
+
+def _elf(path: Path, bits: int) -> Path:
+    """Fichier réduit à son en-tête ELF — c'est tout ce que `elf_bits` lit."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"\x7fELF" + bytes([2 if bits == 64 else 1]) + b"\x00" * 11)
+    return path
+
+
+def _manifest(directory: Path, name: str, library: str) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / name
+    path.write_text(
+        json.dumps({"layer": {"name": "VK_LAYER_X", "library_path": library}}), encoding="utf-8"
+    )
+    return path
+
+
+@pytest.mark.parametrize(("bits", "expected"), [(32, 32), (64, 64)])
+def test_elf_bits_reads_the_class_byte(tmp_path: Path, bits: int, expected: int) -> None:
+    assert vulkan.elf_bits(_elf(tmp_path / "lib.so", bits)) == expected
+
+
+def test_elf_bits_is_none_for_anything_that_is_not_an_elf(tmp_path: Path) -> None:
+    text = tmp_path / "not-elf.so"
+    text.write_text("#!/bin/sh\n", encoding="utf-8")
+
+    assert vulkan.elf_bits(text) is None
+    assert vulkan.elf_bits(tmp_path / "absent.so") is None
+
+
+def test_lib_token_expands_to_every_known_layout(tmp_path: Path) -> None:
+    # `$LIB` vaut `lib64` sur Fedora/Arch et `lib/x86_64-linux-gnu` sur Debian :
+    # on ne devine pas, on essaie: c'est la classe ELF qui tranchera.
+    manifest = _manifest(tmp_path, "vkBasalt.json", "/usr/$LIB/vkbasalt/libvkbasalt.so")
+
+    candidates = vulkan.library_candidates(manifest, "/usr/$LIB/vkbasalt/libvkbasalt.so")
+
+    assert Path("/usr/lib64/vkbasalt/libvkbasalt.so") in candidates
+    assert Path("/usr/lib/x86_64-linux-gnu/vkbasalt/libvkbasalt.so") in candidates
+
+
+def test_a_bare_soname_yields_no_candidate(tmp_path: Path) -> None:
+    # `libVkLayer_MESA_device_select.so` : c'est l'éditeur de liens qui résout.
+    # On ne peut rien affirmer, donc on ne propose rien (→ UNKNOWN plus loin).
+    manifest = _manifest(tmp_path, "x.json", "libfoo.so")
+
+    assert vulkan.library_candidates(manifest, "libfoo.so") == ()
+
+
+def test_a_relative_library_resolves_against_the_manifest(tmp_path: Path) -> None:
+    manifest = _manifest(tmp_path, "x.json", "./libfoo.so")
+
+    assert vulkan.library_candidates(manifest, "./libfoo.so") == (tmp_path / "libfoo.so",)
+
+
+def test_manifest_library_reads_both_upstream_shapes(tmp_path: Path) -> None:
+    single = tmp_path / "single.json"
+    single.write_text('{"layer": {"library_path": "/a.so"}}', encoding="utf-8")
+    plural = tmp_path / "plural.json"
+    plural.write_text('{"layers": [{"library_path": "/b.so"}]}', encoding="utf-8")
+
+    assert vulkan.manifest_library(single) == "/a.so"
+    assert vulkan.manifest_library(plural) == "/b.so"
+
+
+@pytest.mark.parametrize("content", ["not json", "[]", "{}", '{"layer": {}}'])
+def test_manifest_library_never_raises_on_junk(tmp_path: Path, content: str) -> None:
+    path = tmp_path / "junk.json"
+    path.write_text(content, encoding="utf-8")
+
+    assert vulkan.manifest_library(path) is None
+
+
+def test_abi_support_is_present_when_the_right_class_exists(tmp_path: Path) -> None:
+    layers = tmp_path / "share" / "vulkan" / "implicit_layer.d"
+    _manifest(layers, "MangoHud.x86.json", str(_elf(tmp_path / "lib" / "m.so", 32)))
+    _manifest(layers, "MangoHud.x86_64.json", str(_elf(tmp_path / "lib64" / "m.so", 64)))
+    environ = {"XDG_DATA_DIRS": str(tmp_path / "share")}
+
+    assert vulkan.layer_abi_support("MangoHud", 64, environ) is vulkan.AbiSupport.PRESENT
+    assert vulkan.layer_abi_support("MangoHud", 32, environ) is vulkan.AbiSupport.PRESENT
+
+
+def test_abi_support_is_missing_when_only_the_other_class_is_installed(tmp_path: Path) -> None:
+    # Le cas exact de la régression : manifeste présent, 32 bits seulement.
+    layers = tmp_path / "share" / "vulkan" / "implicit_layer.d"
+    _manifest(layers, "vkBasalt.json", str(_elf(tmp_path / "lib" / "vkbasalt.so", 32)))
+    environ = {"XDG_DATA_DIRS": str(tmp_path / "share")}
+
+    assert vulkan.layer_abi_support("vkBasalt", 64, environ) is vulkan.AbiSupport.MISSING
+
+
+def test_abi_support_stays_unknown_when_nothing_can_be_resolved(tmp_path: Path) -> None:
+    # Ne pas savoir n'est pas une raison d'alarmer : un soname nu ne prouve rien.
+    layers = tmp_path / "share" / "vulkan" / "implicit_layer.d"
+    _manifest(layers, "vkBasalt.json", "libvkbasalt.so")
+    environ = {"XDG_DATA_DIRS": str(tmp_path / "share")}
+
+    assert vulkan.layer_abi_support("vkBasalt", 64, environ) is vulkan.AbiSupport.UNKNOWN
+
+
+def test_doctor_reports_the_abi_gap_instead_of_a_green_light(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        vulkan,
+        "find_implicit_layer",
+        lambda stem, environ=None: Path(f"/usr/share/vulkan/implicit_layer.d/{stem}.json"),
+    )
+    monkeypatch.setattr(
+        vulkan, "layer_abi_support", lambda stem, bits=64, environ=None: vulkan.AbiSupport.MISSING
+    )
+
+    requirement = checks.check_vkbasalt(DistroFamily.FEDORA)
+
+    assert requirement.status is Status.OPTIONAL
+    assert "64-bit" in requirement.detail
+    # Cosmétique : signalé, jamais bloquant pour l'installation.
+    assert not requirement.blocks_install
+    assert requirement.install_hint is not None
+    assert requirement.install_hint.startswith("sudo dnf install vkBasalt")
+
+
+def test_an_unknown_abi_never_downgrades_the_verdict(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        vulkan,
+        "find_implicit_layer",
+        lambda stem, environ=None: Path(f"/usr/share/vulkan/implicit_layer.d/{stem}.json"),
+    )
+    monkeypatch.setattr(
+        vulkan, "layer_abi_support", lambda stem, bits=64, environ=None: vulkan.AbiSupport.UNKNOWN
+    )
+
+    assert checks.check_mangohud(DistroFamily.FEDORA).status is Status.OK
 
 
 # --- Sérialisation des préférences ------------------------------------------

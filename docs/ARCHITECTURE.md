@@ -421,12 +421,36 @@ Le conteneur n'expose pas les compteurs RAPL (`/sys/class/powercap`) : la
 colonne `cpu_power` reste à 0, tout le reste est mesuré normalement. Même ligne
 de conduite que pour le bruit d'umu et de wine — on ne l'avale pas.
 
-**Ce qui reste à vérifier sur une vraie partie.** La chaîne a été prouvée avec
-un client Vulkan natif dans le conteneur exact du jeu ; GAMMA y ajoute DXVK et
-wine par-dessus. Restent donc à faire : la capture de l'overlay en jeu, et —
-faute des paquets sur la machine de dev — la mesure avant/après de gamescope +
-FSR (`sudo dnf install gamescope`) et l'effet de notre préset vkBasalt
-(`sudo dnf install vkBasalt vkBasalt.i686`, les deux ABI).
+**Relevé en jeu, la boucle est bouclée** (2026-09-08, GAMMA lancé sur
+l'installation réelle, GE-Proton11-6 / steamrt4). Le processus qui rend le jeu
+est `AnomalyDX11.exe`, un **ELF 64 bits**. Dans son espace d'adressage, à chaud :
+
+```
+/run/host/usr/lib64/mangohud/libMangoHud.so     ← chargée
+/run/host/usr/lib64/vkbasalt/libvkbasalt.so     ← chargée
+```
+
+Les deux viennent de `/run/host/`, c'est-à-dire des couches de l'hôte importées
+par pressure-vessel : le mécanisme mesuré à vide plus haut se comporte
+identiquement sous DXVK et wine. Son environnement porte bien `MANGOHUD=1`,
+`ENABLE_VKBASALT=1` et les deux `…_CONFIG…` pointant sur **nos** fichiers, et
+vkBasalt annonce lui-même ce qu'il a lu :
+
+```
+vkBasalt info:  config file: ~/.config/stalker-gamma-linux/vkBasalt.conf
+vkBasalt info:  effects = cas:lut
+vkBasalt info:  casSharpness = 0.4
+vkBasalt info:  lutFile = ~/.config/stalker-gamma-linux/gamma-reshade-like.CUBE
+vkBasalt info:  toggleKey = Home
+```
+
+Aucune erreur : la LUT que nous générons est trouvée et lue depuis le conteneur
+— c'était le dernier risque de la chaîne. Seul message de MangoHud :
+`process 'explorer.exe' is blacklisted`, qui est le comportement voulu (pas
+d'overlay sur le shell de wine, seulement sur le jeu).
+
+**Reste non mesuré** : la comparaison avant/après de gamescope + FSR. Elle
+demande une partie lancée sous gamescope, ce qui n'a pas encore été fait.
 
 **La vérification en quatre gestes**, si l'overlay ne s'affiche pas chez
 quelqu'un :
@@ -465,6 +489,37 @@ l'autre qui compte — et ce n'est pas nous qui en décidons. D'où :
   autre architecture (`mangohud.i686`, `mangohud:i386`) : impossible à annoncer
   comme un simple nom de paquet — `apt` ne sait même pas *interroger* `:i386`
   sans `dpkg --add-architecture` — donc c'est une note attachée au remède.
+
+**Le cas vkBasalt, et pourquoi `doctor` ne se contente plus du manifeste.**
+Constaté en réel le 2026-09-08. Fedora livre `vkBasalt.x86_64` et
+`vkBasalt.i686` — deux RPM, **un seul** manifeste, dont le `library_path` vaut
+`/usr/$LIB/vkbasalt/libvkbasalt.so`. `$LIB` est un jeton que l'éditeur de liens
+remplace par le répertoire de l'architecture du processus. Avec le seul paquet
+32 bits installé, le manifeste était donc présent, `doctor` affichait
+`[ OK ] vkBasalt`, et la couche ne se chargeait pas : le jeu cherche
+`/usr/lib64/vkbasalt/`, qui n'existait pas. Mesuré dans le conteneur —
+`ENABLE_VKBASALT=1`, **zéro** occurrence de `VK_LAYER_VKBASALT`, et pas la
+moindre ligne d'avertissement. Le mode d'échec est strictement silencieux, ce
+qui est le pire des cas pour un réglage cosmétique : rien ne distingue « la
+couche est éteinte » de « la couche est cassée ».
+
+`environment.vulkan.layer_abi_support()` traite désormais ce cas : il parcourt
+**tous** les manifestes de la couche, développe `$LIB` sur les valeurs connues
+(`lib64` chez Fedora/Arch, `lib/x86_64-linux-gnu` chez Debian), et lit la
+**classe ELF** du fichier trouvé — c'est elle qui désigne l'ABI, pas le nom du
+répertoire, qui varie d'une distribution à l'autre. Trois verdicts, et le
+troisième compte autant que les autres :
+
+- `PRESENT` — une bibliothèque de l'ABI du jeu existe ;
+- `MISSING` — des bibliothèques existent, aucune dans la bonne ABI : `doctor`
+  le dit et donne le paquet à installer ;
+- `UNKNOWN` — manifeste illisible, ou simple soname laissé à l'éditeur de liens
+  (`libVkLayer_MESA_device_select.so`) : on **ne dit rien**. Même règle que
+  `checks._libunrar_version` — ne pas savoir n'est pas une raison d'alarmer.
+
+Le verdict `MISSING` reste en `OPTIONAL` et pas en `MISSING` côté `Requirement` :
+ces couches sont cosmétiques, et faire sortir `doctor` en erreur pour un overlay
+absent serait disproportionné. C'est le détail affiché qui porte la nuance.
 
 #### Le piège trouvé en lisant umu : `LD_PRELOAD` vidé sous gamescope
 
@@ -510,6 +565,36 @@ introuvables », le `/usr/share` de l'hôte n'existant pas dans le conteneur
 Une LUT est un fichier texte que nous écrivons dans le dossier personnel, dont
 la génération se teste sans rien lancer, et qui ne peut pas manquer puisque nous
 la produisons juste avant le lancement.
+
+**L'amont est mort, et on le garde quand même — décision assumée.** Relevé le
+2026-09-08 : le dernier commit de [vkBasalt](https://github.com/DadSchoorse/vkBasalt)
+date du **4 octobre 2023**, la dernière release (`v0.3.2.10`) du 3 juillet 2023,
+et son contenu était « fixed build with GCC 12 ». 80 issues ouvertes, personne
+pour les fermer. Côté Fedora, tout le changelog depuis 2024 n'est que des
+*mass rebuilds* — aucune montée de version en trois ans. À comparer aux deux
+autres couches du lot : gamescope est à 3.16.28 (août 2026, maintenu par Valve
+et empaqueté par Red Hat), MangoHud à 0.8.3~rc1 (janvier 2026).
+
+On le garde pour trois raisons, dans cet ordre :
+
+1. **c'est le seul empaqueté.** Tout le modèle de `doctor` repose sur « voici la
+   commande de votre distribution ». Le successeur naturel,
+   [vkShade](https://github.com/ralgar/vkShade) — réécrit de zéro, compatible
+   ReShade, activement développé —, n'est dans aucun dépôt et s'annonce
+   lui-même en **pre-alpha** (« expect bugs, incomplete features, and breaking
+   changes »). Demander à un joueur de compiler une couche Vulkan pre-alpha est
+   contraire à la raison d'être de ce projet ;
+2. **dormant n'est pas cassé.** C'est une petite couche contre une API Vulkan
+   rétro-compatible ; elle est mesurée fonctionnelle dans le conteneur, en jeu,
+   sur un loader 1.4 (relevé plus haut) ;
+3. **le remplacer coûtera peu.** `environment/vkbasalt.py` tient en trois
+   choses — un nom de manifeste (`LAYER_STEM`), une variable d'activation
+   (`ENABLE_VARIABLE`) et un fichier de configuration. Passer à vkShade le jour
+   où il sera stable et empaqueté, c'est réécrire ce module, pas le lot.
+
+À surveiller, donc : vkShade quittant la pre-alpha **et** entrant dans les
+dépôts. C'est le signal qui déclenchera la bascule ; d'ici là, changer serait
+troquer quelque chose qui marche contre quelque chose qui compile.
 
 #### Nos fichiers de configuration, jamais ceux de l'utilisateur
 
