@@ -9,12 +9,15 @@ Indépendant de GTK — testable sans `gi`.
 from __future__ import annotations
 
 import tomllib
-from dataclasses import dataclass, replace
+from collections.abc import Mapping
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import tomli_w
 
 from stalker_gamma_linux import state
+from stalker_gamma_linux.environment import performance
+from stalker_gamma_linux.environment.performance import Settings as PerformanceSettings
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
 from stalker_gamma_linux.paths_safety import UnsafeInstallTargetError, validate_install_target
 
@@ -37,11 +40,13 @@ class Preferences:
     install_path: Path = DEFAULT_INSTALL_TARGET
     proton_release: str | None = None
     create_steam_shortcut: bool = False
-    # `use_gamemode` à `True` par défaut : quand GameMode est installé, il n'y a
-    # aucune raison de s'en priver, et quand il ne l'est pas c'est un no-op
-    # (cf. `environment.gamemode`). L'interrupteur n'existe que comme échappatoire
-    # (diagnostic d'un problème de perfs, machine où le daemon fait des siennes).
-    use_gamemode: bool = True
+    # Couches de performance (T20). GameMode y est actif par défaut : quand il
+    # est installé, il n'y a aucune raison de s'en priver, et quand il ne l'est
+    # pas c'est un no-op (cf. `environment.gamemode`) — l'interrupteur n'existe
+    # que comme échappatoire (diagnostic d'un problème de perfs, machine où le
+    # daemon fait des siennes). MangoHud, gamescope et vkBasalt, eux, changent
+    # le rendu : ils restent éteints tant que l'utilisateur ne les demande pas.
+    performance: PerformanceSettings = field(default_factory=PerformanceSettings)
 
     def with_install_path(self, path: Path) -> Preferences:
         return replace(self, install_path=path)
@@ -52,12 +57,22 @@ class Preferences:
     def with_create_steam_shortcut(self, enabled: bool) -> Preferences:
         return replace(self, create_steam_shortcut=enabled)
 
-    def with_use_gamemode(self, enabled: bool) -> Preferences:
-        return replace(self, use_gamemode=enabled)
+    def with_performance(self, settings: PerformanceSettings) -> Preferences:
+        return replace(self, performance=settings)
 
 
 def prefs_file() -> Path:
     return state.config_dir() / _PREFS_FILENAME
+
+
+def default_preferences() -> Preferences:
+    """Défauts d'une machine neuve — dont les résolutions de l'écran du Deck, s'il y a lieu.
+
+    Distinct de `Preferences()`, qui reste un objet pur (aucune lecture de la
+    machine) : c'est ce que voit un utilisateur au tout premier lancement, et
+    proposer 1920×1080 sur un écran 1280×800 serait un mauvais point de départ.
+    """
+    return Preferences(performance=performance.Settings.for_machine())
 
 
 def load_preferences() -> Preferences:
@@ -65,11 +80,11 @@ def load_preferences() -> Preferences:
     try:
         text = prefs_file().read_text(encoding="utf-8")
     except OSError:
-        return Preferences()
+        return default_preferences()
     try:
         data = tomllib.loads(text)
     except tomllib.TOMLDecodeError:
-        return Preferences()
+        return default_preferences()
 
     raw_path = data.get("install_path")
     raw_release = data.get("proton_release")
@@ -77,8 +92,25 @@ def load_preferences() -> Preferences:
         install_path=_install_path_or_default(raw_path),
         proton_release=str(raw_release) if raw_release else None,
         create_steam_shortcut=bool(data.get("create_steam_shortcut", False)),
-        use_gamemode=bool(data.get("use_gamemode", True)),
+        performance=_performance_or_default(data),
     )
+
+
+def _performance_or_default(data: Mapping[str, object]) -> performance.Settings:
+    """Couches relues depuis la table `[performance]`, défauts de la machine sinon.
+
+    `use_gamemode` à la racine est l'ancienne clé (avant T20, GameMode était le
+    seul réglage de performance) : on la lit encore pour ne pas réactiver
+    GameMode chez quelqu'un qui l'avait justement coupé, mais on ne l'écrit
+    plus — la table `[performance]` est désormais la seule source de vérité.
+    """
+    machine = performance.Settings.for_machine()
+    legacy = data.get("use_gamemode")
+    base = machine.with_gamemode(legacy) if isinstance(legacy, bool) else machine
+    section = data.get("performance")
+    if isinstance(section, dict):
+        return performance.from_mapping(section, base)
+    return base
 
 
 def _install_path_or_default(raw_path: object) -> Path:
@@ -106,6 +138,9 @@ def save_preferences(prefs: Preferences) -> None:
         "install_path": str(prefs.install_path),
         "proton_release": prefs.proton_release or "",
         "create_steam_shortcut": prefs.create_steam_shortcut,
-        "use_gamemode": prefs.use_gamemode,
+        # Table imbriquée en dernier : le format TOML veut les clés simples
+        # avant les tables, et `tomli_w` s'y tient à condition de recevoir le
+        # dictionnaire dans cet ordre.
+        "performance": performance.as_mapping(prefs.performance),
     }
     prefs_file().write_text(tomli_w.dumps(payload), encoding="utf-8")

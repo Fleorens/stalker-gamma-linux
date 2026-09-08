@@ -141,6 +141,44 @@ INSTALL_COMMANDS: Mapping[str, InstallCommand] = {
             DistroFamily.DEBIAN: ("gamemode",),
         },
     ),
+    "mangohud": InstallCommand(
+        # Arch : `lib32-mangohud` (multilib) fournit la couche 32 bits, comme
+        # `lib32-gamemode` plus haut. Fedora et Debian empaquettent la variante
+        # 32 bits sous le même nom mais une autre architecture — d'où la note
+        # plutôt qu'un second nom de paquet, qui exigerait
+        # `dpkg --add-architecture i386` pour être seulement *interrogeable*.
+        packages={
+            DistroFamily.FEDORA: ("mangohud",),
+            DistroFamily.ARCH: ("mangohud", "lib32-mangohud"),
+            DistroFamily.DEBIAN: ("mangohud",),
+        },
+        note=_(
+            "the Vulkan layer must match the ABI of the process that renders: "
+            "add the 32-bit variant if the overlay stays invisible "
+            "(Fedora: mangohud.i686 · Debian/Ubuntu: mangohud:i386 after "
+            "`sudo dpkg --add-architecture i386`)"
+        ),
+    ),
+    "gamescope": InstallCommand(
+        packages={
+            DistroFamily.FEDORA: ("gamescope",),
+            DistroFamily.ARCH: ("gamescope",),
+            DistroFamily.DEBIAN: ("gamescope",),
+        },
+    ),
+    "vkbasalt": InstallCommand(
+        # ⚠ Fedora empaquette sous le nom amont, avec sa majuscule : `vkBasalt`,
+        # pas `vkbasalt`. Arch ne l'empaquette **pas** officiellement (ni extra
+        # ni multilib) — seulement l'AUR, d'où le remède manuel : annoncer
+        # `pacman -S vkbasalt` enverrait l'utilisateur sur un « target not found ».
+        packages={
+            DistroFamily.FEDORA: ("vkBasalt",),
+            DistroFamily.DEBIAN: ("vkbasalt",),
+        },
+        manual={
+            DistroFamily.ARCH: _("yay -S vkbasalt lib32-vkbasalt   # AUR (no official package)")
+        },
+    ),
     "gtk-gui": InstallCommand(
         packages={
             DistroFamily.FEDORA: ("gtk4", "libadwaita", "python3-gobject"),

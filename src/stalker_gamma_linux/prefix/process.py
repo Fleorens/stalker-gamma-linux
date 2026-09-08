@@ -18,6 +18,7 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 from stalker_gamma_linux.environment import gamemode as gamemode_tool
+from stalker_gamma_linux.environment import performance as performance_tool
 from stalker_gamma_linux.environment import system
 from stalker_gamma_linux.prefix.errors import (
     PrefixCancelledError,
@@ -178,7 +179,7 @@ def run_detached(
     proton_path: Path,
     env: Mapping[str, str] | None = None,
     log_label: str | None = None,
-    gamemode: bool = False,
+    performance: performance_tool.Settings | None = None,
 ) -> Path:
     """Lance `umu-run <exe> <args>` **détaché** du terminal appelant (survit à
     sa fermeture) : c'est le mode dédié aux lancements de *jeu* (`play`), par
@@ -214,6 +215,11 @@ def run_detached(
        `_DETACHED_LOG_MAX_BYTES`, pour rester exploitable après plusieurs
        sessions sans grossir sans limite.
 
+    `performance` (réservé aux lancements de *jeu*) fait passer la commande et
+    son environnement par `environment.performance` : GameMode, gamescope,
+    MangoHud, vkBasalt. `None` = aucune couche, pas même GameMode — c'est le
+    défaut, et c'est ce que reçoivent les étapes d'installation.
+
     Retourne le chemin du journal immédiatement (le process tourne encore) :
     à afficher côté `play`, et à lire après coup pour diagnostic (voir
     `mo2.diagnostics`). Lève `UmuNotFoundError` si umu-run est absent du PATH.
@@ -227,12 +233,26 @@ def run_detached(
     label = log_label or _slug(exe)
     log_path = paths.logs / f"{label}.log"
     _rotate_detached_log(log_path, _DETACHED_LOG_MAX_BYTES)
-    command = [binary, str(exe), *args]
-    if gamemode:
-        command = gamemode_tool.wrap(command)
+    command: list[str] = [binary, str(exe), *args]
+    environment = _prefix_environment(paths, proton_path, env)
+    # Variables posées par les couches, journalisées telles quelles : quand
+    # l'overlay ne s'affiche pas, la première question est « la variable
+    # était-elle là ? », et le journal doit pouvoir y répondre seul.
+    layer_variables: list[str] = []
+    if performance is not None:
+        layers = performance_tool.prepare(command, environment, performance)
+        layer_variables = [
+            f"{name}={value}"
+            for name, value in sorted(layers.environment.items())
+            if environment.get(name) != value
+        ]
+        command = list(layers.command)
+        environment = dict(layers.environment)
 
     log_file = log_path.open("a", encoding="utf-8")
     try:
+        for variable in layer_variables:
+            log_file.write(f"# {variable}\n")
         log_file.write(f"$ {' '.join(command)}\n")
         log_file.flush()
         subprocess.Popen(  # noqa: S603
@@ -240,7 +260,7 @@ def run_detached(
             stdin=subprocess.DEVNULL,
             stdout=log_file,
             stderr=subprocess.STDOUT,
-            env=_prefix_environment(paths, proton_path, env),
+            env=environment,
             start_new_session=True,
         )
     finally:

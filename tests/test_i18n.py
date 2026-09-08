@@ -20,8 +20,13 @@ from stalker_gamma_linux import i18n
 _LOCALE_VARS = ("LANGUAGE", "LANG", "LC_ALL", "LC_MESSAGES")
 
 # Traduction française existante, choisie courte et stable (voir le .po).
-_TRANSLATED_MSGID = "Error"
-_TRANSLATED_FR = "Erreur"
+# Elle doit exister **dans le code source**, pas seulement dans le catalogue :
+# « Error » a tenu ici jusqu'à ce que `make update-messages` le déclare obsolète
+# (le code dit `_("Error: {error}")` depuis longtemps), et le test tombait alors
+# pour une raison qui n'avait rien à voir avec la sélection de langue.
+# `_("Environment")` est appelé par `report_bundle` et par la vue Diagnostic.
+_TRANSLATED_MSGID = "Environment"
+_TRANSLATED_FR = "Environnement"
 
 
 @pytest.fixture

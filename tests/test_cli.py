@@ -5,6 +5,8 @@ import pytest
 
 from stalker_gamma_linux import cli
 from stalker_gamma_linux.backups import ALL_SETS, BackupSet
+from stalker_gamma_linux.environment.mangohud import Preset
+from stalker_gamma_linux.environment.performance import Settings
 
 
 def test_build_parser_install_default_target() -> None:
@@ -241,13 +243,13 @@ def test_main_dispatches_to_play_with_flags(monkeypatch: pytest.MonkeyPatch) -> 
         *,
         flat_mode: bool,
         executable: str,
-        use_gamemode: bool,
+        performance: Settings,
     ) -> int:
         captured.update(
             target=target,
             flat_mode=flat_mode,
             executable=executable,
-            use_gamemode=use_gamemode,
+            performance=performance,
         )
         return 0
 
@@ -270,7 +272,7 @@ def test_main_dispatches_to_play_with_flags(monkeypatch: pytest.MonkeyPatch) -> 
         "target": Path("/tmp/g"),
         "flat_mode": True,
         "executable": "Anomaly (DX10)",
-        "use_gamemode": False,
+        "performance": Settings(gamemode=False),
     }
 
 
@@ -284,7 +286,69 @@ def test_main_play_enables_gamemode_by_default(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(cli, "run_play", fake_run_play)
 
     assert cli.main(["play"]) == 0
-    assert captured["use_gamemode"] is True
+    assert captured["performance"] == Settings()
+
+
+def test_main_play_performance_layers_are_all_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Aucune couche de rendu sans demande explicite : `play` nu n'active rien."""
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(cli, "run_play", lambda target, **kw: captured.update(kw) or 0)
+
+    cli.main(["play"])
+    settings = captured["performance"]
+
+    assert isinstance(settings, Settings)
+    assert not settings.any_layer_requested
+    assert settings.gamemode is True
+
+
+def test_main_play_accepts_the_performance_flags(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(cli, "run_play", lambda target, **kw: captured.update(kw) or 0)
+
+    cli.main(
+        [
+            "play",
+            "--mangohud",
+            "--mangohud-preset",
+            "full",
+            "--gamescope",
+            "--gamescope-render",
+            "1280x720",
+            "--gamescope-output",
+            "2560x1440",
+            "--fsr-sharpness",
+            "5",
+            "--windowed",
+            "--vkbasalt",
+        ]
+    )
+    settings = captured["performance"]
+
+    assert isinstance(settings, Settings)
+    assert settings.mangohud and settings.mangohud_preset is Preset.FULL
+    assert settings.vkbasalt
+    assert settings.gamescope
+    options = settings.gamescope_options
+    assert (str(options.render), str(options.output)) == ("1280x720", "2560x1440")
+    assert options.fsr and options.sharpness == 5
+    assert options.fullscreen is False
+
+
+def test_main_play_clamps_an_out_of_range_sharpness(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(cli, "run_play", lambda target, **kw: captured.update(kw) or 0)
+
+    cli.main(["play", "--gamescope", "--fsr-sharpness", "99"])
+    settings = captured["performance"]
+
+    assert isinstance(settings, Settings)
+    assert settings.gamescope_options.sharpness == 20
+
+
+def test_main_play_rejects_a_malformed_resolution() -> None:
+    with pytest.raises(SystemExit):
+        cli.build_parser().parse_args(["play", "--gamescope-render", "1280"])
 
 
 def test_main_play_returns_run_play_code(monkeypatch: pytest.MonkeyPatch) -> None:

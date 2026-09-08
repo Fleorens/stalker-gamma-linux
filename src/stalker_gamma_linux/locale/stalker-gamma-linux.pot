@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-07 23:21+0200\n"
+"POT-Creation-Date: 2026-09-08 09:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -201,6 +201,41 @@ msgid ""
 " CPU governor and priorities while you play)"
 msgstr ""
 
+msgid "Displays the MangoHud overlay (Vulkan layer, off by default)"
+msgstr ""
+
+msgid ""
+"MangoHud preset: « light » = FPS + frametime, « full » = "
+"CPU/GPU/VRAM/temps"
+msgstr ""
+
+msgid ""
+"Runs the game inside gamescope: renders at one resolution, scales to "
+"another"
+msgstr ""
+
+msgid "Render resolution inside gamescope (default: 1024x640 on a Steam Deck)"
+msgstr ""
+
+msgid ""
+"Output resolution of the gamescope window (default: the Deck screen, else"
+" 1080p)"
+msgstr ""
+
+msgid "Scales without FSR inside gamescope (plain linear filtering)"
+msgstr ""
+
+msgid "FSR sharpness, 0 = sharpest, 20 = softest (default: 2)"
+msgstr ""
+
+msgid "Windowed gamescope instead of fullscreen"
+msgstr ""
+
+msgid ""
+"Enables vkBasalt with our « ReShade-like » preset (sharpening + colour "
+"grading), the Linux answer to the removed ReShade"
+msgstr ""
+
 msgid ""
 "Explains how the last game session ended, once the game is closed — and "
 "names the mods to look at first when a crash trace points at a file"
@@ -294,15 +329,6 @@ msgstr ""
 msgid ""
 "Check {log_path} (or retry with --verbose) and open an issue if the "
 "problem persists."
-msgstr ""
-
-msgid "Environment"
-msgstr ""
-
-msgid "Proton prefix"
-msgstr ""
-
-msgid "Installation"
 msgstr ""
 
 msgid ""
@@ -424,9 +450,6 @@ msgstr ""
 msgid "(already done — resuming)"
 msgstr ""
 
-msgid "Error"
-msgstr ""
-
 #, python-brace-format
 msgid "Refusing to delete {path}: {reason}"
 msgstr ""
@@ -503,9 +526,6 @@ msgstr ""
 msgid "unknown (not installed as a package)"
 msgstr ""
 
-msgid "rev."
-msgstr ""
-
 #, python-brace-format
 msgid "(no log file at {path})"
 msgstr ""
@@ -519,7 +539,16 @@ msgstr ""
 msgid "Report"
 msgstr ""
 
+msgid "Environment"
+msgstr ""
+
+msgid "Proton prefix"
+msgstr ""
+
 msgid "Proton builds installed"
+msgstr ""
+
+msgid "Installation"
 msgstr ""
 
 msgid "GAMMA detected on disk"
@@ -998,6 +1027,40 @@ msgid ""
 "play, applied automatically once installed"
 msgstr ""
 
+#, python-brace-format
+msgid ""
+"Vulkan layer detected ({manifest}) — off unless you enable it "
+"(Preferences, or `play --mangohud`)"
+msgstr ""
+
+msgid ""
+"absent — optional: in-game FPS/frametime overlay, plus CPU/GPU/VRAM and "
+"temperatures with the full preset (the numbers to attach to an issue)"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"detected — off unless you enable it; suggested defaults here: render "
+"{render}, output {output} with FSR"
+msgstr ""
+
+msgid ""
+"absent — optional: renders the game at a lower resolution and scales it "
+"up with FSR, the one lever Windows doesn't have (decisive on a Steam "
+"Deck)"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Vulkan layer detected ({manifest}) — off unless you enable it; our « "
+"ReShade-like » preset is sharpening + colour grading"
+msgstr ""
+
+msgid ""
+"absent — optional: post-processing layer, the Linux answer to the ReShade"
+" the install removes (incompatible with DXVK)"
+msgstr ""
+
 msgid "protontricks (Flatpak) detected"
 msgstr ""
 
@@ -1089,6 +1152,15 @@ msgid ""
 "sudo dnf install https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-"
 "nonfree-release-$(rpm -E %fedora).noarch.rpm · Debian/Ubuntu: non-"
 "free/multiverse component required"
+msgstr ""
+
+msgid ""
+"the Vulkan layer must match the ABI of the process that renders: add the "
+"32-bit variant if the overlay stays invisible (Fedora: mangohud.i686 · "
+"Debian/Ubuntu: mangohud:i386 after `sudo dpkg --add-architecture i386`)"
+msgstr ""
+
+msgid "yay -S vkbasalt lib32-vkbasalt   # AUR (no official package)"
 msgstr ""
 
 msgid "unknown distribution"
@@ -1494,7 +1566,71 @@ msgstr ""
 msgid "Failed — see the console and the log."
 msgstr ""
 
-msgid "Performance CPU governor and priorities — GameMode is not installed yet."
+#, python-brace-format
+msgid "{description} Not installed yet."
+msgstr ""
+
+msgid "Performance CPU governor and priorities while you play."
+msgstr ""
+
+msgid "Performance"
+msgstr ""
+
+msgid ""
+"Off by default, on purpose: these layers change how the game renders and "
+"performs, and « nothing enabled » must stay something you can say without"
+" checking. GameMode is the exception — it only raises system priorities "
+"while you play."
+msgstr ""
+
+msgid "GameMode while playing"
+msgstr ""
+
+msgid ""
+"« ReShade-like » preset: CAS sharpening plus a bit of colour grading — "
+"the Linux answer to the ReShade the install removes. The Home key toggles"
+" it in game."
+msgstr ""
+
+msgid " Steam Deck detected: its screen is 1280×800."
+msgstr ""
+
+msgid ""
+"Renders the game at one resolution and scales it to another — the lever "
+"that has no equivalent under Windows."
+msgstr ""
+
+msgid "Render resolution (WxH)"
+msgstr ""
+
+msgid "Output resolution (WxH)"
+msgstr ""
+
+msgid "FSR upscaling"
+msgstr ""
+
+msgid "AMD FidelityFX Super Resolution, on any GPU."
+msgstr ""
+
+msgid "FSR sharpness"
+msgstr ""
+
+msgid "0 = sharpest, 20 = softest."
+msgstr ""
+
+msgid "Fullscreen"
+msgstr ""
+
+msgid "In-game overlay. Shift_R+F12 hides it without leaving the game."
+msgstr ""
+
+msgid "Preset"
+msgstr ""
+
+msgid "Light — FPS and frametime"
+msgstr ""
+
+msgid "Full — CPU, GPU, VRAM, temperatures"
 msgstr ""
 
 msgid "Choose…"
@@ -1506,12 +1642,6 @@ msgid ""
 msgstr ""
 
 msgid "Version (e.g. GE-Proton10-8)"
-msgstr ""
-
-msgid "Performance"
-msgstr ""
-
-msgid "GameMode while playing"
 msgstr ""
 
 msgid "« Play directly » shortcut on install"
@@ -1640,9 +1770,6 @@ msgid "To repair (removed, then reinstalled by the engine):"
 msgstr ""
 
 msgid "Left untouched:"
-msgstr ""
-
-msgid "mods/"
 msgstr ""
 
 #, python-brace-format
@@ -1996,6 +2123,34 @@ msgstr ""
 msgid ""
 "GameMode not installed — launching without it (optional: performance CPU "
 "governor and priorities while you play)."
+msgstr ""
+
+msgid "gamescope requested but not installed — launching without it."
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"gamescope: rendering at {render}, scaled to {output} with FSR (sharpness "
+"{sharpness}/20, 0 = sharpest)."
+msgstr ""
+
+#, python-brace-format
+msgid "gamescope: rendering at {render}, scaled to {output} (FSR off)."
+msgstr ""
+
+msgid "MangoHud requested but its Vulkan layer is not installed — no overlay."
+msgstr ""
+
+#, python-brace-format
+msgid "MangoHud overlay enabled ({preset} preset) — Shift_R+F12 hides it in game."
+msgstr ""
+
+msgid "vkBasalt requested but its Vulkan layer is not installed — no effect."
+msgstr ""
+
+msgid ""
+"vkBasalt enabled: our « ReShade-like » preset (CAS sharpening + colour "
+"grading) — the Home key toggles it in game."
 msgstr ""
 
 #, python-brace-format

@@ -23,6 +23,7 @@ from pathlib import Path
 
 from stalker_gamma_linux import backups, integrity, orchestrator
 from stalker_gamma_linux import state as state_module
+from stalker_gamma_linux.environment.performance import Settings
 from stalker_gamma_linux.gui.worker import QueueReporter, ReporterEvent, WorkerEvent
 from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.mo2 import session as mo2_session
@@ -112,11 +113,11 @@ def restore(identifier: str, target: Path) -> Job:
     return Job(title=_("Restoring"), run=run, cancellable=False)
 
 
-def play(target: Path, *, use_gamemode: bool) -> Job:
+def play(target: Path, *, performance: Settings) -> Job:
     def run(events: queue.Queue[WorkerEvent], cancel_event: threading.Event) -> int:
         return mo2_session.run_play(
             target,
-            use_gamemode=use_gamemode,
+            performance=performance,
             on_progress=lambda message: events.put(ReporterEvent("progress", message)),
             cancel_event=cancel_event,
         )

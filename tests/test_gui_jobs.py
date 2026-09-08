@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from stalker_gamma_linux import orchestrator, state
+from stalker_gamma_linux.environment.performance import Settings
 from stalker_gamma_linux.gui import jobs
 from stalker_gamma_linux.gui.worker import WorkerEvent
 
@@ -58,12 +59,12 @@ class TestJobs:
 
     def test_les_sessions_nont_pas_de_timeline(self, target: Path) -> None:
         """Jouer ou ouvrir MO2 n'a pas d'étapes numérotées : barre en pulsation."""
-        assert jobs.play(target, use_gamemode=False).phase_labels is None
+        assert jobs.play(target, performance=Settings(gamemode=False)).phase_labels is None
         assert jobs.mod_organizer(target).phase_labels is None
 
     def test_lancer_le_jeu_reste_annulable(self, target: Path) -> None:
         """MO2 qui ne rend jamais la main : tuer la fenêtre était la seule issue."""
-        assert jobs.play(target, use_gamemode=True).cancellable
+        assert jobs.play(target, performance=Settings()).cancellable
         assert jobs.mod_organizer(target).cancellable
 
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from stalker_gamma_linux.environment import system
+from stalker_gamma_linux.environment.performance import Settings
 from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.mo2.errors import Mo2InstanceError
 from stalker_gamma_linux.prefix import process
@@ -33,12 +34,12 @@ def launch_flat(
     proton_path: Path,
     *,
     launcher: str = FLAT_LAUNCHER,
-    gamemode: bool = True,
+    performance: Settings | None = None,
 ) -> Path:
     """Lance l'install flat dans le préfixe, **détaché** du terminal appelant.
     Lève `Mo2InstanceError` si elle est absente.
 
-    `gamemode` : voir `launch.launch_game` — même traitement, c'est un
+    `performance` : voir `launch.launch_game` — même traitement, c'est un
     lancement de jeu, y compris le détachement (`process.run_detached`).
     """
     executable = final_dir / launcher
@@ -55,5 +56,5 @@ def launch_flat(
         paths=prefix,
         proton_path=proton_path,
         log_label="flat-game",
-        gamemode=gamemode,
+        performance=performance if performance is not None else Settings(),
     )

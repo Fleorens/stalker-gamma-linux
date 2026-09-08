@@ -10,6 +10,7 @@ import pytest
 from stalker_gamma_linux.environment import checks, gamemode, system
 from stalker_gamma_linux.environment.distro import Distro, DistroFamily
 from stalker_gamma_linux.environment.models import Status
+from stalker_gamma_linux.environment.performance import Settings
 from stalker_gamma_linux.mo2 import flat, launch, session
 from stalker_gamma_linux.mo2.paths import Mo2Paths
 from stalker_gamma_linux.prefix import process
@@ -147,7 +148,7 @@ def test_launch_game_asks_for_gamemode_by_default(
 
     launch.launch_game(mo2, prefix, tmp_path / "GE")
 
-    assert recorder.calls[0]["gamemode"] is True
+    assert recorder.calls[0]["performance"].gamemode is True
 
 
 def test_launch_game_honours_opt_out(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -155,9 +156,9 @@ def test_launch_game_honours_opt_out(tmp_path: Path, monkeypatch: pytest.MonkeyP
     recorder = _Recorder()
     monkeypatch.setattr(process, "run_detached", recorder)
 
-    launch.launch_game(mo2, prefix, tmp_path / "GE", gamemode=False)
+    launch.launch_game(mo2, prefix, tmp_path / "GE", performance=Settings(gamemode=False))
 
-    assert recorder.calls[0]["gamemode"] is False
+    assert recorder.calls[0]["performance"].gamemode is False
 
 
 def test_launch_mo2_alone_does_not_ask_for_gamemode(
@@ -184,7 +185,7 @@ def test_flat_launch_asks_for_gamemode_by_default(
 
     flat.launch_flat(final, PrefixPaths.under(tmp_path), tmp_path / "GE")
 
-    assert recorder.calls[0]["gamemode"] is True
+    assert recorder.calls[0]["performance"].gamemode is True
 
 
 # --- Messages et diagnostic ------------------------------------------------

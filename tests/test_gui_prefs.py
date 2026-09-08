@@ -3,8 +3,17 @@ from pathlib import Path
 import pytest
 
 from stalker_gamma_linux import state
+from stalker_gamma_linux.environment import gamescope, mangohud, system
+from stalker_gamma_linux.environment.performance import Settings
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
 from stalker_gamma_linux.gui import prefs
+
+
+@pytest.fixture(autouse=True)
+def not_a_steam_deck(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Machine de bureau : les défauts de gamescope ne doivent pas dépendre du CI."""
+    monkeypatch.setattr(system, "read_text", lambda path: None)
+    monkeypatch.delenv("SteamDeck", raising=False)
 
 
 def test_load_preferences_defaults_when_file_absent(
@@ -46,6 +55,65 @@ def test_save_then_load_round_trips(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     loaded = prefs.load_preferences()
 
     assert loaded == original
+
+
+def test_defaults_follow_the_screen_on_a_steam_deck(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Premier lancement sur un Deck : proposer 1920×1080 sur un écran 1280×800
+    # serait un mauvais point de départ pour le seul réglage qui compte là-bas.
+    monkeypatch.setattr(state, "config_dir", lambda: tmp_path / "config")
+    monkeypatch.setattr(system, "read_text", lambda path: "Galileo\n")
+
+    options = prefs.load_preferences().performance.gamescope_options
+
+    assert str(options.output) == "1280x800"
+    assert str(options.render) == "1024x640"
+
+
+def test_the_performance_layers_round_trip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(state, "config_dir", lambda: tmp_path / "config")
+    settings = Settings(
+        gamemode=False,
+        mangohud=True,
+        mangohud_preset=mangohud.Preset.FULL,
+        gamescope=True,
+        gamescope_options=gamescope.Options(render=gamescope.Resolution(1152, 720)),
+        vkbasalt=True,
+    )
+
+    prefs.save_preferences(prefs.Preferences().with_performance(settings))
+
+    assert prefs.load_preferences().performance == settings
+
+
+def test_the_old_gamemode_key_is_still_honoured(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Fichier écrit avant T20 : quelqu'un qui avait coupé GameMode ne doit pas
+    # le voir revenir tout seul à la mise à jour.
+    config_dir = tmp_path / "config"
+    monkeypatch.setattr(state, "config_dir", lambda: config_dir)
+    config_dir.mkdir(parents=True)
+    prefs.prefs_file().write_text("use_gamemode = false\n", encoding="utf-8")
+
+    loaded = prefs.load_preferences()
+
+    assert loaded.performance.gamemode is False
+    assert not loaded.performance.any_layer_requested
+
+
+def test_the_user_global_configs_are_not_mentioned_in_our_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(state, "config_dir", lambda: tmp_path / "config")
+
+    prefs.save_preferences(prefs.Preferences())
+
+    written = prefs.prefs_file().read_text(encoding="utf-8")
+    assert "[performance]" in written
+    # L'ancienne clé n'est plus écrite : une seule source de vérité.
+    assert "use_gamemode" not in written
 
 
 def test_save_preferences_creates_config_dir(

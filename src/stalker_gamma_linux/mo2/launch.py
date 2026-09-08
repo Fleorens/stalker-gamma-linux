@@ -13,6 +13,7 @@ import threading
 from pathlib import Path
 
 from stalker_gamma_linux.environment import system
+from stalker_gamma_linux.environment.performance import Settings
 from stalker_gamma_linux.mo2.errors import Mo2NotInstalledError
 from stalker_gamma_linux.mo2.paths import Mo2Paths
 from stalker_gamma_linux.prefix import process
@@ -60,7 +61,7 @@ def launch_game(
     proton_path: Path,
     *,
     executable: str = DEFAULT_EXECUTABLE,
-    gamemode: bool = True,
+    performance: Settings | None = None,
 ) -> Path:
     """Lance le jeu via MO2 (`moshortcut://`) pour monter l'USVFS, **détaché**
     du terminal appelant (`process.run_detached`) : la fermeture du terminal
@@ -68,10 +69,11 @@ def launch_game(
     tourne encore à ce moment-là (pas de `on_progress`/`cancel_event` : plus
     personne ne consommerait la sortie ligne à ligne).
 
-    `gamemode` (par défaut actif) enveloppe le lancement dans `gamemoderun` :
-    MO2 démarre le jeu comme processus fils, et le `LD_PRELOAD` posé par
-    GameMode se propage à toute la descendance — c'est bien la partie qui en
-    profite, pas seulement l'interface de MO2 (cf. `environment.gamemode`).
+    `performance` (défaut : GameMode seul, cf. `environment.performance`)
+    emboîte les couches demandées autour de la commande. Elles s'appliquent
+    bien au *jeu* et pas seulement à l'interface de MO2 : MO2 démarre le jeu
+    comme processus fils, et aussi bien le `LD_PRELOAD` de GameMode que les
+    variables des couches Vulkan se propagent à toute la descendance.
     """
     _require_executable(mo2)
     return process.run_detached(
@@ -80,5 +82,5 @@ def launch_game(
         paths=prefix,
         proton_path=proton_path,
         log_label="mo2-game",
-        gamemode=gamemode,
+        performance=performance if performance is not None else Settings(),
     )

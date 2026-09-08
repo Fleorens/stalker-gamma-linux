@@ -511,7 +511,7 @@ class MainWindow(Adw.ApplicationWindow):
     def _start_play(self) -> None:
         self._played_this_session = True
         self._push_job(
-            jobs.play(self._preferences.install_path, use_gamemode=self._preferences.use_gamemode)
+            jobs.play(self._preferences.install_path, performance=self._preferences.performance)
         )
 
     def _start_mo2(self) -> None:

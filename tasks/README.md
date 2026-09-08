@@ -55,7 +55,7 @@ ce que seul Linux permet, et les modes d'échec qui font abandonner.
 | T17 | Sauvegarde/restauration + fusion de la modlist — ✅ livrée (2026-09-07) | **Opus 5**, effort maximal | T07, T12 | 🔴 perte de données utilisateur |
 | T18 | Post-mortem de session : crash attribué au mod | **Opus 5**, effort élevé | T05, T12, T14 | 🟠 support |
 | T19 | Steam / mode Gaming en un clic (`shortcuts.vdf`) | **Opus 5**, effort élevé | T06, T11 | 🟠 public Deck/Bazzite |
-| T20 | MangoHud, gamescope/FSR, vkBasalt | **Opus 5**, effort maximal | T04, T05 | 🟠 avantage Linux |
+| T20 | MangoHud, gamescope/FSR, vkBasalt — ✅ livrée (2026-09-08), à valider sur une vraie partie | **Opus 5**, effort maximal | T04, T05 | 🟠 avantage Linux |
 | T21 | Cache de shaders conservé hors préfixe | **Sonnet 5**, effort moyen | T04, T05 | 🟡 première impression |
 | T22 | Résilience ModDB : dépôt manuel, reprise ciblée | **Sonnet 5**, effort élevé | T03, T07, T12 | 🟠 installation bloquée |
 

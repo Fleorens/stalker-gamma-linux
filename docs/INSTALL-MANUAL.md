@@ -191,8 +191,11 @@ gamma-launcher remove-reshade --anomaly ~/Games/stalker-gamma/anomaly
 gamma-launcher purge-shader-cache --anomaly ~/Games/stalker-gamma/anomaly
 ```
 
-Équivalent cosmétique côté Linux si besoin : **vkBasalt** (hors périmètre
-install, à documenter côté utilisateur).
+Équivalent cosmétique côté Linux : **vkBasalt**, désormais fourni par l'outil
+avec son préset « ReShade-like » (`play --vkbasalt`, ou l'interrupteur des
+Préférences) — voir docs/ARCHITECTURE.md « Couches de performance ». En
+installation manuelle : `ENABLE_VKBASALT=1` devant la commande de lancement, la
+couche lisant alors votre propre `~/.config/vkBasalt/vkBasalt.conf`.
 
 **Vérification** : plus de `ReShade*.dll` / `reshade-shaders/` dans
 `anomaly/bin/` ; `anomaly/appdata/shaders_cache/` vide ou absent.

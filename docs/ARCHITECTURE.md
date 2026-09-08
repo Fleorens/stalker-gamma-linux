@@ -287,6 +287,194 @@ amont bavard, pas un échec.
 On ne filtre pas ces lignes de notre sortie : masquer ce que crachent umu et
 wine reviendrait à masquer aussi les vrais problèmes le jour où il y en aura.
 
+### Couches de performance : gamescope/FSR, MangoHud, vkBasalt (T20)
+
+Trois outils que Windows n'a pas, branchés sur le **même point d'entrée que
+GameMode** (`environment/performance.py`, appelé par `process.run_detached`) et
+donc soumis à la même frontière : `launch_game` et `launch_flat` uniquement,
+jamais `launch_mo2` ni les étapes d'installation.
+
+**Tout est éteint par défaut**, GameMode excepté. Ces couches changent le rendu
+et les performances : « rien d'activé » doit rester une phrase qu'un joueur peut
+écrire dans une issue sans avoir à le vérifier. GameMode, lui, ne touche qu'aux
+priorités système — il reste actif par défaut, comme depuis T02.
+
+#### L'ordre d'emboîtement, et pourquoi il n'est pas libre
+
+```
+gamescope -W 1280 -H 800 -w 1024 -h 640 -F fsr --sharpness 2 -f -- \
+    gamemoderun umu-run ModOrganizer.exe 'moshortcut://:Anomaly (DX11)'
+    + MANGOHUD=1 MANGOHUD_CONFIGFILE=… ENABLE_VKBASALT=1 VKBASALT_CONFIG_FILE=…
+```
+
+1. **gamescope tout à l'extérieur.** C'est un compositeur : il crée la fenêtre
+   (ou prend l'écran) et compose ce que produisent ses enfants — il doit donc
+   être un *ancêtre* du jeu, jamais l'inverse. Reste le choix entre
+   `gamescope -- gamemoderun umu-run` et `gamemoderun gamescope -- umu-run`,
+   qui fonctionneraient tous les deux : on prend le premier parce que c'est
+   l'ordre qu'emploient l'option de lancement Steam et le mode Gaming du Deck,
+   et parce que le second injecterait `libgamemodeauto.so.0` jusque dans le
+   compositeur, qui n'a rien à demander au daemon.
+2. **`gamemoderun` juste dedans, inchangé.** Il ajoute `libgamemodeauto.so.0`
+   au `LD_PRELOAD` puis exec la suite : il doit rester au contact du processus
+   qui tient la session de jeu (`umu-run`), pas du compositeur.
+3. **MangoHud et vkBasalt nulle part dans la commande.** Ce sont des couches
+   Vulkan *implicites* : leur manifeste déclare `enable_environment`
+   (`MANGOHUD=1`, `ENABLE_VKBASALT=1`), et c'est le loader Vulkan du processus
+   qui les charge. Les paquets livrent aussi des scripts d'enveloppe
+   (`mangohud …`), qui ajoutent un `LD_PRELOAD` pour couvrir OpenGL : inutile
+   ici (le jeu est en Vulkan de bout en bout via DXVK) et coûteux dans une pile
+   qui empile déjà gamemoderun → umu → pressure-vessel → wine.
+
+Chaque couche est une fonction de même forme que `gamemode.wrap()` —
+`Sequence[str] -> list[str]` pour ce qui enveloppe, `-> dict[str, str]` pour ce
+qui s'active par variable — et `performance.compose()` les emboîte. Rien n'est
+muté : ni la commande d'origine, ni `os.environ` (l'environnement du lancement
+est **construit**, pas modifié). Les huit combinaisons d'activation sont
+testées.
+
+#### Le vrai risque : ces couches sont-elles visibles dans le conteneur ?
+
+C'est la question qui devait être tranchée avant d'écrire un interrupteur, parce
+que le projet a déjà un précédent : `libgamemodeauto.so.0` est bien préchargée
+dans le conteneur steamrt, mais le `libgamemode.so.0` qu'elle `dlopen` ensuite
+n'y est pas — d'où les dizaines de `gamemodeauto: dlopen failed` documentées
+juste au-dessus.
+
+**Ce qui est établi, et par quoi** (lecture des sources et de la documentation
+amont, le 2026-09-08) :
+
+- les deux manifestes sont des couches implicites de type `GLOBAL` avec
+  `enable_environment` (`MangoHud` : `MANGOHUD=1` ; `vkBasalt` :
+  `ENABLE_VKBASALT=1`) — donc une variable suffit, il n'y a rien à précharger
+  soi-même ;
+- pressure-vessel **importe les couches Vulkan de l'hôte** dans le conteneur
+  (manifeste *et* bibliothèque, par ABI). C'est ce qui fait marcher
+  `MANGOHUD=1 %command%` sous Proton depuis le runtime « soldier », et la
+  documentation de Valve raisonne explicitement sur vkBasalt *chargé dans le
+  conteneur* (voir « vkBasalt » plus bas). La seule régression connue de ce
+  mécanisme est spécifique au **Steam Flatpak**
+  ([steam-runtime#662](https://github.com/ValveSoftware/steam-runtime/issues/662)),
+  où le dossier importé sortait des chemins de recherche du loader ;
+- le dossier personnel est **partagé par défaut** avec le conteneur : nos
+  fichiers de configuration, écrits sous `~/.config/stalker-gamma-linux/`, y
+  sont visibles. Pour le cas où `XDG_CONFIG_HOME` pointerait ailleurs, on ajoute
+  ces chemins à `PRESSURE_VESSEL_FILESYSTEMS_RO` — c'est le remède que Valve
+  documente, avec `"$MANGOHUD_CONFIGFILE"` comme exemple. La variable est une
+  liste façon `PATH` : on **complète** celle de l'utilisateur, on ne l'écrase
+  pas ;
+- différence de fond avec le cas GameMode : une couche implicite ne dépend pas
+  d'un `dlopen` d'une bibliothèque de l'hôte que le conteneur n'aurait pas
+  importée. C'est le loader du conteneur qui lit le manifeste importé et charge
+  la bibliothèque importée à côté. Le mode d'échec de `libgamemode.so` n'a donc
+  pas d'équivalent structurel ici.
+
+**Ce qui n'a pas pu être mesuré ici, et comment le mesurer.** L'environnement de
+développement de ce lot n'a ni GPU, ni umu, ni installation GAMMA : aucun
+lancement réel n'a eu lieu, et donc **ni capture d'overlay, ni mesure avant/après
+de gamescope + FSR**. Ce qui précède est une lecture de sources, pas un relevé.
+La vérification tient en quatre gestes, à faire une fois sur la machine cible :
+
+1. `stalker-gamma-linux doctor` doit afficher les trois outils en `[OPTIONAL]`
+   avec, pour MangoHud et vkBasalt, le **chemin du manifeste** trouvé. Pas de
+   chemin = la couche n'est pas installée là où le loader la cherche, et rien
+   d'autre ne marchera ;
+2. `stalker-gamma-linux play --mangohud` : le journal de lancement
+   (`<root>/logs/mo2-game.log`) commence par les variables posées
+   (`# MANGOHUD=1`, `# MANGOHUD_CONFIGFILE=…`) puis la commande. Si elles y sont
+   et que l'overlay n'apparaît pas, le problème est **dans** le conteneur ;
+3. dans ce cas, le point suivant à regarder est l'**ABI** (paragraphe suivant) ;
+4. si l'ABI est bonne, ajouter `VK_LOADER_DEBUG=layer` à l'environnement du
+   lancement : le loader dit alors quels manifestes il a lus, du point de vue du
+   processus du jeu.
+
+Ce dernier repli reste à documenter s'il sert un jour : si les couches n'étaient
+décidément pas importées, `PRESSURE_VESSEL_FILESYSTEMS_RO` (déjà posée) plus
+`VK_ADD_LAYER_PATH` pointant sur `/usr/share/vulkan/implicit_layer.d` seraient
+la piste — `VK_ADD_LAYER_PATH` *ajoute* aux chemins standard là où
+`VK_LAYER_PATH` les *remplace*, ce qui masquerait les couches du conteneur.
+
+#### La bonne ABI, sinon rien
+
+Une couche Vulkan est chargée dans le processus qui crée l'instance, et doit
+donc exister dans **son** ABI. MangoHud installe d'ailleurs un manifeste par
+architecture (`VK_LAYER_MANGOHUD_overlay_x86_64` et `…_x86_32`). Selon la
+manière dont le build de Proton fait tourner un exécutable 32 bits (couche unix
+32 bits, ou WoW64 « nouveau » où tout l'étage unix est 64 bits), c'est l'une ou
+l'autre qui compte — et ce n'est pas nous qui en décidons. D'où :
+
+- Arch : `lib32-mangohud` fait partie du remède affiché, comme `lib32-gamemode`
+  pour GameMode ;
+- Fedora et Debian empaquettent la variante 32 bits sous le même nom mais une
+  autre architecture (`mangohud.i686`, `mangohud:i386`) : impossible à annoncer
+  comme un simple nom de paquet — `apt` ne sait même pas *interroger* `:i386`
+  sans `dpkg --add-architecture` — donc c'est une note attachée au remède.
+
+#### Le piège trouvé en lisant umu : `LD_PRELOAD` vidé sous gamescope
+
+`umu_run.check_env()` fait, avant toute chose :
+
+```python
+if os.environ.get("LD_PRELOAD") and is_gamescope_session:
+    os.environ["LD_PRELOAD"] = ""
+```
+
+où `is_gamescope_session` est vrai dès que `XDG_CURRENT_DESKTOP` ou
+`XDG_SESSION_DESKTOP` vaut `gamescope` (umu, PR #497 et #579). Or gamescope
+pose lui-même `setenv("XDG_CURRENT_DESKTOP", "gamescope", 1)` pour ses enfants
+(`src/main.cpp`) : **notre propre `gamescope --` suffit donc à déclencher ce
+nettoyage**, en plus du mode Gaming du Deck où la session le pose déjà.
+
+Conséquence, et pourquoi ça ne remet pas l'ordre d'emboîtement en cause : le
+`LD_PRELOAD` a déjà fait son travail au moment où umu le vide. `gamemoderun`
+exec `umu-run` **avec** la variable, l'éditeur de liens charge
+`libgamemodeauto.so.0` dans le processus `umu-run`, et c'est son constructeur
+qui réclame le mode au daemon — pour toute la durée du processus, comme
+documenté plus haut. Ce que le nettoyage empêche, c'est la *propagation* du
+préchargement aux processus du conteneur, c'est-à-dire précisément les
+`gamemodeauto: dlopen failed` qui polluent le journal. GameMode reste donc
+actif, et le journal devient plus propre — pas l'inverse. À vérifier en réel au
+premier lancement `--gamescope` (le journal le dira tout seul).
+
+#### vkBasalt : le préset que le README promettait
+
+Le pipeline retire ReShade à chaque install et à chaque update, et le README
+proposait vkBasalt « en équivalent » sans que rien dans le code ne le fournisse.
+Le préset livré est `effects = cas:lut` : netteté *Contrast Adaptive Sharpening*
+(la raison n°1 d'installer ReShade), puis une table de correspondance de
+couleurs **générée par nous** — courbe en S légère (contraste +18 %) et gain de
+saturation (+8 %), neutre en 0, 0,5 et 1.
+
+Pourquoi une LUT `.CUBE` et pas un shader ReShade `.fx`, que vkBasalt sait
+pourtant exécuter : un `.fx` exige `reshadeIncludePath`/`reshadeTexturePath`,
+donc un dépôt de shaders tiers installé quelque part — et la documentation de
+Valve liste exactement ce piège, « vkBasalt crashe si on lui demande des shaders
+introuvables », le `/usr/share` de l'hôte n'existant pas dans le conteneur
+([steam-runtime#381](https://github.com/ValveSoftware/steam-runtime/issues/381)).
+Une LUT est un fichier texte que nous écrivons dans le dossier personnel, dont
+la génération se teste sans rien lancer, et qui ne peut pas manquer puisque nous
+la produisons juste avant le lancement.
+
+#### Nos fichiers de configuration, jamais ceux de l'utilisateur
+
+`~/.config/stalker-gamma-linux/mangohud.conf`, `vkBasalt.conf` et
+`gamma-reshade-like.CUBE` sont écrits par nous, désignés par
+`MANGOHUD_CONFIGFILE` et `VKBASALT_CONFIG_FILE`, et **réécrits à chaque
+lancement** : c'est le réglage choisi dans les préférences qui fait foi, pas le
+contenu du fichier. Leur en-tête le dit à qui les ouvre. Les configurations
+globales de l'utilisateur (`~/.config/MangoHud/MangoHud.conf`,
+`~/.config/vkBasalt/vkBasalt.conf`) ne sont ni lues ni modifiées : quelqu'un qui
+a réglé son overlay pour tous ses jeux ne doit pas le voir changer parce qu'il a
+coché une case chez nous.
+
+#### Journal
+
+Les variables posées par les couches sont écrites en tête du journal de
+lancement (`# MANGOHUD=1`, …) avant la ligne de commande. C'est la première
+question à laquelle il faut pouvoir répondre quand l'overlay ne s'affiche pas.
+Rien n'est filtré, ici comme ailleurs : les avertissements des couches — comme
+ceux d'umu et de wine — restent dans le journal.
+
 ## CLI orchestrateur (T07)
 
 ### Framework : `argparse`, pas `click`/`typer`

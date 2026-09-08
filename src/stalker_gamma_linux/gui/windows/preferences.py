@@ -1,9 +1,11 @@
-"""Fenêtre Préférences : chemin d'installation, version Proton-GE, intégration Steam.
+"""Fenêtre Préférences : installation, Proton-GE, performance, intégration Steam.
 
 Persistance déléguée à `gui.prefs` (TOML, indépendant de GTK). Le raccourci
 bureau lui-même reste celui de `desktop/` (T06) ; la case « Créer un raccourci
 bureau » ne fait que réutiliser le flag `--shortcut` déjà exposé par
 `orchestrator.run_install` — rien de nouveau côté logique d'installation.
+Le groupe « Performance » (GameMode, gamescope, MangoHud, vkBasalt) vit dans
+`performance_prefs.py` : c'est le seul dont l'état est composite.
 """
 
 from __future__ import annotations
@@ -18,27 +20,9 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
-from stalker_gamma_linux.environment import checks, gamemode  # noqa: E402
-from stalker_gamma_linux.environment.commands import INSTALL_COMMANDS  # noqa: E402
-from stalker_gamma_linux.environment.distro import detect_distro  # noqa: E402
 from stalker_gamma_linux.gui import prefs  # noqa: E402
+from stalker_gamma_linux.gui.windows.performance_prefs import PerformanceGroup  # noqa: E402
 from stalker_gamma_linux.i18n import _  # noqa: E402
-
-
-def _gamemode_subtitle() -> str:
-    """Sous-titre de l'interrupteur : ce que ça fait, et si c'est installé.
-
-    L'interrupteur reste actionnable même sans GameMode installé (la préférence
-    est persistée, elle s'appliquera dès que le paquet sera là) — d'où le
-    sous-titre qui donne la commande d'installation plutôt qu'une ligne grisée.
-    """
-    if gamemode.is_available():
-        # Même phrase que `doctor` : l'utilisateur qui a lu l'un ne doit pas
-        # découvrir un état différent dans l'autre (groupe `gamemode` compris).
-        return checks.gamemode_detail()
-    hint = INSTALL_COMMANDS["gamemode"].for_family(detect_distro().family)
-    missing = _("Performance CPU governor and priorities — GameMode is not installed yet.")
-    return f"{missing} {hint}" if hint else missing
 
 
 class PreferencesDialog(Adw.PreferencesDialog):
@@ -79,14 +63,8 @@ class PreferencesDialog(Adw.PreferencesDialog):
         self._release_row.set_text(preferences.proton_release or "")
         proton_group.add(self._release_row)
 
-        performance_group = Adw.PreferencesGroup(title=_("Performance"))
-        page.add(performance_group)
-        self._gamemode_row = Adw.SwitchRow(
-            title=_("GameMode while playing"),
-            subtitle=_gamemode_subtitle(),
-            active=preferences.use_gamemode,
-        )
-        performance_group.add(self._gamemode_row)
+        self._performance_group = PerformanceGroup(preferences.performance)
+        page.add(self._performance_group)
 
         steam_group = Adw.PreferencesGroup(title="Steam")
         page.add(steam_group)
@@ -131,7 +109,7 @@ class PreferencesDialog(Adw.PreferencesDialog):
         updated = (
             self._prefs.with_proton_release(release)
             .with_create_steam_shortcut(self._shortcut_row.get_active())
-            .with_use_gamemode(self._gamemode_row.get_active())
+            .with_performance(self._performance_group.settings)
         )
         prefs.save_preferences(updated)
         self._on_saved(updated)

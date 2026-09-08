@@ -13,9 +13,10 @@ from pathlib import Path
 
 from stalker_gamma_linux.engine.errors import EngineError
 from stalker_gamma_linux.engine.paths import InstallPaths
-from stalker_gamma_linux.environment import gamemode, system
+from stalker_gamma_linux.environment import gamemode, gamescope, mangohud, system, vkbasalt
 from stalker_gamma_linux.environment.commands import INSTALL_COMMANDS
 from stalker_gamma_linux.environment.distro import detect_distro
+from stalker_gamma_linux.environment.performance import Settings
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE
 from stalker_gamma_linux.i18n import _
@@ -86,6 +87,12 @@ def run_mo2(
     return 0
 
 
+def _with_install_hint(message: str, key: str) -> str:
+    """Message d'absence + la commande d'installation de CETTE distribution."""
+    hint = INSTALL_COMMANDS[key].for_family(detect_distro().family)
+    return f"{message}\n  {hint}" if hint else message
+
+
 def gamemode_notice(enabled: bool) -> str:
     """Ligne de progression décrivant l'état de GameMode pour ce lancement.
 
@@ -107,12 +114,71 @@ def gamemode_notice(enabled: bool) -> str:
                 "governor stays locked, see `doctor` to unlock it."
             )
         return _("GameMode enabled: performance CPU governor and priorities while you play.")
-    hint = INSTALL_COMMANDS["gamemode"].for_family(detect_distro().family)
-    message = _(
-        "GameMode not installed — launching without it "
-        "(optional: performance CPU governor and priorities while you play)."
+    return _with_install_hint(
+        _(
+            "GameMode not installed — launching without it "
+            "(optional: performance CPU governor and priorities while you play)."
+        ),
+        "gamemode",
     )
-    return f"{message}\n  {hint}" if hint else message
+
+
+def performance_notices(settings: Settings) -> list[str]:
+    """Une ligne par couche **demandée**, dans l'ordre d'emboîtement.
+
+    Rien du tout pour une couche non demandée : le défaut du projet est
+    « GameMode oui, le reste non », et annoncer à chaque partie trois outils
+    qu'on n'utilise pas serait du bruit. En revanche une couche demandée mais
+    absente le dit, avec la commande d'installation — sans ça, l'utilisateur
+    cherche pourquoi son overlay ne s'affiche pas alors que la case est cochée.
+    """
+    notices = [gamemode_notice(settings.gamemode)]
+    if settings.gamescope:
+        notices.append(_gamescope_notice(settings))
+    if settings.mangohud:
+        notices.append(_mangohud_notice(settings))
+    if settings.vkbasalt:
+        notices.append(_vkbasalt_notice())
+    return notices
+
+
+def _gamescope_notice(settings: Settings) -> str:
+    if not gamescope.is_available():
+        return _with_install_hint(
+            _("gamescope requested but not installed — launching without it."), "gamescope"
+        )
+    options = settings.gamescope_options
+    if options.fsr:
+        return _(
+            "gamescope: rendering at {render}, scaled to {output} with FSR "
+            "(sharpness {sharpness}/20, 0 = sharpest)."
+        ).format(render=options.render, output=options.output, sharpness=options.sharpness)
+    return _("gamescope: rendering at {render}, scaled to {output} (FSR off).").format(
+        render=options.render, output=options.output
+    )
+
+
+def _mangohud_notice(settings: Settings) -> str:
+    if not mangohud.is_available():
+        return _with_install_hint(
+            _("MangoHud requested but its Vulkan layer is not installed — no overlay."),
+            "mangohud",
+        )
+    return _("MangoHud overlay enabled ({preset} preset) — Shift_R+F12 hides it in game.").format(
+        preset=settings.mangohud_preset
+    )
+
+
+def _vkbasalt_notice() -> str:
+    if not vkbasalt.is_available():
+        return _with_install_hint(
+            _("vkBasalt requested but its Vulkan layer is not installed — no effect."),
+            "vkbasalt",
+        )
+    return _(
+        "vkBasalt enabled: our « ReShade-like » preset (CAS sharpening + colour "
+        "grading) — the Home key toggles it in game."
+    )
 
 
 def run_play(
@@ -120,7 +186,7 @@ def run_play(
     *,
     flat_mode: bool = False,
     executable: str = DEFAULT_EXECUTABLE,
-    use_gamemode: bool = True,
+    performance: Settings | None = None,
     search_dirs: Sequence[Path] | None = None,
     on_progress: ProgressCallback | None = None,
     cancel_event: threading.Event | None = None,
@@ -136,20 +202,23 @@ def run_play(
     T14 de la roadmap, prévu pour un usage après coup). On se contente
     d'annoncer le journal de lancement.
 
-    `use_gamemode` (défaut : actif) enveloppe le lancement dans `gamemoderun`
-    quand GameMode est installé ; sans effet sinon (cf. `environment.gamemode`).
+    `performance` (défaut : GameMode seul) décrit les couches à emboîter autour
+    du lancement — GameMode, gamescope, MangoHud, vkBasalt. Chacune est sans
+    effet si son outil n'est pas installé (cf. `environment.performance`).
     `on_progress` : voir `run_mo2`.
     """
     progress = on_progress or print
+    settings = performance if performance is not None else Settings()
     root = _resolve_root(target)
     mo2 = Mo2Paths.under(root)
     prefix = PrefixPaths.under(root)
     install = InstallPaths.under(root)
     try:
         build = provision.ensure_prefix(prefix, search_dirs=search_dirs, on_progress=progress)
-        progress(gamemode_notice(use_gamemode))
+        for notice in performance_notices(settings):
+            progress(notice)
         if flat_mode:
-            return _run_flat(root, install, prefix, build, progress, use_gamemode=use_gamemode)
+            return _run_flat(root, install, prefix, build, progress, performance=settings)
         instance.configure_instance(mo2, resolve_anomaly(mo2, install))
         progress(
             _("Launching Anomaly via MO2 (« {executable} », USVFS)…").format(executable=executable)
@@ -159,7 +228,7 @@ def run_play(
             prefix,
             build.path,
             executable=executable,
-            gamemode=use_gamemode,
+            performance=settings,
         )
     except (PrefixError, EngineError, Mo2Error) as error:
         progress(_("Error: {error}").format(error=error))
@@ -190,7 +259,7 @@ def _run_flat(
     build: ProtonBuild,
     on_progress: ProgressCallback,
     *,
-    use_gamemode: bool = True,
+    performance: Settings | None = None,
     cancel_event: threading.Event | None = None,
 ) -> int:
     final = flat.flat_dir(root)
@@ -215,7 +284,7 @@ def _run_flat(
         final,
         prefix,
         build.path,
-        gamemode=use_gamemode,
+        performance=performance,
     )
     on_progress(
         _("Game launched, detached from this terminal. Launch log: {log}").format(log=flat_log)

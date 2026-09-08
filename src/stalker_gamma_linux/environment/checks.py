@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 from stalker_gamma_linux import sizing
-from stalker_gamma_linux.environment import gamemode, system
+from stalker_gamma_linux.environment import gamemode, gamescope, mangohud, system, vkbasalt
 from stalker_gamma_linux.environment.commands import INSTALL_COMMANDS
 from stalker_gamma_linux.environment.distro import DistroFamily
 from stalker_gamma_linux.environment.models import Requirement, Status
@@ -148,6 +148,86 @@ def check_gamemode(family: DistroFamily) -> Requirement:
         ),
         install_hint=INSTALL_COMMANDS["gamemode"].for_family(family),
         key="gamemode",
+        needed_to_install=False,
+    )
+
+
+def check_mangohud(family: DistroFamily) -> Requirement:
+    """MangoHud : facultatif, et **jamais** actif sans que l'utilisateur l'ait demandé.
+
+    On cherche le manifeste de la couche Vulkan, pas le script `mangohud` : c'est
+    la couche qui affiche l'overlay dans un jeu Vulkan, et c'est ce fichier que
+    pressure-vessel importe dans le conteneur steamrt (cf. `environment.vulkan`).
+    """
+    manifest = mangohud.layer_manifest()
+    if manifest is not None:
+        return Requirement(
+            name="MangoHud",
+            status=Status.OK,
+            detail=_(
+                "Vulkan layer detected ({manifest}) — off unless you enable it "
+                "(Preferences, or `play --mangohud`)"
+            ).format(manifest=manifest),
+        )
+    return Requirement(
+        name="MangoHud",
+        status=Status.OPTIONAL,
+        detail=_(
+            "absent — optional: in-game FPS/frametime overlay, plus CPU/GPU/VRAM "
+            "and temperatures with the full preset (the numbers to attach to an issue)"
+        ),
+        install_hint=INSTALL_COMMANDS["mangohud"].for_family(family),
+        key="mangohud",
+        needed_to_install=False,
+    )
+
+
+def check_gamescope(family: DistroFamily) -> Requirement:
+    """gamescope : facultatif, c'est le levier de performances propre à Linux."""
+    if gamescope.is_available():
+        options = gamescope.default_options()
+        return Requirement(
+            name="gamescope",
+            status=Status.OK,
+            detail=_(
+                "detected — off unless you enable it; suggested defaults here: "
+                "render {render}, output {output} with FSR"
+            ).format(render=options.render, output=options.output),
+        )
+    return Requirement(
+        name="gamescope",
+        status=Status.OPTIONAL,
+        detail=_(
+            "absent — optional: renders the game at a lower resolution and scales it "
+            "up with FSR, the one lever Windows doesn't have (decisive on a Steam Deck)"
+        ),
+        install_hint=INSTALL_COMMANDS["gamescope"].for_family(family),
+        key="gamescope",
+        needed_to_install=False,
+    )
+
+
+def check_vkbasalt(family: DistroFamily) -> Requirement:
+    """vkBasalt : facultatif, l'équivalent Linux du ReShade que l'installation retire."""
+    manifest = vkbasalt.layer_manifest()
+    if manifest is not None:
+        return Requirement(
+            name="vkBasalt",
+            status=Status.OK,
+            detail=_(
+                "Vulkan layer detected ({manifest}) — off unless you enable it; "
+                "our « ReShade-like » preset is sharpening + colour grading"
+            ).format(manifest=manifest),
+        )
+    return Requirement(
+        name="vkBasalt",
+        status=Status.OPTIONAL,
+        detail=_(
+            "absent — optional: post-processing layer, the Linux answer to the "
+            "ReShade the install removes (incompatible with DXVK)"
+        ),
+        install_hint=INSTALL_COMMANDS["vkbasalt"].for_family(family),
+        key="vkbasalt",
         needed_to_install=False,
     )
 
