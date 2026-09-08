@@ -154,29 +154,35 @@ ce que seul Linux permet, et les modes d'échec qui font abandonner. Découpage 
   champ à champ des raccourcis des autres, `--remove` qui rend le fichier tel
   qu'avant. Vérifié de bout en bout sur la vraie install Steam de la machine le
   2026-09-08 (ajout, non-duplication, retrait à l'octet près).
-- **T20** ✅ **livré (2026-09-08)** — ⚠ **reste à valider sur une vraie partie.**
-  MangoHud, gamescope/FSR et vkBasalt en couches optionnelles, composées autour
-  du lancement par `environment/performance.py` : gamescope à l'extérieur
-  (compositeur), `gamemoderun` au contact d'`umu-run`, les deux couches Vulkan
-  par variables d'environnement — l'ordre et ses raisons sont écrits dans
-  docs/ARCHITECTURE.md, les huit combinaisons sont testées. Les trois sont
-  **éteints par défaut** et apparaissent dans `doctor` comme facultatifs, avec
-  la commande de leur distribution (vkBasalt : AUR sur Arch, il n'y a pas de
-  paquet officiel). vkBasalt est livré avec **notre** préset « ReShade-like »
-  (CAS + LUT générée) : la promesse du README est enfin tenue côté code. Le
-  point dur — la visibilité des couches Vulkan **dans** le conteneur
-  pressure-vessel — a été instruit par lecture des sources amont
-  (manifestes `enable_environment`, import des couches par pressure-vessel,
-  partage du dossier personnel, `PRESSURE_VESSEL_FILESYSTEMS_RO`) et **pas**
-  par un lancement : l'environnement de ce lot n'avait ni GPU ni installation
-  GAMMA. La procédure de vérification en quatre gestes et le repli
-  (`VK_ADD_LAYER_PATH`) sont écrits dans docs/ARCHITECTURE.md ; **la capture
-  d'overlay et la mesure avant/après de FSR restent à faire sur la machine
-  cible**. Trouvaille de lecture, à confirmer au premier lancement : umu vide
-  `LD_PRELOAD` dès que `XDG_CURRENT_DESKTOP=gamescope` — ce que gamescope pose
-  lui-même pour ses enfants — sans conséquence sur GameMode (déjà chargé dans
-  `umu-run`), mais de nature à faire disparaître le bruit
-  `gamemodeauto: dlopen failed` du journal.
+- **T20** ✅ **livré (2026-09-08)** — couche Vulkan **mesurée dans le conteneur**
+  le même jour ; reste la capture en jeu et gamescope/vkBasalt (paquets absents
+  de la machine de dev). MangoHud, gamescope/FSR et vkBasalt en couches
+  optionnelles, composées autour du lancement par `environment/performance.py` :
+  gamescope à l'extérieur (compositeur), `gamemoderun` au contact d'`umu-run`,
+  les deux couches Vulkan par variables d'environnement — l'ordre et ses raisons
+  sont écrits dans docs/ARCHITECTURE.md, les huit combinaisons sont testées. Les
+  trois sont **éteints par défaut** et apparaissent dans `doctor` comme
+  facultatifs, avec la commande de leur distribution (vkBasalt : AUR sur Arch,
+  il n'y a pas de paquet officiel). vkBasalt est livré avec **notre** préset
+  « ReShade-like » (CAS + LUT générée) : la promesse du README est enfin tenue
+  côté code. Le point dur — la visibilité des couches Vulkan **dans** le
+  conteneur pressure-vessel — avait été instruit par lecture des sources faute
+  de GPU dans l'environnement du lot ; il a depuis été **relevé sur la machine
+  de dev** (Fedora 44, RX 7900 GRE, umu 1.4.1, GE-Proton11-6 → steamrt4) :
+  pressure-vessel importe les deux ABI du manifeste MangoHud dans
+  `overrides/share/vulkan/implicit_layer.d/` (seul dossier de couches du
+  conteneur, désigné par `VK_IMPLICIT_LAYER_PATH`), le loader charge bien
+  `/run/host/usr/lib64/mangohud/libMangoHud.so` sur `MANGOHUD=1`, et notre
+  fichier de configuration sous `~/.config/stalker-gamma-linux/` est lu depuis
+  le conteneur — journal CSV à l'appui, en-tête `os = Steam Runtime 4`. Le repli
+  `VK_ADD_LAYER_PATH` n'est donc **pas** nécessaire ici. **Restent à faire** : la
+  capture de l'overlay en jeu (DXVK par-dessus la chaîne prouvée), et la mesure
+  avant/après de FSR ainsi que l'effet du préset vkBasalt, qui demandent
+  d'installer `gamescope` et `vkBasalt` (les deux ABI). Trouvaille de lecture,
+  toujours à confirmer : umu vide `LD_PRELOAD` dès que
+  `XDG_CURRENT_DESKTOP=gamescope` — ce que gamescope pose lui-même pour ses
+  enfants — sans conséquence sur GameMode (déjà chargé dans `umu-run`), mais de
+  nature à faire disparaître le bruit `gamemodeauto: dlopen failed` du journal.
 - **T21** 🟡 Cache de shaders hors préfixe. `install --only prefix` est notre
   remède officiel au « prefix has an invalid version » — et il fait
   silencieusement perdre des heures de compilation. Les caches DXVK/pilote

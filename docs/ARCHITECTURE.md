@@ -369,11 +369,67 @@ amont, le 2026-09-08) :
   la bibliothèque importée à côté. Le mode d'échec de `libgamemode.so` n'a donc
   pas d'équivalent structurel ici.
 
-**Ce qui n'a pas pu être mesuré ici, et comment le mesurer.** L'environnement de
-développement de ce lot n'a ni GPU, ni umu, ni installation GAMMA : aucun
-lancement réel n'a eu lieu, et donc **ni capture d'overlay, ni mesure avant/après
-de gamescope + FSR**. Ce qui précède est une lecture de sources, pas un relevé.
-La vérification tient en quatre gestes, à faire une fois sur la machine cible :
+**Ce qui a été mesuré, et sur quoi** (2026-09-08, machine de dev : Fedora 44
+KDE/Wayland, Ryzen 7 5700X3D, Radeon RX 7900 GRE (RADV NAVI31), umu 1.4.1,
+GE-Proton11-6 → runtime **steamrt4**). Le raisonnement ci-dessus est confirmé de
+bout en bout ; le relevé, dans l'ordre où il a été fait :
+
+1. **pressure-vessel importe bien les couches de l'hôte.** Dans le conteneur,
+   `/usr/lib/pressure-vessel/overrides/share/vulkan/implicit_layer.d/` contient
+   les manifestes réécrits et renumérotés, **un par ABI** —
+   `4-i386-linux-gnu.json` (`VK_LAYER_MANGOHUD_overlay_x86`) et
+   `5-x86_64-linux-gnu.json` (`VK_LAYER_MANGOHUD_overlay_x86_64`) — dont le
+   `library_path` pointe sur `/run/host/usr/lib/mangohud/libMangoHud.so` et
+   `/run/host/usr/lib64/mangohud/libMangoHud.so`, tous deux lisibles depuis le
+   conteneur. L'`enable_environment` (`MANGOHUD=1`) est préservé à l'import.
+2. **C'est le seul dossier de couches du conteneur.** Il est désigné par
+   `VK_IMPLICIT_LAYER_PATH`, que pressure-vessel pose lui-même ; le
+   `/usr/share/vulkan/implicit_layer.d` du conteneur **n'existe pas**,
+   `/etc/vulkan/implicit_layer.d` est vide, et `VK_LAYER_PATH` comme
+   `VK_ADD_LAYER_PATH` sont absentes. Autrement dit, rien de l'hôte n'arrive
+   par accident : ce qui est là a été importé délibérément.
+3. **Le loader charge effectivement la couche.** Avec `MANGOHUD=1` et
+   `VK_LOADER_DEBUG=layer`, à l'intérieur du conteneur :
+
+   ```
+   LAYER: Loading layer library /run/host/usr/lib64/mangohud/libMangoHud.so
+   LAYER: Insert instance layer "VK_LAYER_MANGOHUD_overlay_x86_64"
+   LAYER: This layer was enabled because Env Var MANGOHUD was set to Value 1
+   ```
+
+4. **Et notre fichier de configuration est lu.** `vkcube` lancé dans le
+   conteneur avec `MANGOHUD_CONFIGFILE` pointant sous
+   `~/.config/stalker-gamma-linux/` a produit le journal CSV que cette
+   configuration demandait, dont l'en-tête dit lui-même d'où il sort :
+   `os = Steam Runtime 4`, `gpu = AMD Radeon RX 7900 GRE (RADV NAVI31)`,
+   29 échantillons autour de 165–170 fps. Le dossier personnel est donc bien
+   partagé, et `PRESSURE_VESSEL_FILESYSTEMS_RO` n'a rien eu à rattraper.
+
+**Conséquence : le repli `VK_ADD_LAYER_PATH` n'est pas nécessaire** sur cette
+configuration. On le garde documenté ci-dessous parce qu'il reste la piste si
+quelqu'un rencontre la régression Flatpak citée plus haut, mais le chemin
+nominal est bien « une variable d'environnement, et rien d'autre ».
+
+**Bruit attendu, qu'on ne filtre pas.** MangoHud actif, le journal de lancement
+contient une ligne par intervalle de mesure :
+
+```
+[MANGOHUD] [error] [cpu.cpp:786] Failed to initialize CPU power data
+```
+
+Le conteneur n'expose pas les compteurs RAPL (`/sys/class/powercap`) : la
+colonne `cpu_power` reste à 0, tout le reste est mesuré normalement. Même ligne
+de conduite que pour le bruit d'umu et de wine — on ne l'avale pas.
+
+**Ce qui reste à vérifier sur une vraie partie.** La chaîne a été prouvée avec
+un client Vulkan natif dans le conteneur exact du jeu ; GAMMA y ajoute DXVK et
+wine par-dessus. Restent donc à faire : la capture de l'overlay en jeu, et —
+faute des paquets sur la machine de dev — la mesure avant/après de gamescope +
+FSR (`sudo dnf install gamescope`) et l'effet de notre préset vkBasalt
+(`sudo dnf install vkBasalt vkBasalt.i686`, les deux ABI).
+
+**La vérification en quatre gestes**, si l'overlay ne s'affiche pas chez
+quelqu'un :
 
 1. `stalker-gamma-linux doctor` doit afficher les trois outils en `[OPTIONAL]`
    avec, pour MangoHud et vkBasalt, le **chemin du manifeste** trouvé. Pas de
@@ -386,13 +442,13 @@ La vérification tient en quatre gestes, à faire une fois sur la machine cible 
 3. dans ce cas, le point suivant à regarder est l'**ABI** (paragraphe suivant) ;
 4. si l'ABI est bonne, ajouter `VK_LOADER_DEBUG=layer` à l'environnement du
    lancement : le loader dit alors quels manifestes il a lus, du point de vue du
-   processus du jeu.
+   processus du jeu — c'est exactement le relevé n° 3 ci-dessus, à comparer.
 
-Ce dernier repli reste à documenter s'il sert un jour : si les couches n'étaient
-décidément pas importées, `PRESSURE_VESSEL_FILESYSTEMS_RO` (déjà posée) plus
-`VK_ADD_LAYER_PATH` pointant sur `/usr/share/vulkan/implicit_layer.d` seraient
-la piste — `VK_ADD_LAYER_PATH` *ajoute* aux chemins standard là où
-`VK_LAYER_PATH` les *remplace*, ce qui masquerait les couches du conteneur.
+Si les couches n'étaient décidément pas importées (cas Flatpak),
+`PRESSURE_VESSEL_FILESYSTEMS_RO` (déjà posée) plus `VK_ADD_LAYER_PATH` pointant
+sur `/usr/share/vulkan/implicit_layer.d` seraient la piste —
+`VK_ADD_LAYER_PATH` *ajoute* aux chemins standard là où `VK_LAYER_PATH` les
+*remplace*, ce qui masquerait les couches du conteneur.
 
 #### La bonne ABI, sinon rien
 
