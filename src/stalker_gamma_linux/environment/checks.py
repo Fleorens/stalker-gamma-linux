@@ -8,7 +8,6 @@ from pathlib import Path
 from stalker_gamma_linux import sizing
 from stalker_gamma_linux.environment import (
     gamemode,
-    gamescope,
     mangohud,
     system,
     vkbasalt,
@@ -228,31 +227,6 @@ def check_mangohud(family: DistroFamily) -> Requirement:
         ),
         install_hint=INSTALL_COMMANDS["mangohud"].for_family(family),
         key="mangohud",
-        needed_to_install=False,
-    )
-
-
-def check_gamescope(family: DistroFamily) -> Requirement:
-    """gamescope : facultatif, c'est le levier de performances propre à Linux."""
-    if gamescope.is_available():
-        options = gamescope.default_options()
-        return Requirement(
-            name="gamescope",
-            status=Status.OK,
-            detail=_(
-                "detected — off unless you enable it; suggested defaults here: "
-                "render {render}, output {output} with FSR"
-            ).format(render=options.render, output=options.output),
-        )
-    return Requirement(
-        name="gamescope",
-        status=Status.OPTIONAL,
-        detail=_(
-            "absent — optional: renders the game at a lower resolution and scales it "
-            "up with FSR, the one lever Windows doesn't have (decisive on a Steam Deck)"
-        ),
-        install_hint=INSTALL_COMMANDS["gamescope"].for_family(family),
-        key="gamescope",
         needed_to_install=False,
     )
 

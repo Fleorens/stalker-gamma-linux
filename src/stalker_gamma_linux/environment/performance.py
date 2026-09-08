@@ -1,27 +1,36 @@
 """Composition des couches de performance autour du lancement du jeu.
 
-Quatre outils, quatre modules, **une** fonction qui les emboîte :
-`environment.gamemode` (gouverneur CPU), `environment.gamescope`
-(compositeur), `environment.mangohud` et `environment.vkbasalt` (couches
-Vulkan). Ce module ne connaît d'eux que leur signature ; il décide de l'ordre.
+Trois outils, trois modules, **une** fonction qui les emboîte :
+`environment.gamemode` (gouverneur CPU), `environment.mangohud` et
+`environment.vkbasalt` (couches Vulkan). Ce module ne connaît d'eux que leur
+signature ; il décide de l'ordre.
 
 **L'ordre n'est pas libre.**
 
-    gamescope … -- gamemoderun umu-run <exe> …
-    ^ compositeur    ^ LD_PRELOAD      ^ conteneur steamrt → wine → le jeu
+    gamemoderun umu-run <exe> …
+    ^ LD_PRELOAD  ^ conteneur steamrt → wine → le jeu
       + MANGOHUD=1, ENABLE_VKBASALT=1 dans l'environnement
 
-1. **gamescope tout à l'extérieur** : c'est lui qui possède la fenêtre et qui
-   compose ce que les autres produisent. À l'intérieur, il n'aurait rien à
-   composer.
-2. **gamemoderun juste dedans**, inchangé : il pose `libgamemodeauto.so.0` en
+1. **gamemoderun au contact d'`umu-run`** : il pose `libgamemodeauto.so.0` en
    `LD_PRELOAD` et exec la suite, donc il doit rester *au contact* du processus
    dont il veut la descendance (cf. `environment.gamemode`).
-3. **MangoHud et vkBasalt nulle part dans la commande** : ce sont des couches
+2. **MangoHud et vkBasalt nulle part dans la commande** : ce sont des couches
    Vulkan implicites, activées par une variable d'environnement que leur
    manifeste déclare (`MANGOHUD=1`, `ENABLE_VKBASALT=1`). Passer par leurs
    scripts d'enveloppe ajouterait un `LD_PRELOAD` de plus à une pile qui en
    compte déjà trop, pour un jeu qui est en Vulkan de bout en bout (DXVK).
+
+**Pourquoi il n'y a plus de gamescope ici.** Le lot en proposait un quatrième,
+retiré le 2026-09-08 après l'avoir vu tuer une vraie partie : imbriqué sous
+KWin, gamescope meurt sur une erreur de protocole Wayland
+(`xdg_surface` erreur 3, `unconfigured_buffer`) et son *reaper* emporte tout ce
+qui tourne dessous — Xwayland, MO2, le jeu. Le compositeur lui-même fonctionne
+sur cette machine (mesuré à part, 165 Hz, mêmes options) : c'est l'imbrication
+sous une session Wayland de bureau qui casse, un problème connu en amont. Sur
+Steam Deck, où gamescope *est* la session, le cas ne se pose pas — mais nous
+n'avons pas de Deck pour le vérifier, et livrer un interrupteur qui tue la
+partie sur la seule machine testable est pire que de ne pas l'offrir. La
+décision et son relevé sont dans docs/ARCHITECTURE.md.
 
 **Chaque couche est une fonction, pas un `if` de plus.** `wrap(command) ->
 list[str]` pour ce qui enveloppe, `environment(path) -> dict[str, str]` pour ce
@@ -47,14 +56,12 @@ from pathlib import Path
 from typing import NamedTuple
 
 from stalker_gamma_linux import state
-from stalker_gamma_linux.environment import gamemode, gamescope, mangohud, vkbasalt
+from stalker_gamma_linux.environment import gamemode, mangohud, vkbasalt
 
-# Alias de *types* : dans le corps de `Settings`, les champs `mangohud` et
-# `gamescope` masquent les modules du même nom — annoter `mangohud.Preset`
-# y désignerait alors un `bool`. Les fonctions de module, elles, gardent
-# l'accès normal aux modules.
+# Alias de *type* : dans le corps de `Settings`, le champ `mangohud` masque le
+# module du même nom — annoter `mangohud.Preset` y désignerait alors un `bool`.
+# Les fonctions de module, elles, gardent l'accès normal au module.
 MangoHudPreset = mangohud.Preset
-GamescopeOptions = gamescope.Options
 
 # Liste (façon PATH) des chemins que pressure-vessel doit rendre visibles en
 # lecture seule dans le conteneur steamrt. Nos fichiers de configuration vivent
@@ -75,18 +82,7 @@ class Settings:
     gamemode: bool = True
     mangohud: bool = False
     mangohud_preset: MangoHudPreset = MangoHudPreset.LIGHT
-    gamescope: bool = False
-    gamescope_options: GamescopeOptions = GamescopeOptions()
     vkbasalt: bool = False
-
-    @classmethod
-    def for_machine(cls) -> Settings:
-        """Défauts adaptés à la machine : résolutions de l'écran du Deck, le cas échéant.
-
-        Distinct du constructeur, qui reste pur : la détection matérielle n'a
-        rien à faire dans une valeur par défaut de dataclass.
-        """
-        return cls(gamescope_options=gamescope.default_options())
 
     def with_gamemode(self, enabled: bool) -> Settings:
         return replace(self, gamemode=enabled)
@@ -97,19 +93,13 @@ class Settings:
     def with_mangohud_preset(self, preset: MangoHudPreset) -> Settings:
         return replace(self, mangohud_preset=preset)
 
-    def with_gamescope(self, enabled: bool) -> Settings:
-        return replace(self, gamescope=enabled)
-
-    def with_gamescope_options(self, options: GamescopeOptions) -> Settings:
-        return replace(self, gamescope_options=options)
-
     def with_vkbasalt(self, enabled: bool) -> Settings:
         return replace(self, vkbasalt=enabled)
 
     @property
     def any_layer_requested(self) -> bool:
         """Vrai dès qu'une couche de rendu est demandée (GameMode ne compte pas)."""
-        return self.mangohud or self.gamescope or self.vkbasalt
+        return self.mangohud or self.vkbasalt
 
 
 class ConfigPaths(NamedTuple):
@@ -159,8 +149,6 @@ def compose(
     layered = list(command)
     if settings.gamemode:
         layered = gamemode.wrap(layered)
-    if settings.gamescope:
-        layered = gamescope.wrap(layered, settings.gamescope_options)
 
     paths = config_paths(directory)
     variables: dict[str, str] = dict(environment)
@@ -224,37 +212,26 @@ def prepare(
 
 
 def as_mapping(settings: Settings) -> dict[str, object]:
-    options = settings.gamescope_options
     return {
         "gamemode": settings.gamemode,
         "mangohud": settings.mangohud,
         "mangohud_preset": str(settings.mangohud_preset),
-        "gamescope": settings.gamescope,
-        "gamescope_render": str(options.render),
-        "gamescope_output": str(options.output),
-        "gamescope_fsr": options.fsr,
-        "gamescope_sharpness": options.sharpness,
-        "gamescope_fullscreen": options.fullscreen,
         "vkbasalt": settings.vkbasalt,
     }
 
 
 def from_mapping(data: Mapping[str, object], default: Settings | None = None) -> Settings:
-    """Réglages relus depuis un dictionnaire, champ manquant ou invalide = défaut."""
+    """Réglages relus depuis un dictionnaire, champ manquant ou invalide = défaut.
+
+    Les clés `gamescope_*` d'un fichier écrit par une version antérieure sont
+    simplement ignorées : la couche a été retirée (cf. docstring du module), et
+    un `Settings` n'a plus de champ où les ranger.
+    """
     base = default if default is not None else Settings()
-    options = base.gamescope_options
     return Settings(
         gamemode=_flag(data, "gamemode", base.gamemode),
         mangohud=_flag(data, "mangohud", base.mangohud),
         mangohud_preset=_preset(data.get("mangohud_preset"), base.mangohud_preset),
-        gamescope=_flag(data, "gamescope", base.gamescope),
-        gamescope_options=gamescope.Options(
-            render=_resolution(data.get("gamescope_render"), options.render),
-            output=_resolution(data.get("gamescope_output"), options.output),
-            fsr=_flag(data, "gamescope_fsr", options.fsr),
-            sharpness=_sharpness(data.get("gamescope_sharpness"), options.sharpness),
-            fullscreen=_flag(data, "gamescope_fullscreen", options.fullscreen),
-        ),
         vkbasalt=_flag(data, "vkbasalt", base.vkbasalt),
     )
 
@@ -269,16 +246,3 @@ def _preset(value: object, default: mangohud.Preset) -> mangohud.Preset:
         return mangohud.Preset(str(value))
     except ValueError:
         return default
-
-
-def _resolution(value: object, default: gamescope.Resolution) -> gamescope.Resolution:
-    try:
-        return gamescope.parse_resolution(str(value))
-    except ValueError:
-        return default
-
-
-def _sharpness(value: object, default: int) -> int:
-    if not isinstance(value, int) or isinstance(value, bool):
-        return default
-    return gamescope.clamp_sharpness(value)

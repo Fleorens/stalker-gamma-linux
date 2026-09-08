@@ -133,22 +133,23 @@ launcher would need in a container.
   a polkit rule, and fails silently otherwise — `doctor` detects that and gives
   you the one-time `usermod` command (effective on the next launch: polkit reads
   the group from the system database, so no re-login needed).
-- **MangoHud, gamescope/FSR and vkBasalt** are optional as well, and — unlike
-  GameMode — **stay off until you ask for them**: they change how the game
-  renders, and « nothing enabled » has to be something you can say in an issue
-  without checking. `doctor` lists all three with the install command for your
-  distro; the GUI's Preferences and `play` flags turn them on:
-  `play --gamescope --gamescope-render 1024x640 --gamescope-output 1280x800`
-  renders low and scales up with FSR (the lever Windows does not have — the one
-  that makes GAMMA playable on a Steam Deck, where those two resolutions are the
-  defaults), `play --mangohud` shows the FPS/frametime overlay
+- **MangoHud and vkBasalt** are optional as well, and — unlike GameMode —
+  **stay off until you ask for them**: they change how the game renders, and
+  « nothing enabled » has to be something you can say in an issue without
+  checking. `doctor` lists both with the install command for your distro (and
+  tells you when only the wrong ABI of the layer is installed — a failure that
+  is otherwise completely silent); the GUI's Preferences and `play` flags turn
+  them on. `play --mangohud` shows the FPS/frametime overlay
   (`--mangohud-preset full` adds CPU/GPU/VRAM and temperatures), and
   `play --vkbasalt` enables **our « ReShade-like » preset** — CAS sharpening
   plus a bit of colour grading, shipped as a LUT we generate. That last one is
   the concrete answer to the ReShade this installer removes (it is incompatible
-  with DXVK). None of them touches your global `MangoHud.conf` or
-  `vkBasalt.conf`: we write our own files under
-  `~/.config/stalker-gamma-linux/`.
+  with DXVK). Neither touches your global `MangoHud.conf` or `vkBasalt.conf`:
+  we write our own files under `~/.config/stalker-gamma-linux/`.
+  A gamescope/FSR layer was shipped alongside them and **removed on
+  2026-09-08**: nested under a desktop Wayland session it dies on a Wayland
+  protocol error and takes the running game down with it. The measurement and
+  the conditions for bringing it back are in docs/ARCHITECTURE.md.
 
 Once installed (or with the venv activated), the CLI is `stalker-gamma-linux`:
 
@@ -158,7 +159,7 @@ stalker-gamma-linux install                      # anomaly → GAMMA → prefix 
 stalker-gamma-linux install --target /mnt/disk --shortcut   # custom disk, + desktop entry
 stalker-gamma-linux import /path/to/existing     # adopt an install already on disk — no re-download
 stalker-gamma-linux play                         # launch Anomaly through MO2 (USVFS, mods active, GameMode if installed)
-stalker-gamma-linux play --gamescope --mangohud  # + FSR upscaling and the FPS overlay (both off unless asked)
+stalker-gamma-linux play --mangohud --vkbasalt   # + FPS overlay and our ReShade-like preset (both off unless asked)
 stalker-gamma-linux mo2                          # open Mod Organizer 2 itself (enable/disable mods)
 stalker-gamma-linux postmortem                   # after closing the game: how the last session ended, and which mods to suspect
 stalker-gamma-linux update                       # update the modpack, re-verify, keep your mod list

@@ -159,13 +159,6 @@ INSTALL_COMMANDS: Mapping[str, InstallCommand] = {
             "`sudo dpkg --add-architecture i386`)"
         ),
     ),
-    "gamescope": InstallCommand(
-        packages={
-            DistroFamily.FEDORA: ("gamescope",),
-            DistroFamily.ARCH: ("gamescope",),
-            DistroFamily.DEBIAN: ("gamescope",),
-        },
-    ),
     "vkbasalt": InstallCommand(
         # ⚠ Fedora empaquette sous le nom amont, avec sa majuscule : `vkBasalt`,
         # pas `vkbasalt`. Arch ne l'empaquette **pas** officiellement (ni extra

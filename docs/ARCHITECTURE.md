@@ -287,9 +287,9 @@ amont bavard, pas un échec.
 On ne filtre pas ces lignes de notre sortie : masquer ce que crachent umu et
 wine reviendrait à masquer aussi les vrais problèmes le jour où il y en aura.
 
-### Couches de performance : gamescope/FSR, MangoHud, vkBasalt (T20)
+### Couches de performance : MangoHud, vkBasalt (T20)
 
-Trois outils que Windows n'a pas, branchés sur le **même point d'entrée que
+Deux outils que Windows n'a pas, branchés sur le **même point d'entrée que
 GameMode** (`environment/performance.py`, appelé par `process.run_detached`) et
 donc soumis à la même frontière : `launch_game` et `launch_flat` uniquement,
 jamais `launch_mo2` ni les étapes d'installation.
@@ -302,36 +302,77 @@ priorités système — il reste actif par défaut, comme depuis T02.
 #### L'ordre d'emboîtement, et pourquoi il n'est pas libre
 
 ```
-gamescope -W 1280 -H 800 -w 1024 -h 640 -F fsr --sharpness 2 -f -- \
-    gamemoderun umu-run ModOrganizer.exe 'moshortcut://:Anomaly (DX11)'
+gamemoderun umu-run ModOrganizer.exe 'moshortcut://:Anomaly (DX11)'
     + MANGOHUD=1 MANGOHUD_CONFIGFILE=… ENABLE_VKBASALT=1 VKBASALT_CONFIG_FILE=…
 ```
 
-1. **gamescope tout à l'extérieur.** C'est un compositeur : il crée la fenêtre
-   (ou prend l'écran) et compose ce que produisent ses enfants — il doit donc
-   être un *ancêtre* du jeu, jamais l'inverse. Reste le choix entre
-   `gamescope -- gamemoderun umu-run` et `gamemoderun gamescope -- umu-run`,
-   qui fonctionneraient tous les deux : on prend le premier parce que c'est
-   l'ordre qu'emploient l'option de lancement Steam et le mode Gaming du Deck,
-   et parce que le second injecterait `libgamemodeauto.so.0` jusque dans le
-   compositeur, qui n'a rien à demander au daemon.
-2. **`gamemoderun` juste dedans, inchangé.** Il ajoute `libgamemodeauto.so.0`
+1. **`gamemoderun` au contact d'`umu-run`.** Il ajoute `libgamemodeauto.so.0`
    au `LD_PRELOAD` puis exec la suite : il doit rester au contact du processus
-   qui tient la session de jeu (`umu-run`), pas du compositeur.
-3. **MangoHud et vkBasalt nulle part dans la commande.** Ce sont des couches
-   Vulkan *implicites* : leur manifeste déclare `enable_environment`
-   (`MANGOHUD=1`, `ENABLE_VKBASALT=1`), et c'est le loader Vulkan du processus
-   qui les charge. Les paquets livrent aussi des scripts d'enveloppe
-   (`mangohud …`), qui ajoutent un `LD_PRELOAD` pour couvrir OpenGL : inutile
-   ici (le jeu est en Vulkan de bout en bout via DXVK) et coûteux dans une pile
-   qui empile déjà gamemoderun → umu → pressure-vessel → wine.
+   qui tient la session de jeu.
+2. **MangoHud et vkBasalt nulle part dans la commande.** Ce sont des couches
+   Vulkan implicites : leur manifeste déclare `enable_environment`, donc une
+   variable suffit. Leurs scripts d'enveloppe ajouteraient un `LD_PRELOAD` de
+   plus à une pile qui en compte déjà quatre, pour un jeu qui est en Vulkan de
+   bout en bout (DXVK).
 
-Chaque couche est une fonction de même forme que `gamemode.wrap()` —
-`Sequence[str] -> list[str]` pour ce qui enveloppe, `-> dict[str, str]` pour ce
-qui s'active par variable — et `performance.compose()` les emboîte. Rien n'est
-muté : ni la commande d'origine, ni `os.environ` (l'environnement du lancement
-est **construit**, pas modifié). Les huit combinaisons d'activation sont
-testées.
+#### gamescope : proposé, puis retiré (2026-09-08)
+
+Le lot livrait un troisième outil, **gamescope + FSR**, à l'extérieur de tout
+(c'est un compositeur). Il a été retiré le jour même de sa première partie
+réelle, et la raison mérite d'être écrite parce qu'elle reviendra sur la table.
+
+**Ce qui s'est passé.** Partie lancée avec `--gamescope -F fsr` sur la machine
+de dev (Fedora 44, KDE Plasma 6 / KWin 6.7.4 sur Wayland). gamescope démarre,
+sélectionne le GPU, initialise son backend… puis :
+
+```
+xdg_backend: Failed to dispatch input thread queue:
+             protocol error 3 on xdg_surface@60
+gamescopereaper: Parent of gamescopereaper was killed. Killing children.
+```
+
+`xdg_surface` erreur 3 = `unconfigured_buffer` : gamescope a attaché un buffer
+à sa surface avant que le compositeur hôte ne l'ait configurée. KWin applique le
+protocole et tue le client. gamescope meurt, son *reaper* tue toute sa
+descendance — Xwayland, MO2, le jeu. **La partie est perdue, sans avertissement.**
+
+**Ce que ce n'est pas.** Ni notre composition ni nos options : rejouées à
+l'identique (`-W 1920 -H 1080 -F fsr --sharpness 2 -f`) avec un client Vulkan
+passant par Xwayland, elles fonctionnent — swapchain créée, 165 Hz, sortie
+propre —, y compris avec `MANGOHUD=1` et `ENABLE_VKBASALT=1`. Le plantage n'a
+pas été reproduit à la demande : il survient dans le **thread d'entrées** de
+gamescope, donc vraisemblablement sur une interaction ou un changement de
+fenêtre, ce qu'un client de test ne fait pas.
+
+**Pourquoi on retire plutôt que documenter.** C'est une classe de bug connue en
+amont (gamescope imbriqué sous une session Wayland ;
+[gamescope#1520](https://github.com/ValveSoftware/gamescope/issues/1520) décrit
+des jeux Proton qui font planter gamescope). Elle ne se pose pas sur Steam Deck,
+où gamescope *est* la session et non un client imbriqué — c'est-à-dire
+exactement le cas où FSR sert vraiment. Mais nous n'avons pas de Deck pour le
+vérifier, et un interrupteur qui tue la partie sur la seule machine testable est
+pire que pas d'interrupteur du tout. La décision est de l'utilisateur du projet,
+prise en connaissance de ce compromis.
+
+**Ce qu'il faudrait pour le réintroduire** : un Deck (ou une session gamescope
+native) pour vérifier le cas nominal, et un garde-fou côté lancement qui refuse
+gamescope imbriqué sous une session Wayland de bureau plutôt que de laisser le
+joueur perdre sa partie.
+
+**Un défaut relevé au passage, et qui disparaît avec gamescope.** Dans le
+journal de cette partie, avant même le démarrage du jeu :
+
+```
+[MANGOHUD] process 'gamescope' is blacklisted in MangoHud
+vkBasalt info:  config file: ~/.config/stalker-gamma-linux/vkBasalt.conf
+```
+
+MangoHud reconnaît gamescope et se retire de lui-même ; vkBasalt n'a pas de
+liste noire et se chargeait donc **dans le compositeur** en plus du jeu — nos
+effets appliqués deux fois. Cause : `compose()` construit un seul environnement
+pour tout l'arbre de processus. Si gamescope revient un jour, les variables des
+couches Vulkan devront porter sur la commande *interne*
+(`gamescope … -- env MANGOHUD=1 … gamemoderun umu-run …`), pas sur l'ensemble.
 
 #### Le vrai risque : ces couches sont-elles visibles dans le conteneur ?
 
@@ -449,9 +490,6 @@ Aucune erreur : la LUT que nous générons est trouvée et lue depuis le contene
 `process 'explorer.exe' is blacklisted`, qui est le comportement voulu (pas
 d'overlay sur le shell de wine, seulement sur le jeu).
 
-**Reste non mesuré** : la comparaison avant/après de gamescope + FSR. Elle
-demande une partie lancée sous gamescope, ce qui n'a pas encore été fait.
-
 **La vérification en quatre gestes**, si l'overlay ne s'affiche pas chez
 quelqu'un :
 
@@ -521,32 +559,6 @@ Le verdict `MISSING` reste en `OPTIONAL` et pas en `MISSING` côté `Requirement
 ces couches sont cosmétiques, et faire sortir `doctor` en erreur pour un overlay
 absent serait disproportionné. C'est le détail affiché qui porte la nuance.
 
-#### Le piège trouvé en lisant umu : `LD_PRELOAD` vidé sous gamescope
-
-`umu_run.check_env()` fait, avant toute chose :
-
-```python
-if os.environ.get("LD_PRELOAD") and is_gamescope_session:
-    os.environ["LD_PRELOAD"] = ""
-```
-
-où `is_gamescope_session` est vrai dès que `XDG_CURRENT_DESKTOP` ou
-`XDG_SESSION_DESKTOP` vaut `gamescope` (umu, PR #497 et #579). Or gamescope
-pose lui-même `setenv("XDG_CURRENT_DESKTOP", "gamescope", 1)` pour ses enfants
-(`src/main.cpp`) : **notre propre `gamescope --` suffit donc à déclencher ce
-nettoyage**, en plus du mode Gaming du Deck où la session le pose déjà.
-
-Conséquence, et pourquoi ça ne remet pas l'ordre d'emboîtement en cause : le
-`LD_PRELOAD` a déjà fait son travail au moment où umu le vide. `gamemoderun`
-exec `umu-run` **avec** la variable, l'éditeur de liens charge
-`libgamemodeauto.so.0` dans le processus `umu-run`, et c'est son constructeur
-qui réclame le mode au daemon — pour toute la durée du processus, comme
-documenté plus haut. Ce que le nettoyage empêche, c'est la *propagation* du
-préchargement aux processus du conteneur, c'est-à-dire précisément les
-`gamemodeauto: dlopen failed` qui polluent le journal. GameMode reste donc
-actif, et le journal devient plus propre — pas l'inverse. À vérifier en réel au
-premier lancement `--gamescope` (le journal le dira tout seul).
-
 #### vkBasalt : le préset que le README promettait
 
 Le pipeline retire ReShade à chaque install et à chaque update, et le README
@@ -572,8 +584,7 @@ date du **4 octobre 2023**, la dernière release (`v0.3.2.10`) du 3 juillet 2023
 et son contenu était « fixed build with GCC 12 ». 80 issues ouvertes, personne
 pour les fermer. Côté Fedora, tout le changelog depuis 2024 n'est que des
 *mass rebuilds* — aucune montée de version en trois ans. À comparer aux deux
-autres couches du lot : gamescope est à 3.16.28 (août 2026, maintenu par Valve
-et empaqueté par Red Hat), MangoHud à 0.8.3~rc1 (janvier 2026).
+autre couche du lot : MangoHud est à 0.8.3~rc1 (janvier 2026).
 
 On le garde pour trois raisons, dans cet ordre :
 

@@ -216,7 +216,7 @@ def run_detached(
        sessions sans grossir sans limite.
 
     `performance` (réservé aux lancements de *jeu*) fait passer la commande et
-    son environnement par `environment.performance` : GameMode, gamescope,
+    son environnement par `environment.performance` : GameMode,
     MangoHud, vkBasalt. `None` = aucune couche, pas même GameMode — c'est le
     défaut, et c'est ce que reçoivent les étapes d'installation.
 

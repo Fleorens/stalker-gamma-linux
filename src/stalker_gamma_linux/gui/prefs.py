@@ -52,7 +52,7 @@ class Preferences:
     # est installé, il n'y a aucune raison de s'en priver, et quand il ne l'est
     # pas c'est un no-op (cf. `environment.gamemode`) — l'interrupteur n'existe
     # que comme échappatoire (diagnostic d'un problème de perfs, machine où le
-    # daemon fait des siennes). MangoHud, gamescope et vkBasalt, eux, changent
+    # daemon fait des siennes). MangoHud et vkBasalt, eux, changent
     # le rendu : ils restent éteints tant que l'utilisateur ne les demande pas.
     performance: PerformanceSettings = field(default_factory=PerformanceSettings)
 
@@ -77,13 +77,13 @@ def prefs_file() -> Path:
 
 
 def default_preferences() -> Preferences:
-    """Défauts d'une machine neuve — dont les résolutions de l'écran du Deck, s'il y a lieu.
+    """Défauts d'une machine neuve.
 
-    Distinct de `Preferences()`, qui reste un objet pur (aucune lecture de la
-    machine) : c'est ce que voit un utilisateur au tout premier lancement, et
-    proposer 1920×1080 sur un écran 1280×800 serait un mauvais point de départ.
+    Depuis le retrait de gamescope, plus rien ici ne dépend du matériel : la
+    fonction reste comme point d'entrée unique du « premier lancement », et
+    parce que `load_preferences` s'y replie dans ses deux cas d'échec.
     """
-    return Preferences(performance=performance.Settings.for_machine())
+    return Preferences()
 
 
 def load_preferences() -> Preferences:
@@ -129,7 +129,7 @@ def _performance_or_default(data: Mapping[str, object]) -> performance.Settings:
     GameMode chez quelqu'un qui l'avait justement coupé, mais on ne l'écrit
     plus — la table `[performance]` est désormais la seule source de vérité.
     """
-    machine = performance.Settings.for_machine()
+    machine = performance.Settings()
     legacy = data.get("use_gamemode")
     base = machine.with_gamemode(legacy) if isinstance(legacy, bool) else machine
     section = data.get("performance")

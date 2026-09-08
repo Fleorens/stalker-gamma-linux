@@ -12,7 +12,6 @@ from stalker_gamma_linux.adopt import run_import
 from stalker_gamma_linux.backups import ALL_SETS, BackupSet, run_backup, run_restore
 from stalker_gamma_linux.desktop import run_shortcut
 from stalker_gamma_linux.doctor import run_doctor
-from stalker_gamma_linux.environment import gamescope
 from stalker_gamma_linux.environment.mangohud import Preset
 from stalker_gamma_linux.environment.performance import Settings
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE
@@ -35,35 +34,17 @@ _logger = logging.getLogger(logging_setup.LOGGER_NAME)
 _TARGET_HELP = _("Target install directory (default: ~/Games/stalker-gamma)")
 
 
-def _resolution(text: str) -> gamescope.Resolution:
-    """Type argparse : « 1280x800 ». Reformule l'erreur pour que l'aide soit lisible."""
-    try:
-        return gamescope.parse_resolution(text)
-    except ValueError as error:
-        raise argparse.ArgumentTypeError(str(error)) from error
-
-
 def _performance_settings(args: argparse.Namespace) -> Settings:
-    """Couches demandées en ligne de commande, sur les défauts de la machine.
+    """Couches demandées en ligne de commande.
 
     Les préférences de la GUI ne sont volontairement **pas** relues ici : la
     CLI est autonome et explicite (`gui.prefs` documente cette frontière), donc
     un lancement en ligne de commande ne fait que ce que la ligne dit.
     """
-    base = Settings.for_machine()
-    options = base.gamescope_options
-    if args.gamescope_render is not None:
-        options = options.with_render(args.gamescope_render)
-    if args.gamescope_output is not None:
-        options = options.with_output(args.gamescope_output)
-    if args.fsr_sharpness is not None:
-        options = options.with_sharpness(gamescope.clamp_sharpness(args.fsr_sharpness))
     return Settings(
         gamemode=not args.no_gamemode,
         mangohud=args.mangohud,
         mangohud_preset=Preset(args.mangohud_preset),
-        gamescope=args.gamescope,
-        gamescope_options=options.with_fsr(not args.no_fsr).with_fullscreen(not args.windowed),
         vkbasalt=args.vkbasalt,
     )
 
@@ -270,42 +251,6 @@ def build_parser() -> argparse.ArgumentParser:
         choices=tuple(preset.value for preset in Preset),
         default=Preset.LIGHT.value,
         help=_("MangoHud preset: « light » = FPS + frametime, « full » = CPU/GPU/VRAM/temps"),
-    )
-    play_parser.add_argument(
-        "--gamescope",
-        action="store_true",
-        help=_("Runs the game inside gamescope: renders at one resolution, scales to another"),
-    )
-    play_parser.add_argument(
-        "--gamescope-render",
-        type=_resolution,
-        metavar="WxH",
-        default=None,
-        help=_("Render resolution inside gamescope (default: 1024x640 on a Steam Deck)"),
-    )
-    play_parser.add_argument(
-        "--gamescope-output",
-        type=_resolution,
-        metavar="WxH",
-        default=None,
-        help=_("Output resolution of the gamescope window (default: the Deck screen, else 1080p)"),
-    )
-    play_parser.add_argument(
-        "--no-fsr",
-        action="store_true",
-        help=_("Scales without FSR inside gamescope (plain linear filtering)"),
-    )
-    play_parser.add_argument(
-        "--fsr-sharpness",
-        type=int,
-        metavar="0-20",
-        default=None,
-        help=_("FSR sharpness, 0 = sharpest, 20 = softest (default: 2)"),
-    )
-    play_parser.add_argument(
-        "--windowed",
-        action="store_true",
-        help=_("Windowed gamescope instead of fullscreen"),
     )
     play_parser.add_argument(
         "--vkbasalt",

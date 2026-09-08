@@ -49,7 +49,6 @@ def build_report(target: Path | None = None) -> EnvironmentReport:
         # sans demande explicite — elles apparaissent ici pour que `doctor` dise
         # ce qui est *disponible*, pas ce qui manque.
         lambda: checks.check_mangohud(family),
-        lambda: checks.check_gamescope(family),
         lambda: checks.check_vkbasalt(family),
     )
     with ThreadPoolExecutor(max_workers=len(checks_to_run)) as executor:

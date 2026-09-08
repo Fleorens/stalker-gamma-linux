@@ -154,46 +154,36 @@ ce que seul Linux permet, et les modes d'échec qui font abandonner. Découpage 
   champ à champ des raccourcis des autres, `--remove` qui rend le fichier tel
   qu'avant. Vérifié de bout en bout sur la vraie install Steam de la machine le
   2026-09-08 (ajout, non-duplication, retrait à l'octet près).
-- **T20** ✅ **livré et vérifié en jeu (2026-09-08)** — seule la mesure
-  avant/après de gamescope + FSR reste à faire. MangoHud, gamescope/FSR et vkBasalt en couches
-  optionnelles, composées autour du lancement par `environment/performance.py` :
-  gamescope à l'extérieur (compositeur), `gamemoderun` au contact d'`umu-run`,
-  les deux couches Vulkan par variables d'environnement — l'ordre et ses raisons
-  sont écrits dans docs/ARCHITECTURE.md, les huit combinaisons sont testées. Les
-  trois sont **éteints par défaut** et apparaissent dans `doctor` comme
-  facultatifs, avec la commande de leur distribution (vkBasalt : AUR sur Arch,
-  il n'y a pas de paquet officiel). vkBasalt est livré avec **notre** préset
-  « ReShade-like » (CAS + LUT générée) : la promesse du README est enfin tenue
-  côté code. Le point dur — la visibilité des couches Vulkan **dans** le
-  conteneur pressure-vessel — avait été instruit par lecture des sources faute
-  de GPU dans l'environnement du lot ; il a depuis été **relevé sur la machine
-  de dev** (Fedora 44, RX 7900 GRE, umu 1.4.1, GE-Proton11-6 → steamrt4) :
-  pressure-vessel importe les deux ABI du manifeste MangoHud dans
-  `overrides/share/vulkan/implicit_layer.d/` (seul dossier de couches du
-  conteneur, désigné par `VK_IMPLICIT_LAYER_PATH`), le loader charge bien
-  `/run/host/usr/lib64/mangohud/libMangoHud.so` sur `MANGOHUD=1`, et notre
-  fichier de configuration sous `~/.config/stalker-gamma-linux/` est lu depuis
-  le conteneur — journal CSV à l'appui, en-tête `os = Steam Runtime 4`. Le repli
-  `VK_ADD_LAYER_PATH` n'est donc **pas** nécessaire ici. **Puis confirmé en
-  jeu**, GAMMA lancé : `libMangoHud.so` et `libvkbasalt.so` sont tous deux
-  chargés dans `AnomalyDX11.exe` (ELF 64 bits) depuis `/run/host/usr/lib64/`, et
-  vkBasalt journalise avoir lu notre préset (`effects = cas:lut`, notre LUT) sans
-  une erreur. **Un bug trouvé au passage et corrigé** : `doctor` affichait
-  `[ OK ] vkBasalt` sur la foi du seul manifeste, alors que Fedora livre deux RPM
-  pour un manifeste unique en `/usr/$LIB/` — avec le seul paquet 32 bits, la
-  couche ne se chargeait pas dans le jeu 64 bits, en silence total.
-  `vulkan.layer_abi_support()` lit désormais la classe ELF de la bibliothèque
-  réellement atteignable. **Reste à faire** : la mesure avant/après de FSR, qui
-  demande une partie lancée sous gamescope. Trouvaille de lecture,
-  toujours à confirmer : umu vide `LD_PRELOAD` dès que
-  `XDG_CURRENT_DESKTOP=gamescope` — ce que gamescope pose lui-même pour ses
-  enfants — sans conséquence sur GameMode (déjà chargé dans `umu-run`), mais de
-  nature à faire disparaître le bruit `gamemodeauto: dlopen failed` du journal.
+- **T20** ✅ **livré et vérifié en jeu (2026-09-08)** — deux couches sur trois
+  conservées. MangoHud et vkBasalt sont composés autour du lancement par
+  `environment/performance.py` : `gamemoderun` au contact d'`umu-run`, les deux
+  couches Vulkan par variables d'environnement (leur manifeste déclare
+  `enable_environment`, donc aucun script d'enveloppe). Les deux sont **éteints
+  par défaut** et apparaissent dans `doctor` comme facultatifs, avec la commande
+  de leur distribution (vkBasalt : AUR sur Arch, il n'y a pas de paquet
+  officiel). vkBasalt est livré avec **notre** préset « ReShade-like » (CAS +
+  LUT générée) : la promesse du README est enfin tenue côté code. Le point dur —
+  la visibilité des couches Vulkan **dans** le conteneur pressure-vessel — avait
+  été instruit par lecture des sources faute de GPU dans l'environnement du
+  lot ; il a été **relevé sur la machine de dev**, puis **confirmé en jeu** :
+  `libMangoHud.so` et `libvkbasalt.so` sont tous deux chargés dans
+  `AnomalyDX11.exe` (ELF 64 bits) depuis `/run/host/usr/lib64/`, et vkBasalt
+  journalise avoir lu notre préset sans une erreur. Le repli `VK_ADD_LAYER_PATH`
+  n'est **pas** nécessaire. **Un bug trouvé et corrigé au passage** : `doctor`
+  affichait `[ OK ] vkBasalt` sur la foi du seul manifeste, alors qu'avec la
+  seule bibliothèque 32 bits la couche ne se charge pas dans un jeu 64 bits, en
+  silence total — `vulkan.layer_abi_support()` lit désormais la classe ELF.
+  ⚠ **gamescope/FSR a été retiré** le même jour : imbriqué sous KWin, il meurt
+  sur une erreur de protocole Wayland (`xdg_surface` erreur 3) et son *reaper*
+  emporte la partie. Ce n'était ni notre composition ni nos options (rejouées à
+  l'identique, elles fonctionnent) mais une classe de bug connue en amont, qui
+  ne se pose pas sur Steam Deck — où gamescope *est* la session. Faute de Deck
+  pour vérifier le cas nominal, on ne livre pas un interrupteur qui tue la
+  partie sur la seule machine testable. Conditions d'un retour : docs/ARCHITECTURE.md.
   ⚠ **Dette connue** : l'amont de vkBasalt est mort (dernier commit oct. 2023,
   80 issues ouvertes). On le garde parce qu'il est le seul empaqueté et qu'il
   fonctionne ; le successeur à surveiller est vkShade, à basculer quand il
-  quittera la pre-alpha **et** entrera dans les dépôts (raisonnement complet
-  dans docs/ARCHITECTURE.md).
+  quittera la pre-alpha **et** entrera dans les dépôts.
 - **T21** 🟡 Cache de shaders hors préfixe. `install --only prefix` est notre
   remède officiel au « prefix has an invalid version » — et il fait
   silencieusement perdre des heures de compilation. Les caches DXVK/pilote

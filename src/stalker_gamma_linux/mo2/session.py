@@ -13,7 +13,7 @@ from pathlib import Path
 
 from stalker_gamma_linux.engine.errors import EngineError
 from stalker_gamma_linux.engine.paths import InstallPaths
-from stalker_gamma_linux.environment import gamemode, gamescope, mangohud, system, vkbasalt
+from stalker_gamma_linux.environment import gamemode, mangohud, system, vkbasalt
 from stalker_gamma_linux.environment.commands import INSTALL_COMMANDS
 from stalker_gamma_linux.environment.distro import detect_distro
 from stalker_gamma_linux.environment.performance import Settings
@@ -133,29 +133,11 @@ def performance_notices(settings: Settings) -> list[str]:
     cherche pourquoi son overlay ne s'affiche pas alors que la case est cochée.
     """
     notices = [gamemode_notice(settings.gamemode)]
-    if settings.gamescope:
-        notices.append(_gamescope_notice(settings))
     if settings.mangohud:
         notices.append(_mangohud_notice(settings))
     if settings.vkbasalt:
         notices.append(_vkbasalt_notice())
     return notices
-
-
-def _gamescope_notice(settings: Settings) -> str:
-    if not gamescope.is_available():
-        return _with_install_hint(
-            _("gamescope requested but not installed — launching without it."), "gamescope"
-        )
-    options = settings.gamescope_options
-    if options.fsr:
-        return _(
-            "gamescope: rendering at {render}, scaled to {output} with FSR "
-            "(sharpness {sharpness}/20, 0 = sharpest)."
-        ).format(render=options.render, output=options.output, sharpness=options.sharpness)
-    return _("gamescope: rendering at {render}, scaled to {output} (FSR off).").format(
-        render=options.render, output=options.output
-    )
 
 
 def _mangohud_notice(settings: Settings) -> str:
@@ -203,7 +185,7 @@ def run_play(
     d'annoncer le journal de lancement.
 
     `performance` (défaut : GameMode seul) décrit les couches à emboîter autour
-    du lancement — GameMode, gamescope, MangoHud, vkBasalt. Chacune est sans
+    du lancement — GameMode, MangoHud, vkBasalt. Chacune est sans
     effet si son outil n'est pas installé (cf. `environment.performance`).
     `on_progress` : voir `run_mo2`.
     """

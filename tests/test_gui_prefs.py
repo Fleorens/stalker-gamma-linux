@@ -3,17 +3,10 @@ from pathlib import Path
 import pytest
 
 from stalker_gamma_linux import state
-from stalker_gamma_linux.environment import gamescope, mangohud, system
+from stalker_gamma_linux.environment import mangohud
 from stalker_gamma_linux.environment.performance import Settings
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
 from stalker_gamma_linux.gui import prefs
-
-
-@pytest.fixture(autouse=True)
-def not_a_steam_deck(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Machine de bureau : les défauts de gamescope ne doivent pas dépendre du CI."""
-    monkeypatch.setattr(system, "read_text", lambda path: None)
-    monkeypatch.delenv("SteamDeck", raising=False)
 
 
 def test_load_preferences_defaults_when_file_absent(
@@ -61,28 +54,12 @@ def test_save_then_load_round_trips(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert loaded == original
 
 
-def test_defaults_follow_the_screen_on_a_steam_deck(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # Premier lancement sur un Deck : proposer 1920×1080 sur un écran 1280×800
-    # serait un mauvais point de départ pour le seul réglage qui compte là-bas.
-    monkeypatch.setattr(state, "config_dir", lambda: tmp_path / "config")
-    monkeypatch.setattr(system, "read_text", lambda path: "Galileo\n")
-
-    options = prefs.load_preferences().performance.gamescope_options
-
-    assert str(options.output) == "1280x800"
-    assert str(options.render) == "1024x640"
-
-
 def test_the_performance_layers_round_trip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(state, "config_dir", lambda: tmp_path / "config")
     settings = Settings(
         gamemode=False,
         mangohud=True,
         mangohud_preset=mangohud.Preset.FULL,
-        gamescope=True,
-        gamescope_options=gamescope.Options(render=gamescope.Resolution(1152, 720)),
         vkbasalt=True,
     )
 

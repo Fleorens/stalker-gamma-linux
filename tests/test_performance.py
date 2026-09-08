@@ -2,9 +2,9 @@
 
 Ce que ces tests protègent, dans l'ordre d'importance :
 
-1. **l'ordre d'emboîtement** — gamescope à l'extérieur, gamemoderun au contact
-   d'umu-run, les couches Vulkan dans l'environnement et nulle part ailleurs.
-   Une inversion ici ne se voit qu'à l'écran, sur une vraie machine ;
+1. **l'ordre d'emboîtement** — gamemoderun au contact d'umu-run, les couches
+   Vulkan dans l'environnement et nulle part ailleurs. Une inversion ici ne se
+   voit qu'à l'écran, sur une vraie machine ;
 2. **l'absence d'effet de bord** — ni la commande, ni `os.environ` ne bougent ;
 3. **le silence quand l'outil manque** — c'est la promesse de GameMode depuis
    T02, étendue aux trois nouveaux outils ;
@@ -24,7 +24,6 @@ import pytest
 
 from stalker_gamma_linux.environment import (
     checks,
-    gamescope,
     mangohud,
     performance,
     system,
@@ -41,15 +40,14 @@ from stalker_gamma_linux.prefix.paths import PrefixPaths
 
 UMU = "/usr/bin/umu-run"
 GAMEMODERUN = "/usr/bin/gamemoderun"
-GAMESCOPE = "/usr/bin/gamescope"
 COMMAND = (UMU, "ModOrganizer.exe", "moshortcut://:Anomaly (DX11)")
 
-_BINARIES = {"gamemoderun": GAMEMODERUN, "umu-run": UMU, "gamescope": GAMESCOPE}
+_BINARIES = {"gamemoderun": GAMEMODERUN, "umu-run": UMU}
 
 
 @pytest.fixture
 def equipped(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Machine où les quatre outils sont installés."""
+    """Machine où les trois outils sont installés."""
     monkeypatch.setattr(system, "which", lambda command: _BINARIES.get(command))
     monkeypatch.setattr(
         vulkan,
@@ -71,7 +69,7 @@ def bare(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _all_layers() -> Settings:
-    return Settings(mangohud=True, gamescope=True, vkbasalt=True)
+    return Settings(mangohud=True, vkbasalt=True)
 
 
 # --- Ordre d'emboîtement ----------------------------------------------------
@@ -79,20 +77,16 @@ def _all_layers() -> Settings:
 
 @pytest.mark.usefixtures("equipped")
 @pytest.mark.parametrize("mango", [False, True])
-@pytest.mark.parametrize("scope", [False, True])
 @pytest.mark.parametrize("basalt", [False, True])
-def test_the_eight_combinations_nest_in_the_documented_order(
-    tmp_path: Path, mango: bool, scope: bool, basalt: bool
+def test_the_four_combinations_nest_in_the_documented_order(
+    tmp_path: Path, mango: bool, basalt: bool
 ) -> None:
-    """gamescope dehors, gamemoderun au contact d'umu-run, les couches en variables."""
-    settings = Settings(mangohud=mango, gamescope=scope, vkbasalt=basalt)
+    """gamemoderun au contact d'umu-run, les couches Vulkan en variables."""
+    settings = Settings(mangohud=mango, vkbasalt=basalt)
 
     layers = performance.compose(COMMAND, {}, settings, directory=tmp_path)
 
-    expected = [GAMEMODERUN, *COMMAND]
-    if scope:
-        expected = [GAMESCOPE, *gamescope.arguments(settings.gamescope_options), "--", *expected]
-    assert list(layers.command) == expected
+    assert list(layers.command) == [GAMEMODERUN, *COMMAND]
     # Les couches Vulkan ne touchent JAMAIS à la commande.
     assert mangohud.CONFIG_FILENAME not in " ".join(layers.command)
     assert (mangohud.ENABLE_VARIABLE in layers.environment) is mango
@@ -100,15 +94,14 @@ def test_the_eight_combinations_nest_in_the_documented_order(
 
 
 @pytest.mark.usefixtures("equipped")
-def test_gamescope_wraps_gamemode_and_not_the_other_way_round(tmp_path: Path) -> None:
-    # gamescope est le compositeur : à l'intérieur de gamemoderun, il composerait
-    # une fenêtre déjà créée par le jeu — c'est-à-dire rien.
+def test_gamemode_stays_at_the_contact_of_umu_run(tmp_path: Path) -> None:
+    # C'est lui qui pose `libgamemodeauto.so.0` en LD_PRELOAD puis exec la
+    # suite : il doit rester au contact du processus dont il veut la descendance.
     layers = performance.compose(COMMAND, {}, _all_layers(), directory=tmp_path)
 
     command = list(layers.command)
-    assert command[0] == GAMESCOPE
-    assert command.index(GAMEMODERUN) < command.index(UMU)
-    assert command[command.index(GAMEMODERUN) - 1] == "--"
+    assert command[0] == GAMEMODERUN
+    assert command[1] == UMU
 
 
 @pytest.mark.usefixtures("equipped")
@@ -118,7 +111,7 @@ def test_gamemode_can_be_turned_off_while_the_other_layers_stay(tmp_path: Path) 
     layers = performance.compose(COMMAND, {}, settings, directory=tmp_path)
 
     assert GAMEMODERUN not in layers.command
-    assert layers.command[0] == GAMESCOPE
+    assert layers.command[0] == UMU
     assert mangohud.ENABLE_VARIABLE in layers.environment
 
 
@@ -185,85 +178,6 @@ def test_write_configs_only_writes_what_is_enabled(tmp_path: Path) -> None:
 
     assert (tmp_path / mangohud.CONFIG_FILENAME).is_file()
     assert not (tmp_path / vkbasalt.CONFIG_FILENAME).exists()
-
-
-# --- gamescope --------------------------------------------------------------
-
-
-def test_gamescope_arguments_follow_the_upstream_flags() -> None:
-    options = gamescope.Options(
-        render=gamescope.Resolution(1024, 640),
-        output=gamescope.Resolution(1280, 800),
-        sharpness=4,
-    )
-
-    assert gamescope.arguments(options) == [
-        "-W",
-        "1280",
-        "-H",
-        "800",
-        "-w",
-        "1024",
-        "-h",
-        "640",
-        "-F",
-        "fsr",
-        "--sharpness",
-        "4",
-        "-f",
-    ]
-
-
-def test_gamescope_arguments_without_fsr_and_windowed() -> None:
-    options = gamescope.Options(fsr=False, fullscreen=False)
-
-    arguments = gamescope.arguments(options)
-
-    assert "-F" not in arguments
-    assert "--sharpness" not in arguments
-    assert "-f" not in arguments
-
-
-@pytest.mark.parametrize("text", ["1280x800", "1280X800"])
-def test_parse_resolution_accepts_both_cases(text: str) -> None:
-    assert gamescope.parse_resolution(text) == (1280, 800)
-
-
-def test_sharpness_stays_within_the_scale_gamescope_accepts() -> None:
-    assert gamescope.clamp_sharpness(99) == 20
-    assert gamescope.clamp_sharpness(-3) == 0
-    assert gamescope.clamp_sharpness(7) == 7
-
-
-@pytest.mark.parametrize("text", ["1280", "1280x", "axb", "1280x0", "-1x-1", ""])
-def test_parse_resolution_rejects_the_rest(text: str) -> None:
-    with pytest.raises(ValueError):
-        gamescope.parse_resolution(text)
-
-
-def test_deck_defaults_come_from_the_deck_screen(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(system, "read_text", lambda path: "Jupiter\n")
-
-    options = gamescope.default_options()
-
-    assert str(options.output) == "1280x800"
-    assert str(options.render) == "1024x640"
-    assert options.fsr
-
-
-def test_deck_is_also_detected_from_steams_variable(monkeypatch: pytest.MonkeyPatch) -> None:
-    # En mode Bureau, le DMI répond ; en mode Gaming sur une machine dont le
-    # DMI serait illisible, c'est Steam qui pose la variable.
-    monkeypatch.setattr(system, "read_text", lambda path: None)
-
-    assert gamescope.is_steam_deck({"SteamDeck": "1"})
-    assert not gamescope.is_steam_deck({})
-
-
-def test_a_desktop_gets_1080p_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(system, "read_text", lambda path: "OptiPlex 7090\n")
-
-    assert str(gamescope.default_options({}).output) == "1920x1080"
 
 
 # --- MangoHud ---------------------------------------------------------------
@@ -426,7 +340,6 @@ def test_find_implicit_layer_returns_none_without_the_directory(tmp_path: Path) 
 def test_the_three_tools_are_reported_as_available() -> None:
     for requirement in (
         checks.check_mangohud(DistroFamily.FEDORA),
-        checks.check_gamescope(DistroFamily.FEDORA),
         checks.check_vkbasalt(DistroFamily.FEDORA),
     ):
         assert requirement.status is Status.OK
@@ -437,7 +350,6 @@ def test_the_three_tools_are_reported_as_available() -> None:
     ("check", "expected"),
     [
         (checks.check_mangohud, "sudo dnf install mangohud"),
-        (checks.check_gamescope, "sudo dnf install gamescope"),
         (checks.check_vkbasalt, "sudo dnf install vkBasalt"),
     ],
 )
@@ -621,14 +533,6 @@ def test_settings_round_trip_through_a_mapping() -> None:
         gamemode=False,
         mangohud=True,
         mangohud_preset=mangohud.Preset.FULL,
-        gamescope=True,
-        gamescope_options=gamescope.Options(
-            render=gamescope.Resolution(1024, 640),
-            output=gamescope.Resolution(1280, 800),
-            fsr=False,
-            sharpness=7,
-            fullscreen=False,
-        ),
         vkbasalt=True,
     )
 
@@ -640,17 +544,15 @@ def test_settings_round_trip_through_a_mapping() -> None:
     [
         {},
         {"mangohud_preset": "moche"},
-        {"gamescope_render": "grand"},
-        {"gamescope_sharpness": "beaucoup"},
-        {"gamescope_sharpness": 99},
         {"gamemode": "oui"},
+        # Clés d'une version antérieure : ignorées, jamais une exception.
+        {"gamescope": True, "gamescope_render": "1280x720"},
     ],
 )
 def test_a_hand_edited_file_never_raises(data: dict[str, object]) -> None:
     settings = performance.from_mapping(data)
 
     assert isinstance(settings, Settings)
-    assert 0 <= settings.gamescope_options.sharpness <= 20
 
 
 def test_from_mapping_falls_back_field_by_field() -> None:
@@ -695,10 +597,10 @@ def test_run_detached_applies_the_layers_and_logs_the_variables(
         "ModOrganizer.exe",
         paths=prefix,
         proton_path=tmp_path / "GE",
-        performance=Settings(mangohud=True, gamescope=True),
+        performance=Settings(mangohud=True),
     )
 
-    assert popen[0].command[0] == GAMESCOPE
+    assert popen[0].command[0] == GAMEMODERUN
     assert popen[0].kwargs["env"]["MANGOHUD"] == "1"
     # Le journal porte les variables : « l'overlay ne s'affiche pas » se
     # diagnostique d'abord en vérifiant qu'elles ont bien été posées.
@@ -749,23 +651,7 @@ def test_notices_only_mention_the_layers_that_were_asked_for() -> None:
 
     assert "GameMode" in notices
     assert "MangoHud" not in notices
-    assert "gamescope" not in notices
     assert "vkBasalt" not in notices
-
-
-@pytest.mark.usefixtures("equipped")
-def test_notices_describe_the_gamescope_resolutions() -> None:
-    settings = Settings(gamescope=True).with_gamescope_options(
-        gamescope.Options(
-            render=gamescope.Resolution(1024, 640), output=gamescope.Resolution(1280, 800)
-        )
-    )
-
-    notices = "\n".join(session.performance_notices(settings))
-
-    assert "1024x640" in notices
-    assert "1280x800" in notices
-    assert "FSR" in notices
 
 
 @pytest.mark.usefixtures("bare")
@@ -783,5 +669,4 @@ def test_a_requested_but_missing_layer_says_how_to_install_it(
     notices = "\n".join(session.performance_notices(_all_layers()))
 
     assert "sudo dnf install mangohud" in notices
-    assert "sudo dnf install gamescope" in notices
     assert "sudo dnf install vkBasalt" in notices

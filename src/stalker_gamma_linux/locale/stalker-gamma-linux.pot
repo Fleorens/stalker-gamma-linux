@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-08 17:20+0200\n"
+"POT-Creation-Date: 2026-09-08 17:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -212,28 +212,6 @@ msgstr ""
 msgid ""
 "MangoHud preset: « light » = FPS + frametime, « full » = "
 "CPU/GPU/VRAM/temps"
-msgstr ""
-
-msgid ""
-"Runs the game inside gamescope: renders at one resolution, scales to "
-"another"
-msgstr ""
-
-msgid "Render resolution inside gamescope (default: 1024x640 on a Steam Deck)"
-msgstr ""
-
-msgid ""
-"Output resolution of the gamescope window (default: the Deck screen, else"
-" 1080p)"
-msgstr ""
-
-msgid "Scales without FSR inside gamescope (plain linear filtering)"
-msgstr ""
-
-msgid "FSR sharpness, 0 = sharpest, 20 = softest (default: 2)"
-msgstr ""
-
-msgid "Windowed gamescope instead of fullscreen"
 msgstr ""
 
 msgid ""
@@ -1097,18 +1075,6 @@ msgstr ""
 
 #, python-brace-format
 msgid ""
-"detected — off unless you enable it; suggested defaults here: render "
-"{render}, output {output} with FSR"
-msgstr ""
-
-msgid ""
-"absent — optional: renders the game at a lower resolution and scales it "
-"up with FSR, the one lever Windows doesn't have (decisive on a Steam "
-"Deck)"
-msgstr ""
-
-#, python-brace-format
-msgid ""
 "Vulkan layer detected ({manifest}) — off unless you enable it; our « "
 "ReShade-like » preset is sharpening + colour grading"
 msgstr ""
@@ -1655,35 +1621,6 @@ msgid ""
 " it in game."
 msgstr ""
 
-msgid " Steam Deck detected: its screen is 1280×800."
-msgstr ""
-
-msgid ""
-"Renders the game at one resolution and scales it to another — the lever "
-"that has no equivalent under Windows."
-msgstr ""
-
-msgid "Render resolution (WxH)"
-msgstr ""
-
-msgid "Output resolution (WxH)"
-msgstr ""
-
-msgid "FSR upscaling"
-msgstr ""
-
-msgid "AMD FidelityFX Super Resolution, on any GPU."
-msgstr ""
-
-msgid "FSR sharpness"
-msgstr ""
-
-msgid "0 = sharpest, 20 = softest."
-msgstr ""
-
-msgid "Fullscreen"
-msgstr ""
-
 msgid "In-game overlay. Shift_R+F12 hides it without leaving the game."
 msgstr ""
 
@@ -2202,19 +2139,6 @@ msgstr ""
 msgid ""
 "GameMode not installed — launching without it (optional: performance CPU "
 "governor and priorities while you play)."
-msgstr ""
-
-msgid "gamescope requested but not installed — launching without it."
-msgstr ""
-
-#, python-brace-format
-msgid ""
-"gamescope: rendering at {render}, scaled to {output} with FSR (sharpness "
-"{sharpness}/20, 0 = sharpest)."
-msgstr ""
-
-#, python-brace-format
-msgid "gamescope: rendering at {render}, scaled to {output} (FSR off)."
 msgstr ""
 
 msgid "MangoHud requested but its Vulkan layer is not installed — no overlay."

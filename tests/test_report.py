@@ -44,7 +44,8 @@ def test_build_report_all_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     assert report.distro.pretty_name == "Fedora Linux 41"
     # 8 prérequis historiques + les 3 couches de performance (T20), toutes
     # facultatives : `is_ready` ne doit pas bouger quand elles manquent.
-    assert len(report.requirements) == 11
+    # 10 depuis le retrait de gamescope (cf. `environment.performance`).
+    assert len(report.requirements) == 10
 
 
 def test_build_report_missing_everything(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -4,7 +4,7 @@ Persistance déléguée à `gui.prefs` (TOML, indépendant de GTK). Le raccourci
 bureau lui-même reste celui de `desktop/` (T06) ; la case « Créer un raccourci
 bureau » ne fait que réutiliser le flag `--shortcut` déjà exposé par
 `orchestrator.run_install` — rien de nouveau côté logique d'installation.
-Le groupe « Performance » (GameMode, gamescope, MangoHud, vkBasalt) vit dans
+Le groupe « Performance » (GameMode, MangoHud, vkBasalt) vit dans
 `performance_prefs.py` : c'est le seul dont l'état est composite.
 """
 

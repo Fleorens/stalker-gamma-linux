@@ -331,49 +331,20 @@ def test_main_play_accepts_the_performance_flags(monkeypatch: pytest.MonkeyPatch
     captured: dict[str, object] = {}
     monkeypatch.setattr(cli, "run_play", lambda target, **kw: captured.update(kw) or 0)
 
-    cli.main(
-        [
-            "play",
-            "--mangohud",
-            "--mangohud-preset",
-            "full",
-            "--gamescope",
-            "--gamescope-render",
-            "1280x720",
-            "--gamescope-output",
-            "2560x1440",
-            "--fsr-sharpness",
-            "5",
-            "--windowed",
-            "--vkbasalt",
-        ]
-    )
+    cli.main(["play", "--mangohud", "--mangohud-preset", "full", "--vkbasalt"])
     settings = captured["performance"]
 
     assert isinstance(settings, Settings)
     assert settings.mangohud and settings.mangohud_preset is Preset.FULL
     assert settings.vkbasalt
-    assert settings.gamescope
-    options = settings.gamescope_options
-    assert (str(options.render), str(options.output)) == ("1280x720", "2560x1440")
-    assert options.fsr and options.sharpness == 5
-    assert options.fullscreen is False
 
 
-def test_main_play_clamps_an_out_of_range_sharpness(monkeypatch: pytest.MonkeyPatch) -> None:
-    captured: dict[str, object] = {}
-    monkeypatch.setattr(cli, "run_play", lambda target, **kw: captured.update(kw) or 0)
-
-    cli.main(["play", "--gamescope", "--fsr-sharpness", "99"])
-    settings = captured["performance"]
-
-    assert isinstance(settings, Settings)
-    assert settings.gamescope_options.sharpness == 20
-
-
-def test_main_play_rejects_a_malformed_resolution() -> None:
+def test_play_no_longer_offers_gamescope() -> None:
+    # Retiré le 2026-09-08 : imbriqué sous KWin, gamescope tuait la partie
+    # (cf. `environment.performance`). Le drapeau doit disparaître, pas être
+    # accepté en silence — sinon un script existant croit encore l'utiliser.
     with pytest.raises(SystemExit):
-        cli.build_parser().parse_args(["play", "--gamescope-render", "1280"])
+        cli.build_parser().parse_args(["play", "--gamescope"])
 
 
 def test_main_play_returns_run_play_code(monkeypatch: pytest.MonkeyPatch) -> None:
