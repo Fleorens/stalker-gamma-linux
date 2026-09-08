@@ -7,25 +7,20 @@ from stalker_gamma_linux.desktop.errors import DesktopWriteError
 from stalker_gamma_linux.desktop.paths import DesktopPaths
 
 
-def test_run_shortcut_success_prints_steam_instructions(
+def test_run_shortcut_success_points_at_the_steam_command(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    """Depuis T19, l'ajout à Steam est une commande — plus une marche à suivre manuelle."""
     paths = DesktopPaths(data_home=tmp_path / "data")
     monkeypatch.setattr(session, "install_shortcut", lambda target: paths)
-    monkeypatch.setattr(
-        session,
-        "launch_command",
-        lambda target: ["/bin/stalker-gamma-linux", "play", "--target", str(target)],
-    )
 
     exit_code = session.run_shortcut(tmp_path / "gamma")
 
     assert exit_code == 0
     out = capsys.readouterr().out
     assert str(paths.desktop_file) in out
-    assert "Add a Non-Steam Game" in out
-    assert "/bin/stalker-gamma-linux" in out
-    assert f"play --target {tmp_path / 'gamma'}" in out
+    assert "stalker-gamma-linux steam-shortcut" in out
+    assert "Add a Non-Steam Game" not in out
 
 
 def test_run_shortcut_uses_default_target(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -36,7 +31,6 @@ def test_run_shortcut_uses_default_target(monkeypatch: pytest.MonkeyPatch) -> No
         return DesktopPaths(data_home=Path("/data"))
 
     monkeypatch.setattr(session, "install_shortcut", fake_install_shortcut)
-    monkeypatch.setattr(session, "launch_command", lambda target: ["x"])
 
     session.run_shortcut(None)
 

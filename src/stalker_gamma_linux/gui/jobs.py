@@ -42,17 +42,23 @@ class Job:
     phase_labels: tuple[str, ...] | None = None
 
 
-def install_phase_labels(*, shortcut: bool) -> tuple[str, ...]:
-    """Libellés du pipeline `run_install`, alignés sur sa numérotation n/total."""
-    steps = state_module.STEPS if shortcut else state_module.STEPS[:-1]
+def install_phase_labels(*, shortcut: bool, steam: bool) -> tuple[str, ...]:
+    """Libellés du pipeline `run_install`, alignés sur sa numérotation n/total.
+
+    La liste vient de `state.planned_steps`, celle-là même que l'orchestrateur
+    utilise pour numéroter : un `STEPS[:-1]` recopié ici décrochait dès qu'une
+    seconde étape optionnelle est apparue (T19).
+    """
+    steps = state_module.planned_steps(shortcut=shortcut, steam=steam)
     return tuple(state_module.STEP_LABELS[step] for step in steps)
 
 
-def install(target: Path, *, shortcut: bool, proton_release: str | None) -> Job:
+def install(target: Path, *, shortcut: bool, steam: bool, proton_release: str | None) -> Job:
     def run(events: queue.Queue[WorkerEvent], cancel_event: threading.Event) -> int:
         return orchestrator.run_install(
             target,
             shortcut=shortcut,
+            steam=steam,
             reporter=QueueReporter(events),
             cancel_event=cancel_event,
             proton_release=proton_release,
@@ -62,7 +68,7 @@ def install(target: Path, *, shortcut: bool, proton_release: str | None) -> Job:
         title=_("Installation"),
         run=run,
         cancellable=True,
-        phase_labels=install_phase_labels(shortcut=shortcut),
+        phase_labels=install_phase_labels(shortcut=shortcut, steam=steam),
     )
 
 

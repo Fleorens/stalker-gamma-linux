@@ -28,8 +28,11 @@ def test_load_preferences_defaults_when_file_absent(
     assert loaded.proton_release is None
     # False par défaut : install.sh crée déjà l'icône du menu applications
     # (le launcher) — ce raccourci-ci est l'entrée « jouer en direct »
-    # optionnelle, surtout utile pour Steam (voir gui/prefs.py).
-    assert loaded.create_steam_shortcut is False
+    # optionnelle (voir gui/prefs.py).
+    assert loaded.create_direct_shortcut is False
+    # False par défaut aussi, mais pour une autre raison : écrire dans le
+    # `shortcuts.vdf` de Steam se demande (T19).
+    assert loaded.add_to_steam is False
 
 
 def test_load_preferences_defaults_when_file_corrupted(
@@ -48,7 +51,8 @@ def test_save_then_load_round_trips(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     original = prefs.Preferences(
         install_path=tmp_path / "Games" / "gamma",
         proton_release="GE-Proton10-8",
-        create_steam_shortcut=False,
+        create_direct_shortcut=False,
+        add_to_steam=True,
     )
 
     prefs.save_preferences(original)
@@ -133,13 +137,15 @@ def test_with_helpers_return_new_instances() -> None:
     updated = (
         base.with_install_path(Path("/mnt/games"))
         .with_proton_release("GE-Proton10-8")
-        .with_create_steam_shortcut(False)
+        .with_create_direct_shortcut(False)
+        .with_add_to_steam(True)
     )
 
     assert base == prefs.Preferences()
     assert updated.install_path == Path("/mnt/games")
     assert updated.proton_release == "GE-Proton10-8"
-    assert updated.create_steam_shortcut is False
+    assert updated.create_direct_shortcut is False
+    assert updated.add_to_steam is True
 
 
 def test_with_proton_release_empty_string_means_auto() -> None:
@@ -173,3 +179,22 @@ def test_load_preferences_conserve_un_install_path_normal(
     prefs.prefs_file().write_text('install_path = "/mnt/disk/GAMMA"\n', encoding="utf-8")
 
     assert prefs.load_preferences().install_path == Path("/mnt/disk/GAMMA")
+
+
+def test_lancienne_cle_de_preference_est_toujours_lue(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`create_steam_shortcut` (avant T19) désignait le raccourci `.desktop` direct.
+
+    Un fichier écrit par une version précédente doit garder le choix de
+    l'utilisateur, pas le voir revenir à `False` à cause du renommage.
+    """
+    config_dir = tmp_path / "config"
+    monkeypatch.setattr(state, "config_dir", lambda: config_dir)
+    config_dir.mkdir(parents=True)
+    prefs.prefs_file().write_text("create_steam_shortcut = true\n", encoding="utf-8")
+
+    loaded = prefs.load_preferences()
+
+    assert loaded.create_direct_shortcut is True
+    assert loaded.add_to_steam is False

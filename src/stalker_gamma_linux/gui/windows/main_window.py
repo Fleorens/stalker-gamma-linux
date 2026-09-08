@@ -491,7 +491,8 @@ class MainWindow(Adw.ApplicationWindow):
         self._push_job(
             jobs.install(
                 self._preferences.install_path,
-                shortcut=self._preferences.create_steam_shortcut,
+                shortcut=self._preferences.create_direct_shortcut,
+                steam=self._preferences.add_to_steam,
                 proton_release=self._preferences.proton_release,
             )
         )

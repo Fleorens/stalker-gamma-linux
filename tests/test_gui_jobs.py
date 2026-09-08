@@ -25,25 +25,30 @@ def target(tmp_path: Path) -> Path:
 
 
 class TestInstallPhaseLabels:
-    def test_le_raccourci_ajoute_une_etape(self) -> None:
-        with_shortcut = jobs.install_phase_labels(shortcut=True)
-        without = jobs.install_phase_labels(shortcut=False)
+    def test_les_etapes_optionnelles_sallongent_la_liste(self) -> None:
+        everything = jobs.install_phase_labels(shortcut=True, steam=True)
+        core_only = jobs.install_phase_labels(shortcut=False, steam=False)
+        shortcut_only = jobs.install_phase_labels(shortcut=True, steam=False)
 
-        assert len(with_shortcut) == len(state.STEPS)
-        assert len(without) == len(state.STEPS) - 1
-        assert without == with_shortcut[:-1]
+        assert len(everything) == len(state.STEPS)
+        assert len(core_only) == len(state.STEPS) - len(state.OPTIONAL_STEPS)
+        assert core_only == everything[: -len(state.OPTIONAL_STEPS)]
+        # L'entrée Steam demandée seule ne décale pas la numérotation du reste :
+        # c'est ce que `STEPS[:-1]` ne savait pas faire.
+        assert shortcut_only == everything[:-1]
 
     def test_les_libelles_viennent_de_state(self) -> None:
         """La GUI ne redérive pas la liste des étapes : elle la lit là où elle est décidée."""
-        assert jobs.install_phase_labels(shortcut=True)[0] == state.STEP_LABELS[state.STEPS[0]]
+        labels = jobs.install_phase_labels(shortcut=True, steam=True)
+        assert labels[0] == state.STEP_LABELS[state.STEPS[0]]
 
 
 class TestJobs:
     def test_installation_est_un_pipeline_annulable(self, target: Path) -> None:
-        job = jobs.install(target, shortcut=False, proton_release=None)
+        job = jobs.install(target, shortcut=False, steam=False, proton_release=None)
 
         assert job.cancellable
-        assert job.phase_labels == jobs.install_phase_labels(shortcut=False)
+        assert job.phase_labels == jobs.install_phase_labels(shortcut=False, steam=False)
 
     def test_mise_a_jour_lit_ses_etapes_dans_orchestrator(self, target: Path) -> None:
         assert jobs.update(target).phase_labels == tuple(orchestrator.update_phase_labels())
@@ -78,12 +83,18 @@ class TestJobRun:
         def fake_install(root: Path, **kwargs: object) -> int:
             seen["root"] = root
             seen["shortcut"] = kwargs["shortcut"]
+            seen["steam"] = kwargs["steam"]
             seen["proton_release"] = kwargs["proton_release"]
             return 0
 
         monkeypatch.setattr(orchestrator, "run_install", fake_install)
-        job = jobs.install(target, shortcut=True, proton_release="GE-Proton10-8")
+        job = jobs.install(target, shortcut=True, steam=True, proton_release="GE-Proton10-8")
 
         events: queue.Queue[WorkerEvent] = queue.Queue()
         assert job.run(events, threading.Event()) == 0
-        assert seen == {"root": target, "shortcut": True, "proton_release": "GE-Proton10-8"}
+        assert seen == {
+            "root": target,
+            "shortcut": True,
+            "steam": True,
+            "proton_release": "GE-Proton10-8",
+        }

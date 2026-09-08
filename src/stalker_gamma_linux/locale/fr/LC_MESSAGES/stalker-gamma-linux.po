@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-08 09:55+0000\n"
+"POT-Creation-Date: 2026-09-08 16:19+0200\n"
 "PO-Revision-Date: 2026-07-26 10:23+0200\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: fr\n"
@@ -143,6 +143,13 @@ msgid ""
 msgstr ""
 "Crée aussi le raccourci bureau (.desktop + icône) à la fin de "
 "l'installation"
+
+msgid ""
+"Also adds GAMMA to your Steam library, artwork included (Steam must be "
+"closed; see the `steam-shortcut` command)"
+msgstr ""
+"Ajoute aussi GAMMA à ta bibliothèque Steam, artwork compris (Steam doit "
+"être fermé ; voir la commande `steam-shortcut`)"
 
 #, python-brace-format
 msgid ""
@@ -370,6 +377,26 @@ msgstr "Restaure même si Mod Organizer 2 ou le jeu utilisent encore le préfixe
 msgid "Creates/updates the desktop shortcut (.desktop + icon, application menu)"
 msgstr "Crée/actualise le raccourci bureau (.desktop + icône, menu applications)"
 
+msgid ""
+"Adds GAMMA to your Steam library (artwork included) so it can be launched"
+" from Gaming Mode, without touching Steam yourself"
+msgstr ""
+"Ajoute GAMMA à ta bibliothèque Steam (artwork compris) pour pouvoir le "
+"lancer depuis le mode Gaming, sans toucher à Steam toi-même"
+
+msgid "Removes our entry (and only ours) plus the artwork we put there"
+msgstr "Retire notre entrée (et elle seule) ainsi que l'artwork qu'on y a posé"
+
+msgid "Shows what would be written or removed, without touching anything"
+msgstr "Montre ce qui serait écrit ou retiré, sans rien toucher"
+
+msgid ""
+"Writes even if Steam is running — Steam rewrites shortcuts.vdf when it "
+"exits and will most likely undo the change"
+msgstr ""
+"Écrit même si Steam tourne — Steam réécrit shortcuts.vdf en quittant et "
+"annulera très probablement la modification"
+
 msgid "Removes shortcuts, settings, state and logs (keeps the game by default)"
 msgstr ""
 "Retire raccourcis, réglages, état et journaux (conserve le jeu par "
@@ -430,6 +457,15 @@ msgid ""
 msgstr ""
 "Consulte {log_path} (ou relance avec --verbose) et ouvre une issue si le "
 "problème persiste."
+
+msgid "Environment"
+msgstr "Environnement"
+
+msgid "Proton prefix"
+msgstr "Préfixe Proton"
+
+msgid "Installation"
+msgstr "Installation"
 
 msgid ""
 "GAMMA install detected on disk (Anomaly + Mod Organizer 2 present) — "
@@ -578,6 +614,9 @@ msgstr ""
 msgid "(already done — resuming)"
 msgstr "(déjà fait — reprise)"
 
+msgid "Error"
+msgstr "Erreur"
+
 #, python-brace-format
 msgid "Refusing to delete {path}: {reason}"
 msgstr "Refus de supprimer {path} : {reason}"
@@ -659,6 +698,9 @@ msgstr "contient un caractère de contrôle ({escaped})"
 msgid "unknown (not installed as a package)"
 msgstr "inconnue (pas installé en tant que paquet)"
 
+msgid "rev."
+msgstr "rév."
+
 #, python-brace-format
 msgid "(no log file at {path})"
 msgstr "(aucun fichier de journal dans {path})"
@@ -672,17 +714,8 @@ msgstr "(aucun build Proton trouvé)"
 msgid "Report"
 msgstr "Rapport"
 
-msgid "Environment"
-msgstr "Environnement"
-
-msgid "Proton prefix"
-msgstr "Préfixe Proton"
-
 msgid "Proton builds installed"
 msgstr "Builds Proton installés"
-
-msgid "Installation"
-msgstr "Installation"
 
 msgid "GAMMA detected on disk"
 msgstr "GAMMA détecté sur le disque"
@@ -729,6 +762,9 @@ msgstr "Configuration de l'instance Mod Organizer 2"
 msgid "Desktop shortcut"
 msgstr "Raccourci bureau"
 
+msgid "Steam library entry (artwork included)"
+msgstr "Entrée dans la bibliothèque Steam (artwork compris)"
+
 #, python-brace-format
 msgid "unknown step: {step}"
 msgstr "étape inconnue : {step}"
@@ -772,6 +808,36 @@ msgstr "données de jeu (Anomaly, mods, cache, préfixe Proton)"
 
 msgid "still present after removal — refusing to report success"
 msgstr "toujours présent après suppression — refus d'annoncer un succès"
+
+#, python-brace-format
+msgid ""
+"Steam library entry left in place — {reason}\n"
+"Remove it later with: stalker-gamma-linux steam-shortcut --remove"
+msgstr ""
+"Entrée Steam laissée en place — {reason}\n"
+"Retire-la plus tard avec : stalker-gamma-linux steam-shortcut --remove"
+
+#, python-brace-format
+msgid ""
+"Steam library entry left in place — {reason}\n"
+"Remove it by hand from Steam, or with: stalker-gamma-linux steam-shortcut"
+" --remove"
+msgstr ""
+"Entrée Steam laissée en place — {reason}\n"
+"Retire-la à la main depuis Steam, ou avec : stalker-gamma-linux steam-"
+"shortcut --remove"
+
+#, python-brace-format
+msgid ""
+"  - Steam library entry (and its artwork)\n"
+"      {accounts}"
+msgstr ""
+"  - entrée dans la bibliothèque Steam (et son artwork)\n"
+"      {accounts}"
+
+#, python-brace-format
+msgid "Steam library entry removed ({accounts})."
+msgstr "Entrée Steam retirée ({accounts})."
 
 msgid "The following will be removed:"
 msgstr "Les éléments suivants vont être retirés :"
@@ -1112,25 +1178,18 @@ msgid ""
 "Desktop shortcut created/updated: {desktop_file}\n"
 "It shows up in your desktop environment's application menu.\n"
 "\n"
-"To also add it to Steam (useful for Steam Input or Gaming Mode on the "
-"Steam Deck): Steam → Add a Game → Add a Non-Steam Game → Browse, select:"
-"\n"
-"  {executable}\n"
-"then, in that Steam entry's properties, set the launch options to:\n"
-"  {launch_options}\n"
-"Steam then handles the artwork and compat tool choice itself."
+"To also add GAMMA to your Steam library (Steam Input, Gaming Mode on the "
+"Steam Deck), artwork included, with Steam closed:\n"
+"  stalker-gamma-linux steam-shortcut\n"
+"`--remove` takes it back out."
 msgstr ""
 "Raccourci bureau créé/actualisé : {desktop_file}\n"
 "Il apparaît dans le menu applications de ton environnement de bureau.\n"
 "\n"
-"Pour l'ajouter aussi à Steam (utile pour Steam Input ou le mode Gaming "
-"sur Steam Deck) : Steam → Ajouter un jeu → Ajouter un jeu non-Steam → "
-"Parcourir, sélectionne :\n"
-"  {executable}\n"
-"puis, dans les propriétés de cette entrée Steam, mets en options de "
-"lancement :\n"
-"  {launch_options}\n"
-"Steam gère alors l'artwork et le choix du compat tool lui-même."
+"Pour ajouter aussi GAMMA à ta bibliothèque Steam (Steam Input, mode "
+"Gaming sur Steam Deck), artwork compris, Steam fermé :\n"
+"  stalker-gamma-linux steam-shortcut\n"
+"`--remove` le retire."
 
 msgid "the ModDB page shown above"
 msgstr "la page ModDB affichée ci-dessus"
@@ -1697,15 +1756,21 @@ msgstr "Ouvre le diagnostic, avec la commande à lancer pour ta distribution"
 msgid "System prerequisites"
 msgstr "Prérequis système"
 
-msgid "« Play directly » shortcut"
-msgstr "Raccourci « jouer en direct »"
+msgid "« Play directly » menu entry"
+msgstr "Entrée de menu « jouer directement »"
+
+msgid "In addition to the launcher (already in your menu)"
+msgstr "En plus du launcher (déjà dans ton menu)"
+
+msgid "Add to the Steam library"
+msgstr "Ajouter à la bibliothèque Steam"
 
 msgid ""
-"In addition to the launcher (already in your menu) — mainly useful for "
-"Steam's « Add a Non-Steam Game »"
+"Entry + artwork, for Gaming Mode and the Steam Deck. Steam must be closed"
+" when the install reaches that step"
 msgstr ""
-"En plus du launcher (déjà dans ton menu) — utile surtout pour Steam « "
-"Ajouter un jeu non-Steam »"
+"Entrée + artwork, pour le mode Gaming et le Steam Deck. Steam doit être "
+"fermé quand l'installation arrive à cette étape"
 
 msgid "START INSTALLATION"
 msgstr "LANCER L'INSTALLATION"
@@ -1966,17 +2031,34 @@ msgstr ""
 msgid "Version (e.g. GE-Proton10-8)"
 msgstr "Version (ex. GE-Proton10-8)"
 
-msgid "« Play directly » shortcut on install"
-msgstr "Raccourci « jouer en direct » à l'installation"
+msgid ""
+"Two different things: a menu entry that jumps straight into the game, and"
+" an entry in the Steam library itself."
+msgstr ""
+"Deux choses différentes : une entrée du menu qui saute droit dans le jeu,"
+" et une entrée dans la bibliothèque Steam elle-même."
+
+msgid "« Play directly » menu entry on install"
+msgstr "Entrée de menu « jouer directement » à l'installation"
 
 msgid ""
-"In addition to the launcher (already in your menu) — reuse it with "
-"Steam's native « Add a Non-Steam Game » button; adding it to Steam itself"
-" stays manual."
+"In addition to the launcher (already in your menu): a desktop entry that "
+"skips the launcher and starts the game."
 msgstr ""
-"En plus du launcher (déjà dans ton menu) — à réutiliser avec le bouton "
-"natif de Steam « Ajouter un jeu non-Steam » ; l'ajout à Steam lui-même "
-"reste manuel."
+"En plus du launcher (déjà dans ton menu) : une entrée bureau qui saute le"
+" launcher et démarre le jeu."
+
+msgid "Add GAMMA to the Steam library on install"
+msgstr "Ajouter GAMMA à la bibliothèque Steam à l'installation"
+
+msgid ""
+"Writes the entry and its artwork into Steam (Gaming Mode / Steam Deck "
+"included). Steam must be closed while it is written; `steam-shortcut "
+"--remove` undoes it."
+msgstr ""
+"Écrit l'entrée et son artwork dans Steam (mode Gaming / Steam Deck "
+"compris). Steam doit être fermé pendant l'écriture ; `steam-shortcut "
+"--remove` défait tout."
 
 msgid " — already done"
 msgstr " — déjà fait"
@@ -2123,6 +2205,9 @@ msgstr "À réparer (retirés, puis réinstallés par le moteur) :"
 
 msgid "Left untouched:"
 msgstr "Laissés intacts :"
+
+msgid "mods/"
+msgstr "mods/"
 
 #, python-brace-format
 msgid "  removed {path}"
@@ -3157,6 +3242,125 @@ msgstr ""
 msgid "umu-run ready: {target}"
 msgstr "umu-run opérationnel : {target}"
 
+msgid "<in memory>"
+msgstr "<en mémoire>"
+
+#, python-brace-format
+msgid "Unreadable shortcuts.vdf ({path}, byte {offset}): {reason}"
+msgstr "shortcuts.vdf illisible ({path}, octet {offset}) : {reason}"
+
+#, python-brace-format
+msgid ""
+"Steam is running ({name}, PID {pid}). Steam keeps shortcuts.vdf in memory"
+" and rewrites it when it exits, which would silently undo this change.\n"
+"Quit Steam completely (Steam → Exit, not just the window), then run this "
+"command again — or pass --force to write anyway."
+msgstr ""
+"Steam tourne ({name}, PID {pid}). Steam garde shortcuts.vdf en mémoire et"
+" le réécrit en quittant, ce qui annulerait silencieusement cette "
+"modification.\n"
+"Quitte Steam complètement (Steam → Quitter, pas seulement la fenêtre), "
+"puis relance cette commande — ou passe --force pour écrire quand même."
+
+msgid ""
+"No Steam account found on this machine.\n"
+"Steam stores its shortcuts per account, under userdata/<id>/config/ — "
+"that directory only appears once Steam has been installed and signed into"
+" at least once.\n"
+"Install Steam, sign in, quit it, then run this command again."
+msgstr ""
+"Aucun compte Steam trouvé sur cette machine.\n"
+"Steam range ses raccourcis par compte, sous userdata/<id>/config/ — ce "
+"dossier n'apparaît qu'une fois Steam installé et une session ouverte au "
+"moins une fois.\n"
+"Installe Steam, connecte-toi, quitte-le, puis relance cette commande."
+
+#, python-brace-format
+msgid "file is {size} bytes, well beyond any real shortcuts.vdf"
+msgstr "le fichier fait {size} octets, bien au-delà de tout shortcuts.vdf réel"
+
+msgid "Start Steam (or restart it) to see the change in your library."
+msgstr ""
+"Démarre Steam (ou redémarre-le) pour voir le changement dans ta "
+"bibliothèque."
+
+msgid ""
+"Note: this account belongs to the Flatpak Steam, which launches non-Steam"
+" games inside its sandbox — the entry and its artwork are written, but "
+"the launch itself may fail there. The native Steam package is the "
+"reliable path; `stalker-gamma-linux play` always works from outside "
+"Steam."
+msgstr ""
+"Note : ce compte appartient au Steam Flatpak, qui lance les jeux non-"
+"Steam dans son bac à sable — l'entrée et son artwork sont bien écrits, "
+"mais le lancement, lui, peut y échouer. Le paquet Steam natif est la voie"
+" fiable ; `stalker-gamma-linux play` marche toujours en dehors de Steam."
+
+msgid "added to"
+msgstr "ajouté à"
+
+msgid "updated in"
+msgstr "mis à jour dans"
+
+#, python-brace-format
+msgid "  {account}: {verb} the library (appid {appid})"
+msgstr "  {account} : {verb} la bibliothèque (appid {appid})"
+
+#, python-brace-format
+msgid "    artwork: {count} files in {grid}"
+msgstr "    artwork : {count} fichiers dans {grid}"
+
+#, python-brace-format
+msgid "    backup of the previous file: {backup}"
+msgstr "    sauvegarde du fichier précédent : {backup}"
+
+#, python-brace-format
+msgid "  {account}: nothing of ours in there"
+msgstr "  {account} : rien de nous là-dedans"
+
+#, python-brace-format
+msgid "  {account}: entry removed (appid {appid})"
+msgstr "  {account} : entrée retirée (appid {appid})"
+
+#, python-brace-format
+msgid "    artwork removed: {count} files"
+msgstr "    artwork retiré : {count} fichiers"
+
+#, python-brace-format
+msgid "    left in place (no longer ours — you replaced them): {files}"
+msgstr ""
+"    laissés en place (ce ne sont plus les nôtres — tu les as remplacés) :"
+" {files}"
+
+msgid "Steam shortcut that would be removed:"
+msgstr "Raccourci Steam qui serait retiré :"
+
+msgid "Steam shortcut removed:"
+msgstr "Raccourci Steam retiré :"
+
+msgid "Steam shortcut that would be written:"
+msgstr "Raccourci Steam qui serait écrit :"
+
+msgid "Steam shortcut written:"
+msgstr "Raccourci Steam écrit :"
+
+msgid "Dry run — nothing will be written."
+msgstr "Simulation — rien ne sera écrit."
+
+msgid "unexpected end of file"
+msgstr "fin de fichier inattendue"
+
+msgid "unterminated string"
+msgstr "chaîne non terminée"
+
+#, python-brace-format
+msgid "unknown field type 0x{type_id:02x} — refusing to guess its length"
+msgstr "type de champ inconnu 0x{type_id:02x} — refus de deviner sa longueur"
+
+#, python-brace-format
+msgid "nesting deeper than {limit} levels"
+msgstr "imbrication de plus de {limit} niveaux"
+
 #~ msgid "libunrar provided ({path})"
 #~ msgstr "libunrar fournie ({path})"
 
@@ -3256,4 +3460,63 @@ msgstr "umu-run opérationnel : {target}"
 
 #~ msgid "mods/"
 #~ msgstr "mods/"
+
+#~ msgid ""
+#~ "Desktop shortcut created/updated: {desktop_file}\n"
+#~ "It shows up in your desktop environment's application menu.\n"
+#~ "\n"
+#~ "To also add it to Steam (useful"
+#~ " for Steam Input or Gaming Mode "
+#~ "on the Steam Deck): Steam → Add"
+#~ " a Game → Add a Non-Steam "
+#~ "Game → Browse, select:\n"
+#~ "  {executable}\n"
+#~ "then, in that Steam entry's properties, set the launch options to:\n"
+#~ "  {launch_options}\n"
+#~ "Steam then handles the artwork and compat tool choice itself."
+#~ msgstr ""
+#~ "Raccourci bureau créé/actualisé : {desktop_file}\n"
+#~ "Il apparaît dans le menu applications de ton environnement de bureau.\n"
+#~ "\n"
+#~ "Pour l'ajouter aussi à Steam (utile "
+#~ "pour Steam Input ou le mode Gaming"
+#~ " sur Steam Deck) : Steam → "
+#~ "Ajouter un jeu → Ajouter un jeu"
+#~ " non-Steam → Parcourir, sélectionne :"
+#~ "\n"
+#~ "  {executable}\n"
+#~ "puis, dans les propriétés de cette "
+#~ "entrée Steam, mets en options de "
+#~ "lancement :\n"
+#~ "  {launch_options}\n"
+#~ "Steam gère alors l'artwork et le choix du compat tool lui-même."
+
+#~ msgid "« Play directly » shortcut"
+#~ msgstr "Raccourci « jouer en direct »"
+
+#~ msgid ""
+#~ "In addition to the launcher (already "
+#~ "in your menu) — mainly useful for"
+#~ " Steam's « Add a Non-Steam Game"
+#~ " »"
+#~ msgstr ""
+#~ "En plus du launcher (déjà dans ton"
+#~ " menu) — utile surtout pour Steam "
+#~ "« Ajouter un jeu non-Steam »"
+
+#~ msgid "« Play directly » shortcut on install"
+#~ msgstr "Raccourci « jouer en direct » à l'installation"
+
+#~ msgid ""
+#~ "In addition to the launcher (already "
+#~ "in your menu) — reuse it with "
+#~ "Steam's native « Add a Non-Steam"
+#~ " Game » button; adding it to "
+#~ "Steam itself stays manual."
+#~ msgstr ""
+#~ "En plus du launcher (déjà dans ton"
+#~ " menu) — à réutiliser avec le "
+#~ "bouton natif de Steam « Ajouter un"
+#~ " jeu non-Steam » ; l'ajout à"
+#~ " Steam lui-même reste manuel."
 

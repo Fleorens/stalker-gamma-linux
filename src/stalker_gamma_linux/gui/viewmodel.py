@@ -18,8 +18,11 @@ from stalker_gamma_linux import state as state_module
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
 from stalker_gamma_linux.i18n import _
 
-# `shortcut` (T06) est optionnelle : son absence ne doit jamais empêcher `play`.
-_CORE_STEPS: tuple[str, ...] = tuple(step for step in state_module.STEPS if step != "shortcut")
+# `shortcut` (T06) et `steam` (T19) sont optionnelles : leur absence ne doit
+# jamais empêcher `play`, ni faire passer une install complète pour incomplète.
+_CORE_STEPS: tuple[str, ...] = tuple(
+    step for step in state_module.STEPS if step not in state_module.OPTIONAL_STEPS
+)
 
 
 class InstallStatus(Enum):

@@ -7,8 +7,9 @@ un venv, deux liens dans `~/.local/bin`, une entrée bureau, une icône et
 
 Deux périmètres, volontairement séparés :
 
-- **l'intégration** (entrées bureau, icônes, état, préférences, journaux) :
-  quelques kilo-octets, recréés au prochain lancement, retirés par défaut ;
+- **l'intégration** (entrées bureau, icônes, entrée dans la bibliothèque Steam,
+  état, préférences, journaux) : quelques kilo-octets, recréés au prochain
+  lancement, retirés par défaut ;
 - **les données de jeu** (`<target>/{anomaly,gamma,cache,prefix}`) : ~146 Gio
   et des heures de téléchargement, plus les sauvegardes du joueur. Jamais
   touchées sans `--game-data` explicite.
@@ -37,6 +38,9 @@ from stalker_gamma_linux.paths_safety import UnsafeWipeTargetError
 from stalker_gamma_linux.prefix import session
 from stalker_gamma_linux.prefix.errors import PrefixBusyError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
+from stalker_gamma_linux.steam import install as steam_install
+from stalker_gamma_linux.steam.errors import SteamError, SteamRunningError
+from stalker_gamma_linux.steam.install import Action as SteamAction
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,6 +144,43 @@ def apply_plan(plan: UninstallPlan) -> tuple[Removal, ...]:
     return tuple(removed)
 
 
+def remove_steam_entries(*, dry_run: bool = False) -> str | None:
+    """Retire notre entrée de la bibliothèque Steam. Compte rendu, ou `None` si rien.
+
+    Hors du plan de suppression : ce n'est pas un fichier à effacer mais une
+    **modification** d'un fichier qui appartient à l'utilisateur (ses autres
+    raccourcis non-Steam vivent dedans) — `apply_plan` ne sait faire que des
+    suppressions, et devrait apprendre à éditer pour porter ça.
+
+    Ne fait jamais échouer la désinstallation : Steam ouvert, ou un
+    `shortcuts.vdf` illisible, laisse l'entrée en place avec la commande à
+    rejouer plus tard. Le reste du nettoyage n'a aucune raison d'attendre.
+    """
+    try:
+        results = steam_install.remove_shortcut(dry_run=dry_run)
+    except SteamRunningError as error:
+        return _(
+            "Steam library entry left in place — {reason}\n"
+            "Remove it later with: stalker-gamma-linux steam-shortcut --remove"
+        ).format(reason=str(error).splitlines()[0])
+    except SteamError as error:
+        return _(
+            "Steam library entry left in place — {reason}\n"
+            "Remove it by hand from Steam, or with: "
+            "stalker-gamma-linux steam-shortcut --remove"
+        ).format(reason=error)
+
+    removed = [result for result in results if result.action is SteamAction.REMOVED]
+    if not removed:
+        return None
+    accounts = ", ".join(result.account.label for result in removed)
+    if dry_run:
+        return _("  - Steam library entry (and its artwork)\n      {accounts}").format(
+            accounts=accounts
+        )
+    return _("Steam library entry removed ({accounts}).").format(accounts=accounts)
+
+
 def format_plan(plan: UninstallPlan) -> str:
     lines = [_("The following will be removed:"), ""]
     lines.extend(f"  - {removal.label}\n      {removal.path}" for removal in plan.present)
@@ -198,7 +239,8 @@ def run_uninstall(
 
     if dry_run:
         output.header(_("Dry run — nothing will be deleted."))
-        output.progress(format_plan(plan))
+        steam_line = remove_steam_entries(dry_run=True)
+        output.progress(format_plan(plan) + (f"\n{steam_line}" if steam_line else ""))
         return 0
 
     if resolved_game_data_target is not None:
@@ -227,6 +269,9 @@ def run_uninstall(
             return 1
 
     output.progress(format_removed(apply_plan(plan)))
+    steam_summary = remove_steam_entries()
+    if steam_summary is not None:
+        output.progress(steam_summary)
     if not game_data:
         # Le chemin est affiché même si le dossier n'existe pas : c'est une
         # information, pas une injonction — et il vaut mieux le donner que

@@ -50,6 +50,8 @@ from stalker_gamma_linux.mo2.session import resolve_anomaly
 from stalker_gamma_linux.prefix import provision, session
 from stalker_gamma_linux.prefix.errors import PrefixBusyError, PrefixCancelledError, PrefixError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
+from stalker_gamma_linux.steam.errors import NoSteamAccountError, SteamError
+from stalker_gamma_linux.steam.install import add_shortcut as add_steam_shortcut
 
 _RESUME_HINT_TEMPLATE = _(
     "Retry `stalker-gamma-linux install --target {root}`: resuming skips steps already validated."
@@ -64,6 +66,7 @@ def run_install(
     target: Path | None = None,
     *,
     shortcut: bool = False,
+    steam: bool = False,
     search_dirs: Sequence[Path] | None = None,
     reporter: output.Reporter = output.console_reporter,
     cancel_event: threading.Event | None = None,
@@ -76,15 +79,17 @@ def run_install(
     Étapes : vérification des prérequis (avertissement, non bloquant) →
     `anomaly-install` → `full-install` → retrait de ReShade + purge du cache de
     shaders → préfixe Proton partagé → configuration de l'instance MO2 →
-    raccourci bureau (si `shortcut`). Reprend après interruption : chaque étape
-    déjà validée (état persisté sous `~/.config/stalker-gamma-linux/`) est
-    sautée. Retourne 0 au succès, 1 si une étape échoue (message actionnable
-    déjà affiché par l'erreur d'origine), `CANCELLED_EXIT_CODE` si `cancel_event`
-    (GUI) a été levé pendant une étape — l'étape en cours n'est pas marquée
-    faite, une relance la rejoue. `proton_release` (optionnel, préférence GUI) :
-    voir `prefix.proton.ensure_proton`. `force` : démarre malgré des prérequis
+    raccourci bureau (si `shortcut`) → entrée Steam (si `steam`). Reprend après
+    interruption : chaque étape déjà validée (état persisté sous
+    `~/.config/stalker-gamma-linux/`) est sautée. Retourne 0 au succès, 1 si
+    une étape échoue (message actionnable déjà affiché par l'erreur d'origine),
+    `CANCELLED_EXIT_CODE` si `cancel_event` (GUI) a été levé pendant une étape
+    — l'étape en cours n'est pas marquée faite, une relance la rejoue.
+    `proton_release` (optionnel, préférence GUI) : voir
+    `prefix.proton.ensure_proton`. `force` : démarre malgré des prérequis
     manquants (voir `EnvironmentReport.install_blockers`) — sinon on retourne 1
-    sans rien télécharger.
+    sans rien télécharger ; il passe aussi outre le refus d'écrire dans Steam
+    pendant que Steam tourne.
 
     `only` (optionnel) : ne joue que les étapes nommées, et les joue **même si
     elles sont déjà marquées faites**. Sert au dépannage — « relance juste le
@@ -131,12 +136,18 @@ def run_install(
 
     install.ensure_directories()
     state = state_module.load_state(root)
-    total = len(state_module.STEPS) if shortcut else len(state_module.STEPS) - 1
+    # `--only <étape optionnelle>` vaut demande explicite : inutile d'exiger en
+    # plus `--shortcut`/`--steam-shortcut`, qui ne servent qu'à l'ajouter à un
+    # pipeline complet.
+    asked = set(only or ())
+    want_shortcut = shortcut or "shortcut" in asked
+    want_steam = steam or "steam" in asked
+    planned = state_module.planned_steps(shortcut=want_shortcut, steam=want_steam)
 
-    def run_step(number: int, step_name: str, action: Callable[[], None]) -> None:
+    def run_step(step_name: str, action: Callable[[], None]) -> None:
         nonlocal state
         label = state_module.STEP_LABELS[step_name]
-        index = f"{number}/{total}"
+        index = f"{planned.index(step_name) + 1}/{len(planned)}"
         if only is not None:
             # Rejeu ciblé : l'étape demandée tourne **même si elle est marquée
             # faite** (c'est tout l'intérêt — « relance juste le préfixe »), et
@@ -178,6 +189,16 @@ def run_install(
     def create_shortcut() -> None:
         install_shortcut(root)
 
+    def create_steam_shortcut() -> None:
+        # Steam ouvert = on n'écrit pas : il réécrirait `shortcuts.vdf` en
+        # quittant et effacerait l'entrée sans le moindre message. `force`
+        # passe outre, comme pour le préfixe.
+        if not add_steam_shortcut(root, force=force):
+            # Aucun compte Steam : l'étape n'a rien à faire, mais se taire
+            # laisserait croire que l'entrée est là. Un avertissement, pas une
+            # erreur — le reste de l'installation est valide.
+            reporter.warn(str(NoSteamAccountError()))
+
     def install_anomaly() -> None:
         engine.install_anomaly(install, on_progress=reporter.progress, cancel_event=cancel_event)
 
@@ -190,19 +211,19 @@ def run_install(
         _record_modlist_snapshot(root, reporter=reporter)
 
     try:
-        run_step(1, "anomaly", install_anomaly)
-        run_step(2, "gamma", install_gamma)
-        run_step(3, "reshade", remove_reshade_and_purge)
-        run_step(4, "prefix", ensure_prefix)
-        run_step(5, "mo2", configure_mo2)
-        # `--only shortcut` vaut demande explicite : inutile d'exiger en plus
-        # `--shortcut`, qui ne sert qu'à l'ajouter à un pipeline complet.
-        if shortcut or (only is not None and "shortcut" in only):
-            run_step(6, "shortcut", create_shortcut)
+        run_step("anomaly", install_anomaly)
+        run_step("gamma", install_gamma)
+        run_step("reshade", remove_reshade_and_purge)
+        run_step("prefix", ensure_prefix)
+        run_step("mo2", configure_mo2)
+        if want_shortcut:
+            run_step("shortcut", create_shortcut)
+        if want_steam:
+            run_step("steam", create_steam_shortcut)
     except (_InstallCancelledError, EngineCancelledError, PrefixCancelledError):
         reporter.warn(_("Installation cancelled."))
         return CANCELLED_EXIT_CODE
-    except (EngineError, PrefixError, Mo2Error, DesktopError) as error:
+    except (EngineError, PrefixError, Mo2Error, DesktopError, SteamError) as error:
         reporter.error(str(error), hint=_RESUME_HINT_TEMPLATE.format(root=root))
         return 1
 

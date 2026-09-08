@@ -24,18 +24,38 @@ def test_build_parser_install_shortcut_flag() -> None:
 
 
 def test_main_dispatches_to_install(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[tuple[Path | None, bool]] = []
+    calls: list[tuple[Path | None, bool, bool]] = []
 
     def fake_run_install(
-        target: Path | None, *, shortcut: bool, force: bool = False, only: Any = None
+        target: Path | None,
+        *,
+        shortcut: bool,
+        steam: bool = False,
+        force: bool = False,
+        only: Any = None,
     ) -> int:
-        calls.append((target, shortcut))
+        calls.append((target, shortcut, steam))
         return 0
 
     monkeypatch.setattr(cli, "run_install", fake_run_install)
 
     assert cli.main(["install", "--target", "/mnt/disk/GAMMA", "--shortcut"]) == 0
-    assert calls == [(Path("/mnt/disk/GAMMA"), True)]
+    assert calls == [(Path("/mnt/disk/GAMMA"), True, False)]
+
+
+def test_main_dispatches_to_steam_shortcut(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[Path | None, bool, bool, bool]] = []
+
+    def fake_run_steam_shortcut(
+        target: Path | None, *, remove: bool, dry_run: bool, force: bool
+    ) -> int:
+        calls.append((target, remove, dry_run, force))
+        return 0
+
+    monkeypatch.setattr(cli, "run_steam_shortcut", fake_run_steam_shortcut)
+
+    assert cli.main(["steam-shortcut", "--remove", "--dry-run"]) == 0
+    assert calls == [(None, True, True, False)]
 
 
 def test_main_ctrl_c_retourne_le_code_dannulation(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -47,7 +67,12 @@ def test_main_ctrl_c_retourne_le_code_dannulation(monkeypatch: pytest.MonkeyPatc
     """
 
     def interrupted(
-        target: Path | None, *, shortcut: bool, force: bool = False, only: Any = None
+        target: Path | None,
+        *,
+        shortcut: bool,
+        steam: bool = False,
+        force: bool = False,
+        only: Any = None,
     ) -> int:
         raise KeyboardInterrupt
 

@@ -27,6 +27,8 @@ This project is the **Linux integration layer** that makes GAMMA a one-command
 (and eventually one-click) install:
 
 - One-shot installer: prerequisites check → Anomaly → GAMMA modpack → Proton prefix → desktop shortcut
+- **One command puts GAMMA in your Steam library**, artwork included — so it
+  starts from Gaming Mode on a Steam Deck, without ever opening Desktop Mode
 - **Mod Organizer 2 running under Proton as the primary mode** — you keep full
   mod flexibility (enable/disable/add mods), exactly like on Windows
 - Incremental updates that follow upstream GAMMA releases
@@ -164,6 +166,8 @@ stalker-gamma-linux backup                       # back up profiles + saved game
 stalker-gamma-linux backup --list                # what you can go back to (date, contents, size)
 stalker-gamma-linux restore <id>                 # put one back (the current state is saved first)
 stalker-gamma-linux shortcut                     # (re)create the .desktop menu entry
+stalker-gamma-linux steam-shortcut               # add GAMMA to the Steam library, artwork included
+stalker-gamma-linux steam-shortcut --remove      # take it back out (entry + artwork)
 stalker-gamma-linux install --only prefix        # replay one step (troubleshooting), even if done
 stalker-gamma-linux verify                       # check the installed mods against their reference fingerprint
 stalker-gamma-linux verify --repair              # + reinstall the damaged modpack mods (yours are never touched)
@@ -171,6 +175,32 @@ stalker-gamma-linux prefix-doctor --repair        # repair the shared Proton pre
 stalker-gamma-linux uninstall                    # remove shortcuts/settings/logs (keeps the game)
 stalker-gamma-linux doctor --report              # write a report to attach to an issue
 ```
+
+**Steam Deck / Gaming Mode: `stalker-gamma-linux steam-shortcut`.** It writes
+GAMMA into your Steam library itself — entry *and* artwork (library capsule,
+hero banner, logo, icon) — so it shows up and launches from Gaming Mode, with
+Steam Input and the overlay active. You never touch Steam: no *Add a Non-Steam
+Game*, no Desktop Mode round-trip, which is the point, since that button does
+not exist in Gaming Mode. `install --steam-shortcut` does it at the end of an
+install, and the same switch is in the GUI's Preferences and in the install
+dialog.
+
+Three things it will not do. It **refuses to write while Steam is running** —
+Steam keeps `shortcuts.vdf` in memory and rewrites it on exit, which would
+silently undo the change; quit Steam completely, or pass `--force` if you know
+what you are doing. It **backs the file up first** (a timestamped `.bak` next to
+it) and writes atomically, because that file holds *your other* non-Steam
+shortcuts. And it **never downloads artwork** — SteamGridDB included: the
+capsules are generated from the project's own assets and shipped with the
+package.
+
+Rerunning it updates the entry instead of adding a second one, and it recognises
+an entry you had added by hand as its own. `--remove` takes the entry and the
+artwork back out (and leaves any capsule you replaced yourself alone);
+`uninstall` does it for you. `--dry-run` shows what would change, in both
+directions. On a multi-account machine every local account gets the entry —
+guessing which one you meant is a coin flip, and in Gaming Mode there is nobody
+to ask.
 
 **Your mod list survives updates.** On Windows, `Install / Update GAMMA` resets
 your modlist, your load order and the mods you added — the official wiki says so

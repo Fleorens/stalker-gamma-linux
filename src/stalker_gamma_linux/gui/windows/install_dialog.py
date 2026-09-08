@@ -197,16 +197,22 @@ class InstallDialog(Adw.Dialog):
 
     def _build_options(self) -> Gtk.Widget:
         self._shortcut_row = Adw.SwitchRow(
-            title=_("« Play directly » shortcut"),
+            title=_("« Play directly » menu entry"),
+            subtitle=_("In addition to the launcher (already in your menu)"),
+            active=self._prefs.create_direct_shortcut,
+        )
+        self._steam_row = Adw.SwitchRow(
+            title=_("Add to the Steam library"),
             subtitle=_(
-                "In addition to the launcher (already in your menu) — mainly useful "
-                "for Steam's « Add a Non-Steam Game »"
+                "Entry + artwork, for Gaming Mode and the Steam Deck. Steam must "
+                "be closed when the install reaches that step"
             ),
-            active=self._prefs.create_steam_shortcut,
+            active=self._prefs.add_to_steam,
         )
         rows = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
         rows.add_css_class("boxed-list")
         rows.append(self._shortcut_row)
+        rows.append(self._steam_row)
         return rows
 
     def _build_confirm(self) -> Gtk.Widget:
@@ -352,7 +358,9 @@ class InstallDialog(Adw.Dialog):
         dialog.present(self)
 
     def _on_confirm(self, _button: Gtk.Button) -> None:
-        updated = self._prefs.with_create_steam_shortcut(self._shortcut_row.get_active())
+        updated = self._prefs.with_create_direct_shortcut(
+            self._shortcut_row.get_active()
+        ).with_add_to_steam(self._steam_row.get_active())
         prefs.save_preferences(updated)
         self.close()
         self._on_confirmed(updated)

@@ -25,8 +25,9 @@ Livrable MVP atteint : `stalker-gamma-linux install` → GAMMA jouable via MO2
 sous Proton, reprise après interruption, mise à jour incrémentale.
 
 ## Phase 2 — Intégration bureau
-- **T06** Raccourci bureau : entrée `.desktop` + icône (ajout à Steam en
-  jeu non-Steam laissé à l'utilisateur, via le bouton natif de Steam).
+- **T06** Raccourci bureau : entrée `.desktop` + icône (l'ajout à Steam était
+  alors laissé à l'utilisateur, via le bouton natif — décision rouverte et
+  tranchée dans l'autre sens par T19).
 - **T08** ✅ GUI GTK4/libadwaita, testée en réel (2026-07-23) : fenêtre
   principale (statut, bouton contextuel Installer/Jouer, Ouvrir MO2), vue
   progression (étape, barre, journal repliable, annulation propre), vue
@@ -141,10 +142,18 @@ ce que seul Linux permet, et les modes d'échec qui font abandonner. Découpage 
   préexistants corrigés au passage : le journal de lancement est append-only
   (seule la dernière session compte) et l'avertissement de préfixe non fatal
   mesuré en T16 ne masque plus un crash réel.
-- **T19** 🟠 Steam / mode Gaming en un clic (`shortcuts.vdf`). **Revient sur le
-  hors-scope de T06** : le « gain limité aux joueurs Deck » est devenu le public
-  qui grossit, et en mode Gaming l'utilisateur *ne peut pas* suivre notre
-  consigne (« Ajouter un jeu non-Steam » exige le mode Bureau).
+- **T19** ✅ Steam / mode Gaming en un clic : `steam-shortcut` écrit l'entrée
+  **et** son artwork dans `shortcuts.vdf`, sans que l'utilisateur touche à
+  Steam. **Revient sur le hors-scope de T06** : le « gain limité aux joueurs
+  Deck » est devenu le public qui grossit, et en mode Gaming l'utilisateur *ne
+  peut pas* suivre notre consigne (« Ajouter un jeu non-Steam » exige le mode
+  Bureau). Les réserves de T06 sont devenues le cahier des charges : codec VDF
+  écrit contre un vrai fichier et validé en **round-trip octet à octet**
+  (fixture réelle anonymisée dans `tests/`), sauvegarde `.bak` horodatée +
+  écriture atomique, refus d'écrire pendant que Steam tourne, préservation
+  champ à champ des raccourcis des autres, `--remove` qui rend le fichier tel
+  qu'avant. Vérifié de bout en bout sur la vraie install Steam de la machine le
+  2026-09-08 (ajout, non-duplication, retrait à l'octet près).
 - **T20** ✅ **livré (2026-09-08)** — ⚠ **reste à valider sur une vraie partie.**
   MangoHud, gamescope/FSR et vkBasalt en couches optionnelles, composées autour
   du lancement par `environment/performance.py` : gamescope à l'extérieur

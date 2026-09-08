@@ -53,6 +53,10 @@ where = ["src"]
 stalker_gamma_linux = [
     "assets/icon.png",
     "assets/logo.png",
+    # Capsules Steam (T19), générées par `scripts/generate_steam_artwork.py` :
+    # sans cette ligne, `steam-shortcut` poserait un raccourci sans artwork sur
+    # une installation par `pip`.
+    "assets/steam/*.png",
     "assets/background.jpg",
     # Variante floutée/assombrie, affichée derrière les pages de contenu
     # (progression, diagnostic) — cf. `gui/windows/background.py`.

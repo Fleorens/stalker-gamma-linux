@@ -28,18 +28,26 @@ _PREFS_FILENAME = "gui-prefs.toml"
 class Preferences:
     """`proton_release` à `None` = comportement par défaut (dernière release GE, T04).
 
-    `create_steam_shortcut` à `False` par défaut : ce n'est PAS l'icône du menu
-    applications (`install.sh` la crée déjà, une seule fois, en pointant sur la
-    GUI) — c'est une entrée supplémentaire qui lance `play` en direct, utile
-    uniquement comme cible pour Steam « Ajouter un jeu non-Steam ». Cochée par
-    défaut, elle produisait deux icônes « Installeur GAMMA » quasi identiques
-    dans le menu (constaté en VM le 2026-07-26) : une qui ouvre la GUI, une qui
-    saute droit dans le jeu.
+    **Deux réglages Steam, à ne pas confondre** — le premier s'appelait
+    `create_steam_shortcut`, un nom qui promettait le second (renommé par T19,
+    l'ancienne clé du fichier reste lue) :
+
+    - `create_direct_shortcut` — une entrée `.desktop` **du menu applications**
+      qui lance `play` en direct. Steam n'y est pour rien : elle ne servait que
+      de cible commode pour le bouton *Ajouter un jeu non-Steam*. `False` par
+      défaut car cochée, elle produisait deux icônes « Installeur GAMMA » quasi
+      identiques dans le menu (constaté en VM le 2026-07-26) : une qui ouvre la
+      GUI, une qui saute droit dans le jeu.
+    - `add_to_steam` — l'entrée **dans la bibliothèque Steam** elle-même
+      (`shortcuts.vdf` + artwork, T19), celle qui rend GAMMA lançable depuis le
+      mode Gaming. `False` par défaut : elle écrit dans un fichier qui
+      appartient à Steam, et exige que Steam soit fermé — ça se demande.
     """
 
     install_path: Path = DEFAULT_INSTALL_TARGET
     proton_release: str | None = None
-    create_steam_shortcut: bool = False
+    create_direct_shortcut: bool = False
+    add_to_steam: bool = False
     # Couches de performance (T20). GameMode y est actif par défaut : quand il
     # est installé, il n'y a aucune raison de s'en priver, et quand il ne l'est
     # pas c'est un no-op (cf. `environment.gamemode`) — l'interrupteur n'existe
@@ -54,8 +62,11 @@ class Preferences:
     def with_proton_release(self, release: str | None) -> Preferences:
         return replace(self, proton_release=release or None)
 
-    def with_create_steam_shortcut(self, enabled: bool) -> Preferences:
-        return replace(self, create_steam_shortcut=enabled)
+    def with_create_direct_shortcut(self, enabled: bool) -> Preferences:
+        return replace(self, create_direct_shortcut=enabled)
+
+    def with_add_to_steam(self, enabled: bool) -> Preferences:
+        return replace(self, add_to_steam=enabled)
 
     def with_performance(self, settings: PerformanceSettings) -> Preferences:
         return replace(self, performance=settings)
@@ -91,9 +102,23 @@ def load_preferences() -> Preferences:
     return Preferences(
         install_path=_install_path_or_default(raw_path),
         proton_release=str(raw_release) if raw_release else None,
-        create_steam_shortcut=bool(data.get("create_steam_shortcut", False)),
+        create_direct_shortcut=_direct_shortcut_flag(data),
+        add_to_steam=bool(data.get("add_to_steam", False)),
         performance=_performance_or_default(data),
     )
+
+
+def _direct_shortcut_flag(data: Mapping[str, object]) -> bool:
+    """Le drapeau du raccourci `.desktop` direct, ancienne clé comprise.
+
+    `create_steam_shortcut` est le nom qu'il portait avant T19, quand il n'y
+    avait rien d'autre côté Steam. Un fichier de préférences écrit par une
+    version précédente doit garder le choix de l'utilisateur — sans quoi le
+    renommage le remettrait silencieusement à `False`.
+    """
+    if "create_direct_shortcut" in data:
+        return bool(data["create_direct_shortcut"])
+    return bool(data.get("create_steam_shortcut", False))
 
 
 def _performance_or_default(data: Mapping[str, object]) -> performance.Settings:
@@ -137,7 +162,8 @@ def save_preferences(prefs: Preferences) -> None:
     payload = {
         "install_path": str(prefs.install_path),
         "proton_release": prefs.proton_release or "",
-        "create_steam_shortcut": prefs.create_steam_shortcut,
+        "create_direct_shortcut": prefs.create_direct_shortcut,
+        "add_to_steam": prefs.add_to_steam,
         # Table imbriquée en dernier : le format TOML veut les clés simples
         # avant les tables, et `tomli_w` s'y tient à condition de recevoir le
         # dictionnaire dans cet ordre.

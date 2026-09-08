@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-09-08 09:55+0000\n"
+"POT-Creation-Date: 2026-09-08 16:19+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -113,6 +113,11 @@ msgstr ""
 msgid ""
 "Also creates the desktop shortcut (.desktop + icon) at the end of the "
 "install"
+msgstr ""
+
+msgid ""
+"Also adds GAMMA to your Steam library, artwork included (Steam must be "
+"closed; see the `steam-shortcut` command)"
 msgstr ""
 
 #, python-brace-format
@@ -286,6 +291,22 @@ msgstr ""
 msgid "Creates/updates the desktop shortcut (.desktop + icon, application menu)"
 msgstr ""
 
+msgid ""
+"Adds GAMMA to your Steam library (artwork included) so it can be launched"
+" from Gaming Mode, without touching Steam yourself"
+msgstr ""
+
+msgid "Removes our entry (and only ours) plus the artwork we put there"
+msgstr ""
+
+msgid "Shows what would be written or removed, without touching anything"
+msgstr ""
+
+msgid ""
+"Writes even if Steam is running — Steam rewrites shortcuts.vdf when it "
+"exits and will most likely undo the change"
+msgstr ""
+
 msgid "Removes shortcuts, settings, state and logs (keeps the game by default)"
 msgstr ""
 
@@ -329,6 +350,15 @@ msgstr ""
 msgid ""
 "Check {log_path} (or retry with --verbose) and open an issue if the "
 "problem persists."
+msgstr ""
+
+msgid "Environment"
+msgstr ""
+
+msgid "Proton prefix"
+msgstr ""
+
+msgid "Installation"
 msgstr ""
 
 msgid ""
@@ -450,6 +480,9 @@ msgstr ""
 msgid "(already done — resuming)"
 msgstr ""
 
+msgid "Error"
+msgstr ""
+
 #, python-brace-format
 msgid "Refusing to delete {path}: {reason}"
 msgstr ""
@@ -526,6 +559,9 @@ msgstr ""
 msgid "unknown (not installed as a package)"
 msgstr ""
 
+msgid "rev."
+msgstr ""
+
 #, python-brace-format
 msgid "(no log file at {path})"
 msgstr ""
@@ -539,16 +575,7 @@ msgstr ""
 msgid "Report"
 msgstr ""
 
-msgid "Environment"
-msgstr ""
-
-msgid "Proton prefix"
-msgstr ""
-
 msgid "Proton builds installed"
-msgstr ""
-
-msgid "Installation"
 msgstr ""
 
 msgid "GAMMA detected on disk"
@@ -593,6 +620,9 @@ msgstr ""
 msgid "Desktop shortcut"
 msgstr ""
 
+msgid "Steam library entry (artwork included)"
+msgstr ""
+
 #, python-brace-format
 msgid "unknown step: {step}"
 msgstr ""
@@ -635,6 +665,29 @@ msgid "game data (Anomaly, mods, cache, Proton prefix)"
 msgstr ""
 
 msgid "still present after removal — refusing to report success"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Steam library entry left in place — {reason}\n"
+"Remove it later with: stalker-gamma-linux steam-shortcut --remove"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Steam library entry left in place — {reason}\n"
+"Remove it by hand from Steam, or with: stalker-gamma-linux steam-shortcut"
+" --remove"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"  - Steam library entry (and its artwork)\n"
+"      {accounts}"
+msgstr ""
+
+#, python-brace-format
+msgid "Steam library entry removed ({accounts})."
 msgstr ""
 
 msgid "The following will be removed:"
@@ -932,13 +985,10 @@ msgid ""
 "Desktop shortcut created/updated: {desktop_file}\n"
 "It shows up in your desktop environment's application menu.\n"
 "\n"
-"To also add it to Steam (useful for Steam Input or Gaming Mode on the "
-"Steam Deck): Steam → Add a Game → Add a Non-Steam Game → Browse, select:"
-"\n"
-"  {executable}\n"
-"then, in that Steam entry's properties, set the launch options to:\n"
-"  {launch_options}\n"
-"Steam then handles the artwork and compat tool choice itself."
+"To also add GAMMA to your Steam library (Steam Input, Gaming Mode on the "
+"Steam Deck), artwork included, with Steam closed:\n"
+"  stalker-gamma-linux steam-shortcut\n"
+"`--remove` takes it back out."
 msgstr ""
 
 msgid "the ModDB page shown above"
@@ -1413,12 +1463,18 @@ msgstr ""
 msgid "System prerequisites"
 msgstr ""
 
-msgid "« Play directly » shortcut"
+msgid "« Play directly » menu entry"
+msgstr ""
+
+msgid "In addition to the launcher (already in your menu)"
+msgstr ""
+
+msgid "Add to the Steam library"
 msgstr ""
 
 msgid ""
-"In addition to the launcher (already in your menu) — mainly useful for "
-"Steam's « Add a Non-Steam Game »"
+"Entry + artwork, for Gaming Mode and the Steam Deck. Steam must be closed"
+" when the install reaches that step"
 msgstr ""
 
 msgid "START INSTALLATION"
@@ -1644,13 +1700,26 @@ msgstr ""
 msgid "Version (e.g. GE-Proton10-8)"
 msgstr ""
 
-msgid "« Play directly » shortcut on install"
+msgid ""
+"Two different things: a menu entry that jumps straight into the game, and"
+" an entry in the Steam library itself."
+msgstr ""
+
+msgid "« Play directly » menu entry on install"
 msgstr ""
 
 msgid ""
-"In addition to the launcher (already in your menu) — reuse it with "
-"Steam's native « Add a Non-Steam Game » button; adding it to Steam itself"
-" stays manual."
+"In addition to the launcher (already in your menu): a desktop entry that "
+"skips the launcher and starts the game."
+msgstr ""
+
+msgid "Add GAMMA to the Steam library on install"
+msgstr ""
+
+msgid ""
+"Writes the entry and its artwork into Steam (Gaming Mode / Steam Deck "
+"included). Steam must be closed while it is written; `steam-shortcut "
+"--remove` undoes it."
 msgstr ""
 
 msgid " — already done"
@@ -1770,6 +1839,9 @@ msgid "To repair (removed, then reinstalled by the engine):"
 msgstr ""
 
 msgid "Left untouched:"
+msgstr ""
+
+msgid "mods/"
 msgstr ""
 
 #, python-brace-format
@@ -2583,5 +2655,106 @@ msgstr ""
 
 #, python-brace-format
 msgid "umu-run ready: {target}"
+msgstr ""
+
+msgid "<in memory>"
+msgstr ""
+
+#, python-brace-format
+msgid "Unreadable shortcuts.vdf ({path}, byte {offset}): {reason}"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Steam is running ({name}, PID {pid}). Steam keeps shortcuts.vdf in memory"
+" and rewrites it when it exits, which would silently undo this change.\n"
+"Quit Steam completely (Steam → Exit, not just the window), then run this "
+"command again — or pass --force to write anyway."
+msgstr ""
+
+msgid ""
+"No Steam account found on this machine.\n"
+"Steam stores its shortcuts per account, under userdata/<id>/config/ — "
+"that directory only appears once Steam has been installed and signed into"
+" at least once.\n"
+"Install Steam, sign in, quit it, then run this command again."
+msgstr ""
+
+#, python-brace-format
+msgid "file is {size} bytes, well beyond any real shortcuts.vdf"
+msgstr ""
+
+msgid "Start Steam (or restart it) to see the change in your library."
+msgstr ""
+
+msgid ""
+"Note: this account belongs to the Flatpak Steam, which launches non-Steam"
+" games inside its sandbox — the entry and its artwork are written, but "
+"the launch itself may fail there. The native Steam package is the "
+"reliable path; `stalker-gamma-linux play` always works from outside "
+"Steam."
+msgstr ""
+
+msgid "added to"
+msgstr ""
+
+msgid "updated in"
+msgstr ""
+
+#, python-brace-format
+msgid "  {account}: {verb} the library (appid {appid})"
+msgstr ""
+
+#, python-brace-format
+msgid "    artwork: {count} files in {grid}"
+msgstr ""
+
+#, python-brace-format
+msgid "    backup of the previous file: {backup}"
+msgstr ""
+
+#, python-brace-format
+msgid "  {account}: nothing of ours in there"
+msgstr ""
+
+#, python-brace-format
+msgid "  {account}: entry removed (appid {appid})"
+msgstr ""
+
+#, python-brace-format
+msgid "    artwork removed: {count} files"
+msgstr ""
+
+#, python-brace-format
+msgid "    left in place (no longer ours — you replaced them): {files}"
+msgstr ""
+
+msgid "Steam shortcut that would be removed:"
+msgstr ""
+
+msgid "Steam shortcut removed:"
+msgstr ""
+
+msgid "Steam shortcut that would be written:"
+msgstr ""
+
+msgid "Steam shortcut written:"
+msgstr ""
+
+msgid "Dry run — nothing will be written."
+msgstr ""
+
+msgid "unexpected end of file"
+msgstr ""
+
+msgid "unterminated string"
+msgstr ""
+
+#, python-brace-format
+msgid "unknown field type 0x{type_id:02x} — refusing to guess its length"
+msgstr ""
+
+#, python-brace-format
+msgid "nesting deeper than {limit} levels"
 msgstr ""
 

@@ -1,10 +1,11 @@
 """Raccourci bureau (T06) : entrée freedesktop `.desktop` + icône.
 
-Pas d'intégration Steam automatisée (abandon de l'écriture `shortcuts.vdf` —
-cf. docs/ROADMAP.md) : ce module se limite à un raccourci standard dans le
-menu applications. L'ajout éventuel à Steam (utile pour Steam Input ou le
-mode Gaming sur Deck) reste manuel, via le bouton natif *Ajouter un jeu
-non-Steam* de Steam pointant sur la même commande.
+Ce module se limite au menu applications. L'ajout à la **bibliothèque Steam**
+(entrée + artwork, utile pour Steam Input et le mode Gaming sur Deck) a son
+propre paquet depuis T19 : `stalker_gamma_linux.steam`. Les deux restent
+distincts — puits différents, échecs différents — et l'entrée `.desktop`
+« jouer en direct » garde son intérêt propre, y compris comme cible du bouton
+natif *Ajouter un jeu non-Steam*.
 """
 
 from stalker_gamma_linux.desktop.errors import DesktopError, DesktopWriteError

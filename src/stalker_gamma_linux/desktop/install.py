@@ -2,8 +2,8 @@
 
 Idempotent par construction : `DesktopPaths` pointe vers des chemins fixes
 (dérivés de `APP_ID`), donc relancer cette fonction écrase le fichier existant
-au lieu d'en créer un doublon — pas besoin de la logique de déduplication
-qu'aurait exigée un `shortcuts.vdf`.
+au lieu d'en créer un doublon. La déduplication qu'exige un `shortcuts.vdf`,
+elle, vit dans `steam/entry.py` (T19).
 """
 
 from __future__ import annotations

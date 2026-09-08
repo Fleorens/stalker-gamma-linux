@@ -1184,6 +1184,126 @@ plausible sous `gamedata/`. L'attribution ne parcourt pas l'arborescence des mod
 et teste leur existence, la résolution insensible à la casse n'étant tentée qu'en
 second passage.
 
+## Entrée dans la bibliothèque Steam (T19)
+
+T06 avait écarté l'écriture de `shortcuts.vdf` et renvoyait l'utilisateur vers
+*Steam → Ajouter un jeu non-Steam*. Ce contournement **ne s'exécute pas là où il
+sert le plus** : en mode Gaming (Steam Deck, Bazzite, SteamOS), il faut repasser
+en mode Bureau pour le faire. Les réserves techniques de T06 tenaient, elles :
+elles sont devenues le cahier des charges ci-dessous plutôt qu'une raison de
+renoncer.
+
+### Le format, relevé et non supposé
+
+Aucune spécification publique n'existe. Le codec (`steam/vdf.py`) a été écrit
+contre un `shortcuts.vdf` réel de la machine de développement : séquence de
+champs typés (`0x00` map, `0x01` chaîne, `0x02` entier 32 bits signé, `0x08` fin
+de bloc). Le critère qui le valide n'est pas « ça se relit » mais **le
+round-trip octet à octet** : lire puis réécrire un fichier non modifié doit
+rendre les mêmes octets. Ce fichier réel, anonymisé par substitution d'octets de
+même longueur, est versionné en `tests/data/shortcuts-real.vdf` — un fichier
+fabriqué à la main n'aurait prouvé que notre propre compréhension.
+
+Trois conséquences dans le code : `VdfOpaque` conserve verbatim tout champ typé
+qu'on ne sait pas interpréter ; le `trailer` du document garde la queue du
+fichier telle quelle (le fichier réel finit par quatre `0x08` — trois fermetures
+de blocs et un terminateur de document) ; les chaînes sont décodées en
+`surrogateescape`, pour qu'un nom de raccourci mal encodé survive au lieu d'être
+« réparé ». Un octet de type inconnu, lui, est **refusé** (`VdfFormatError` avec
+son offset) : deviner la longueur d'un champ rendrait illisible tout ce qui
+suit, dans un fichier qu'on s'apprête à réécrire.
+
+### L'`appid` : ce qui a été vérifié
+
+Les formules qui circulent (`crc32(Exe + AppName) | 0x80000000`, avec ou sans
+les guillemets, signée ou non) **ne reproduisent pas** l'identifiant du fichier
+réel. `logs/console_log.txt` dit pourquoi : `sanitize shortcut app id "<exe>":
+replacing 0 with 3379557880, reason: k_unAppIdInvalid`. Steam n'applique pas une
+formule — il **remplace un identifiant invalide (0)** par une valeur de son
+choix, et ne recalcule jamais celui d'une entrée existante (celui du fichier réel
+a survécu à un déplacement de l'exécutable).
+
+D'où la règle : **on écrit nous-mêmes un identifiant valide** et on nomme
+l'artwork d'après lui ; quand une entrée existe déjà, on **reprend le sien**.
+Laisser le champ à 0 pour que Steam choisisse serait le vrai pari — la valeur
+serait imprévisible et l'artwork posé à l'avance ne correspondrait à rien. La
+valeur retenue pour une entrée neuve est le CRC32 historique, non parce que Steam
+la partagerait, mais parce qu'il en faut une et qu'elle doit être déterministe
+(recréer le raccourci doit retomber sur l'artwork déjà posé). Le VDF stocke un
+entier **signé**, les noms de fichiers d'artwork utilisent la forme **non
+signée** des mêmes 32 bits : les deux conversions vivent dans `steam/appid.py`,
+et nulle part ailleurs.
+
+### Reconnaître notre entrée : l'`Exe`, pas le nom
+
+L'utilisateur peut renommer un raccourci dans Steam ; il ne peut pas changer
+l'exécutable qu'il pointe sans en faire autre chose. `steam/entry.py` reconnaît
+donc notre entrée à son `Exe` (le script console du paquet, quel que soit le
+venv). Effet voulu : **l'entrée créée à la main via *Ajouter un jeu non-Steam* —
+la manipulation que T06 recommandait — est reconnue comme la nôtre et mise à
+jour**, pas doublée. Comme pour `ModOrganizer.ini` dans `mo2/ini.py`, seules les
+clés qu'on possède sont réécrites : tout le reste — les champs de Steam, ceux
+des autres raccourcis — ressort à sa place, avec son type et sa casse d'origine.
+
+### Ce qui protège le fichier de l'utilisateur
+
+`shortcuts.vdf` contient *les autres* raccourcis non-Steam, que rien ne
+retéléchargera. Même exigence qu'en T17 : copie `.bak` horodatée avant écriture,
+écriture atomique (fichier temporaire puis `os.replace`), jamais de réécriture
+partielle. Et un refus en amont : **Steam ouvert = on n'écrit pas** — il garde le
+fichier en mémoire et le réécrit en quittant, donc écrire pendant qu'il tourne
+perd le travail *sans message*. La détection (`steam/running.py`) suit le schéma
+de `prefix/session.py` : `/proc` d'abord, `pgrep -x` en repli, et le nom de tâche
+du noyau plutôt que la ligne de commande — un `pgrep -f steam` matcherait notre
+propre processus et refuserait toujours d'écrire.
+
+### Multi-comptes : on écrit pour tous
+
+Les raccourcis vivent par compte (`userdata/<id>/config/shortcuts.vdf`), et
+Steam natif comme Steam Flatpak peuvent coexister. Deviner « le bon » compte à
+partir des dates de modification est une heuristique qui se trompe sur une
+machine partagée ; demander est impossible là où ça compte — en mode Gaming, il
+n'y a pas de terminal pour répondre. On écrit donc pour **tous** les comptes
+trouvés : le geste est réversible, et son coût chez un voisin est une entrée de
+plus dans sa bibliothèque. Les racines candidates sont dédupliquées par chemin
+**résolu** (`~/.steam/steam` est un lien vers `~/.local/share/Steam` : sans ça on
+écrirait trois fois dans le même fichier, dont deux par-dessus la sauvegarde
+qu'on venait de prendre).
+
+Le Steam Flatpak est servi comme les autres, avec deux ajustements : les chemins
+absolus écrits dans le VDF sont retraduits dans la vue du bac à sable
+(`~/.var/app/<id>/` y **est** `~/`), et l'utilisateur est averti que le
+lancement, lui, peut échouer depuis ce sandbox — l'entrée et l'artwork, eux, sont
+corrects.
+
+### Artwork : uniquement le nôtre, pré-généré
+
+Les cinq fichiers posés dans `userdata/<id>/config/grid/` (`<appid>p.png`,
+`<appid>.png`, `<appid>_hero.png`, `<appid>_logo.png`, `<appid>_icon.png`)
+viennent tous du paquet. Les trois capsules sont rendues hors ligne par
+`scripts/generate_steam_artwork.py` — même moteur procédural que le fond de la
+GUI — puis livrées comme assets : la composition demande Pillow + numpy, qui sont
+des dépendances de **développement**, alors que le paquet installé ne doit rien
+avoir à recomposer. Aucun téléchargement, SteamGridDB comprise. Au retrait, un
+fichier dont les octets ne sont plus les nôtres (l'utilisateur y a mis sa propre
+capsule) est **laissé en place** et signalé.
+
+### Deux notions Steam, deux réglages
+
+`prefs.create_steam_shortcut` désignait déjà autre chose : une entrée `.desktop`
+supplémentaire qui saute droit dans `play`, utile *comme cible* pour le bouton
+natif de Steam. Le nom promettait ce que T19 livre. Il est donc renommé
+`create_direct_shortcut`, et `add_to_steam` désigne l'entrée dans la
+bibliothèque ; l'ancienne clé du fichier de préférences reste lue, pour ne pas
+remettre silencieusement le choix de l'utilisateur à zéro.
+
+Côté pipeline, `steam` rejoint `shortcut` dans `state.OPTIONAL_STEPS` : deux
+étapes qu'`install` ne joue que si on les demande, et dont l'absence ne rend pas
+une installation incomplète. La numérotation « n/total » vient désormais de
+`state.planned_steps`, lue à la fois par l'orchestrateur et par la barre de
+progression de la GUI — le `STEPS[:-1]` que la GUI recopiait décrochait dès
+qu'une seconde étape optionnelle est apparue.
+
 ## Dimensionnement disque (`sizing.py`)
 
 Le volume qu'exige une installation est une donnée **unique**, dans

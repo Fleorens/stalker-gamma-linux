@@ -26,6 +26,7 @@ from stalker_gamma_linux.postmortem import run_postmortem
 from stalker_gamma_linux.prefix import run_prefix_doctor
 from stalker_gamma_linux.prefix.umu import run_install_umu
 from stalker_gamma_linux.report_bundle import run_report, version_line
+from stalker_gamma_linux.steam import run_steam_shortcut
 from stalker_gamma_linux.uninstall import run_uninstall
 from stalker_gamma_linux.updates import run_update_check
 
@@ -106,6 +107,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--shortcut",
         action="store_true",
         help=_("Also creates the desktop shortcut (.desktop + icon) at the end of the install"),
+    )
+    install_parser.add_argument(
+        "--steam-shortcut",
+        action="store_true",
+        help=_(
+            "Also adds GAMMA to your Steam library, artwork included "
+            "(Steam must be closed; see the `steam-shortcut` command)"
+        ),
     )
     install_parser.add_argument(
         "--only",
@@ -386,6 +395,33 @@ def build_parser() -> argparse.ArgumentParser:
     )
     shortcut_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
 
+    steam_parser = subparsers.add_parser(
+        "steam-shortcut",
+        help=_(
+            "Adds GAMMA to your Steam library (artwork included) so it can be "
+            "launched from Gaming Mode, without touching Steam yourself"
+        ),
+    )
+    steam_parser.add_argument("--target", type=Path, default=None, help=_TARGET_HELP)
+    steam_parser.add_argument(
+        "--remove",
+        action="store_true",
+        help=_("Removes our entry (and only ours) plus the artwork we put there"),
+    )
+    steam_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=_("Shows what would be written or removed, without touching anything"),
+    )
+    steam_parser.add_argument(
+        "--force",
+        action="store_true",
+        help=_(
+            "Writes even if Steam is running — Steam rewrites shortcuts.vdf when "
+            "it exits and will most likely undo the change"
+        ),
+    )
+
     uninstall_parser = subparsers.add_parser(
         "uninstall",
         help=_("Removes shortcuts, settings, state and logs (keeps the game by default)"),
@@ -463,7 +499,13 @@ def _selected_sets(args: argparse.Namespace) -> tuple[BackupSet, ...]:
 
 def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "install":
-        return run_install(args.target, shortcut=args.shortcut, force=args.force, only=args.only)
+        return run_install(
+            args.target,
+            shortcut=args.shortcut,
+            steam=args.steam_shortcut,
+            force=args.force,
+            only=args.only,
+        )
     if args.command == "update":
         if args.check:
             return run_update_check(args.target)
@@ -497,6 +539,10 @@ def _dispatch(args: argparse.Namespace) -> int:
         return run_restore(args.identifier, args.target, dry_run=args.dry_run, force=args.force)
     if args.command == "shortcut":
         return run_shortcut(args.target)
+    if args.command == "steam-shortcut":
+        return run_steam_shortcut(
+            args.target, remove=args.remove, dry_run=args.dry_run, force=args.force
+        )
     if args.command == "install-umu":
         return run_install_umu()
     if args.command == "uninstall":

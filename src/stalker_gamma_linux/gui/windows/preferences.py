@@ -66,18 +66,33 @@ class PreferencesDialog(Adw.PreferencesDialog):
         self._performance_group = PerformanceGroup(preferences.performance)
         page.add(self._performance_group)
 
-        steam_group = Adw.PreferencesGroup(title="Steam")
+        steam_group = Adw.PreferencesGroup(
+            title="Steam",
+            description=_(
+                "Two different things: a menu entry that jumps straight into the "
+                "game, and an entry in the Steam library itself."
+            ),
+        )
         page.add(steam_group)
         self._shortcut_row = Adw.SwitchRow(
-            title=_("« Play directly » shortcut on install"),
+            title=_("« Play directly » menu entry on install"),
             subtitle=_(
-                "In addition to the launcher (already in your menu) — reuse it with "
-                "Steam's native « Add a Non-Steam Game » button; adding it to "
-                "Steam itself stays manual."
+                "In addition to the launcher (already in your menu): a desktop "
+                "entry that skips the launcher and starts the game."
             ),
-            active=preferences.create_steam_shortcut,
+            active=preferences.create_direct_shortcut,
         )
         steam_group.add(self._shortcut_row)
+        self._steam_row = Adw.SwitchRow(
+            title=_("Add GAMMA to the Steam library on install"),
+            subtitle=_(
+                "Writes the entry and its artwork into Steam (Gaming Mode / Steam "
+                "Deck included). Steam must be closed while it is written; "
+                "`steam-shortcut --remove` undoes it."
+            ),
+            active=preferences.add_to_steam,
+        )
+        steam_group.add(self._steam_row)
 
         self.connect("closed", self._on_closed)
 
@@ -108,7 +123,8 @@ class PreferencesDialog(Adw.PreferencesDialog):
         release = self._release_row.get_text().strip()
         updated = (
             self._prefs.with_proton_release(release)
-            .with_create_steam_shortcut(self._shortcut_row.get_active())
+            .with_create_direct_shortcut(self._shortcut_row.get_active())
+            .with_add_to_steam(self._steam_row.get_active())
             .with_performance(self._performance_group.settings)
         )
         prefs.save_preferences(updated)

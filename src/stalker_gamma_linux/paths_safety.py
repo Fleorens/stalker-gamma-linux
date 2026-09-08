@@ -16,7 +16,8 @@ Trois familles de cibles, trois niveaux de garde :
 3. **Le chemin d'installation lui-même** (`--target`, le `source` d'`import`, le
    sélecteur de dossier de la GUI) n'est pas seulement une cible de suppression :
    il est recopié dans des formats ligne à ligne (`.desktop`, `ModOrganizer.ini`)
-   où un caractère de contrôle ouvre une clé supplémentaire. Voir
+   où un caractère de contrôle ouvre une clé supplémentaire, et dans un format
+   binaire (`shortcuts.vdf`) où un `\0` *termine* une valeur. Voir
    `validate_install_target` en fin de module.
 
 Dans les trois cas le refus doit être **structurel** — un ensemble de règles
@@ -320,6 +321,12 @@ def validate_install_target(raw: Path) -> Path:
     `desktop/install.py` rend ensuite exécutable (`chmod 0o755`) et enregistre
     dans le menu applications — exécution de commande arbitraire au prochain
     clic (CWE-74).
+
+    S'y ajoute depuis T19 un puits **binaire**, `steam/vdf.py`, où les chaînes
+    sont terminées par `NUL` : un `\\0` dans le chemin y couperait la valeur en
+    deux et décalerait la lecture de tout ce qui suit — dans un fichier qui
+    contient les autres raccourcis de l'utilisateur. `steam/install.py` valide
+    donc la cible avant d'écrire, comme les deux autres puits.
 
     Le refus est placé **à la frontière** plutôt qu'en échappement dans chaque
     puits : les puits sont nombreux et le resteront, l'entrée est unique. Et il

@@ -724,3 +724,36 @@ class TestFusionDeLaModlist:
 
         assert orchestrator.run_install(tmp_path) == 0
         assert modlist_sync.read_snapshot(tmp_path) == "+Amont\n"
+
+
+def test_letape_steam_ecrit_lentree_et_numerote_correctement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reporter: RecordingReporter
+) -> None:
+    """L'étape Steam demandée seule reste la 6/6, pas une 7/6 (T19)."""
+    events: list[str] = []
+    _patch_all(monkeypatch, events)
+    monkeypatch.setattr(
+        orchestrator,
+        "add_steam_shortcut",
+        lambda root, *, force=False: (events.append("steam"), ("un compte",))[1],
+    )
+
+    code = orchestrator.run_install(tmp_path, steam=True, reporter=reporter)
+
+    assert code == 0
+    assert events[-1] == "steam"
+    assert any(message.startswith("6/6") for message in reporter.of_kind("step"))
+
+
+def test_letape_steam_avertit_quand_aucun_compte_nest_trouve(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, reporter: RecordingReporter
+) -> None:
+    """Se taire laisserait croire que l'entrée Steam est là (T19)."""
+    events: list[str] = []
+    _patch_all(monkeypatch, events)
+    monkeypatch.setattr(orchestrator, "add_steam_shortcut", lambda root, *, force=False: ())
+
+    code = orchestrator.run_install(tmp_path, steam=True, reporter=reporter)
+
+    assert code == 0
+    assert "No Steam account" in reporter.text

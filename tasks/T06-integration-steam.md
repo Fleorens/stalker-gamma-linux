@@ -1,5 +1,16 @@
 # T06 — Raccourci bureau
 
+> **Revu par T19 (2026-09-08).** Le renoncement au `shortcuts.vdf` décrit
+> ci-dessous a été rouvert et tranché dans l'autre sens : le contournement
+> proposé ici — *Ajouter un jeu non-Steam* — exige le mode Bureau, donc reste
+> hors de portée en mode Gaming (Steam Deck, Bazzite, SteamOS), là où le besoin
+> est le plus fort. Les réserves techniques listées ici n'ont pas été
+> contredites : elles sont devenues le cahier des charges de
+> `tasks/T19-steam-mode-gaming.md` (sauvegarde avant écriture, round-trip
+> vérifié sur un fichier réel, préservation des raccourcis des autres, refus
+> d'écrire pendant que Steam tourne). Le reste de cette fiche est conservé tel
+> qu'il a été écrit : c'est l'état de la décision à l'époque.
+
 **Modèle recommandé : Sonnet 5.**
 **Dépendances : T04, T05.**
 

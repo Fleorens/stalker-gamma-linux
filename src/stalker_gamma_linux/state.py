@@ -1,7 +1,7 @@
 """État persisté de l'installation (reprise après interruption, commande `install`).
 
 Chaque étape du pipeline (`anomaly`, `gamma`, `reshade`, `prefix`, `mo2`,
-`shortcut`) est déjà idempotente côté module (voir docs/ARCHITECTURE.md) :
+`shortcut`, `steam`) est déjà idempotente côté module (voir docs/ARCHITECTURE.md) :
 relancer `install` sans cet état serait donc déjà correct, mais coûteux (une
 re-vérification MD5 complète du modpack à chaque relance). Ce module se
 contente d'un raccourci — sauter une étape déjà marquée faite — persisté en
@@ -27,7 +27,24 @@ from stalker_gamma_linux.logging_setup import LOGGER_NAME
 
 _logger = logging.getLogger(LOGGER_NAME)
 
-STEPS: tuple[str, ...] = ("anomaly", "gamma", "reshade", "prefix", "mo2", "shortcut")
+STEPS: tuple[str, ...] = ("anomaly", "gamma", "reshade", "prefix", "mo2", "shortcut", "steam")
+
+# Étapes que `install` ne joue que si on les lui demande — leur absence ne rend
+# pas une installation incomplète (voir `gui.viewmodel`).
+OPTIONAL_STEPS: tuple[str, ...] = ("shortcut", "steam")
+
+
+def planned_steps(*, shortcut: bool, steam: bool) -> tuple[str, ...]:
+    """Étapes qu'`install` jouera, dans l'ordre — les optionnelles seulement si demandées.
+
+    Source unique de la numérotation « n/total » : l'orchestrateur et la barre
+    de progression de la GUI la lisent tous les deux ici, au lieu de la
+    redériver chacun de son côté (c'est ce que faisait un `STEPS[:-1]`, qui
+    cassait dès qu'une seconde étape optionnelle est apparue).
+    """
+    wanted = {"shortcut": shortcut, "steam": steam}
+    return tuple(step for step in STEPS if wanted.get(step, True))
+
 
 STEP_LABELS: dict[str, str] = {
     "anomaly": _("Anomaly (base game)"),
@@ -36,6 +53,7 @@ STEP_LABELS: dict[str, str] = {
     "prefix": _("Shared Proton prefix"),
     "mo2": _("Mod Organizer 2 instance configuration"),
     "shortcut": _("Desktop shortcut"),
+    "steam": _("Steam library entry (artwork included)"),
 }
 
 
@@ -49,6 +67,7 @@ class InstallState:
     prefix: bool = False
     mo2: bool = False
     shortcut: bool = False
+    steam: bool = False
 
     def is_done(self, step: str) -> bool:
         return bool(getattr(self, step))
