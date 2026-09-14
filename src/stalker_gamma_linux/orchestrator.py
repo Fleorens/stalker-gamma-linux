@@ -237,7 +237,11 @@ def run_install(
         _(
             "\nInstallation complete. Next steps:\n"
             "  stalker-gamma-linux mo2  --target {root}   # open Mod Organizer 2\n"
-            "  stalker-gamma-linux play --target {root}   # play (Anomaly via MO2, USVFS)"
+            "  stalker-gamma-linux play --target {root}   # play (Anomaly via MO2, USVFS)\n"
+            "\n"
+            "Your first playthrough will stutter while it compiles shaders — "
+            "that's normal and won't happen again (the cache lives under "
+            "{root}/cache/shaders and survives prefix repairs/updates)."
         ).format(root=root)
     )
     return 0

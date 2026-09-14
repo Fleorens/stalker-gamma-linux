@@ -144,6 +144,10 @@ def purge_shader_cache(
 
     Complète `remove_reshade` : un cache obsolète après retrait de ReShade ou
     après une mise à jour provoque des artefacts (docs/INSTALL-MANUAL.md §5, §9).
+
+    C'est le cache **X-Ray** (celui d'Anomaly) — `--anomaly` et rien d'autre.
+    Sans rapport avec le cache DXVK/Mesa/NVIDIA sous `cache/shaders/`
+    (`environment.shader_cache`, T21) : celui-là, on ne le purge jamais ici.
     """
     run(
         "purge-shader-cache",

@@ -24,7 +24,9 @@ GIB = 1024**3
 # Découpage d'une installation complète (docs/INSTALL-MANUAL.md §1).
 ANOMALY_GIB = 17  # `anomaly/` — jeu de base
 MODPACK_GIB = 83  # `gamma/` — instance MO2 + mods extraits
-CACHE_GIB = 46  # `cache/` — archives téléchargées, conservées pour les updates
+CACHE_GIB = 46  # `cache/` — archives téléchargées (conservées pour les updates)
+# et, depuis T21, `cache/shaders/` (DXVK/Mesa/NVIDIA — quelques centaines de
+# Mio à quelques Gio, dans la marge de ce chiffre déjà approximatif).
 TOTAL_INSTALL_GIB = ANOMALY_GIB + MODPACK_GIB + CACHE_GIB  # 146
 
 # Seuil **bloquant** : le total ci-dessus plus une marge de travail pour

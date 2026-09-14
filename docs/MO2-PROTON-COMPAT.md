@@ -423,6 +423,101 @@ aux octets non-UTF-8 : `run_detached` y redirige la sortie brute du processus,
 sans le `errors="replace"` que `run_in_prefix` applique à son flux, et un seul
 octet invalide (0x88, constaté côté Wine) faisait taire le diagnostic sans un mot.
 
+## Cache de shaders DXVK/Mesa/NVIDIA — mesure et décision (T21, 2026-09-09/14)
+
+**Ce qui a changé.** `DXVK_SHADER_CACHE_PATH`, `MESA_SHADER_CACHE_DIR` (+ son
+plafond) et `__GL_SHADER_DISK_CACHE_PATH` (+ le sien) sont désormais posés par
+défaut dans `prefix.process._prefix_environment`
+(`environment.shader_cache.build_env`), pointés sous
+`<root>/cache/shaders/{dxvk,mesa,nvidia}` — hors du préfixe, donc épargnés par
+une reconstruction (`install --only prefix`, `prefix-doctor --repair`). Une
+variable pilote n'est posée que si le pilote correspondant est détecté présent
+sur la machine (`shader_cache.nvidia_present` / `mesa_present`). Voir le module
+pour le détail et les sources des noms de variables — `DXVK_STATE_CACHE_PATH`,
+qu'on trouve encore dans de vieux guides, n'existe plus dans DXVK actuel.
+
+**Question posée par T21.** Le gain d'un cache persistant est évident en théorie
+(pas de recompilation après un `install --only prefix`) ; celui d'un
+**pré-chauffage automatique** (lancer le jeu une fois pendant l'installation
+pour peupler le cache avant que le joueur n'y touche) ne l'est pas — encore
+faut-il qu'il compile autre chose que ce qu'un lancement normal aurait de toute
+façon compilé en quelques secondes.
+
+### Méthode de mesure, et sa limite
+
+Deux lancements réels via `stalker-gamma-linux play` sur l'install de
+`/mnt/games_samsung/Games/GAMMA` (GE-Proton11-3, GPU AMD/Mesa — `radv`, pas de
+pilote NVIDIA sur cette machine), séparés de cinq jours :
+
+- **Lancement 1** (2026-09-09, cache froid — `cache/shaders/` n'existait pas
+  avant) : `ModOrganizer.exe` lancé, jeu atteint jusqu'au menu principal,
+  laissé inactif quelques minutes, fermé normalement.
+- **Lancement 2** (2026-09-14, cache chaud — rien entre les deux) : même
+  protocole, même session interactive (menu principal, ~1 minute d'inactivité,
+  fermeture normale), pour comparer à état équivalent.
+
+**Limite assumée, à ne pas perdre de vue en relisant ces chiffres plus tard** :
+faute d'un outil d'automatisation des entrées sous Wayland disponible sur cette
+machine (`xdotool`/`ydotool`/`wtype` absents, KDE Plasma 6.7), aucun des deux
+lancements n'est allé au-delà du menu principal — ni chargement de partie, ni
+déplacement en jeu. C'est précisément là que se trouve la majorité de la
+diversité de shaders d'un modpack de cette taille (zones, météo, PNJ, armes…).
+La mesure ci-dessous parle donc du cache de shaders du **menu**, pas de celui
+d'une session de jeu réelle.
+
+### Relevés
+
+| | Lancement 1 (cache froid) | Lancement 2 (cache chaud) |
+|---|---|---|
+| `cache/shaders/dxvk/*.dxvk.bin` | 0 → **443 777 octets** (créé) | **443 777 octets** (inchangé) |
+| `cache/shaders/dxvk/*.dxvk.lut` | 0 → 12 445 octets (créé) | réécrit, taille quasi identique (12 427) |
+| `cache/shaders/mesa/` (radv) | **5,7 Mio** (créé) | 5,7 Mio (inchangé) |
+| Journal moteur (`xray_steamuser.log`) | fermeture propre, `DLTX Cache: Files Cached: 2842` | fermeture propre, mêmes chiffres |
+| Durée totale de la session (lancement → fermeture) | ≈ 3 min 30 (dont fenêtre d'attente non chronométrée avec précision) | ≈ 4 min (dont ~1 min d'attente volontaire) |
+
+Le chiffre qui tranche : **zéro octet ajouté** au state cache DXVK ni au cache
+Mesa au lancement 2. Pour exactement le même contenu rendu (le menu), le
+pilote et DXVK n'ont rien eu à recompiler — le cache persistant fait ce qu'on
+lui demande, de façon vérifiée et pas seulement déduite du code.
+
+### Décision : pas de pré-chauffage automatique
+
+**Le mécanisme de cache persistant (points 1 à 4 de T21) est confirmé par la
+mesure ci-dessus ; le pré-chauffage automatique, lui, n'est pas implémenté.**
+
+Le raisonnement, pas seulement la mesure : un pré-chauffage automatisé inséré
+dans le pipeline d'installation ne pourrait, avec les moyens de ce projet
+(pas de script de navigation en jeu, pas de commande de benchmark connue côté
+gamma-launcher/Anomaly), que lancer le jeu jusqu'au menu — exactement ce qu'on
+vient de mesurer. Or ce sous-ensemble de shaders compile déjà en dessous de la
+minute sur un cache froid (lancement 1, ci-dessus) : l'ajouter à
+l'installation ferait patienter le joueur pour un gain qu'il ne remarquerait
+pas, sans toucher au vrai problème — la compilation en jeu, qui se produit de
+toute façon au premier lancement réel, une seule fois, cache persistant ou
+pas. Un pré-chauffage qui ne couvre pas ce qui coûte cher serait décoratif :
+précisément ce que ce projet évite (cf. `WINESERVER`, T16, ci-dessus). Piste
+fermée proprement ; rouvrable si gamma-launcher expose un jour un mode
+« traverse toutes les zones » ou équivalent.
+
+### Ce qu'on ne fera jamais : distribuer un state cache pré-compilé
+
+Un cache DXVK/Mesa « communautaire », téléchargé et déposé dans
+`cache/shaders/` à l'installation, est explicitement exclu — pas par manque
+d'idée, mais parce que ça viole deux règles à la fois :
+
+1. **Il ne marcherait pas correctement.** Le state cache DXVK encode des
+   pipelines pour un GPU et une version de pilote précis ; un cache construit
+   sur une machine différente peut échouer à se charger, ou pire, charger un
+   pipeline qui ne correspond plus au binaire du pilote local — DXVK valide
+   par hash, donc le cas probable est un rejet silencieux (aucun gain), pas
+   une corruption, mais ça n'apporte jamais rien à qui ne l'a pas produit.
+2. **Ce serait du rehosting.** Héberger le binaire de quelqu'un d'autre —
+   fût-il un cache de shaders plutôt qu'une archive de mod — reste contraire
+   aux règles du projet (« jamais de rehosting », déjà appliqué au cache X-Ray
+   et aux archives ModDB). Le fait que ce binaire soit inutile hors de sa
+   machine d'origine (point 1) double la raison de ne pas le faire, il ne la
+   remplace pas.
+
 ## Sources
 
 - MO2 — fil de compatibilité Linux/Wine USVFS (issue #372) :
@@ -467,5 +562,17 @@ octet invalide (0x88, constaté côté Wine) faisait taire le diagnostic sans un
   les chaînes de format extraites de `anomaly/bin/AnomalyDX11.exe` (`strings`),
   qui donnent littéralement ce que `xrDebugNew.cpp` peut écrire. Voir la section
   « Post-mortem de session » ci-dessus.
+- Cache de shaders (T21) : deux lancements réels via `stalker-gamma-linux play`
+  sur `/mnt/games_samsung/Games/GAMMA` (GE-Proton11-3, GPU AMD/Mesa `radv`),
+  2026-09-09 et 2026-09-14 — tailles de `cache/shaders/dxvk/*.dxvk.bin` et
+  `cache/shaders/mesa/` relevées avant/après chaque session, journal moteur
+  (`xray_steamuser.log`) lu pour confirmer une fermeture propre. Noms et
+  comportement par défaut des variables d'environnement : README DXVK
+  (https://github.com/doitsujin/dxvk/blob/master/README.md), documentation
+  Mesa (https://docs.mesa3d.org/envvars.html), README du pilote NVIDIA
+  (https://download.nvidia.com/XFree86/Linux-x86_64/470.239.06/README/openglenvvariables.html) —
+  vérifiés le 2026-09-08 après avoir constaté que `DXVK_STATE_CACHE_PATH`,
+  cité dans plusieurs guides plus anciens, ne correspond plus à aucune
+  variable lue par DXVK actuel.
 </content>
 </invoke>

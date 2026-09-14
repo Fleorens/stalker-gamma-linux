@@ -12,15 +12,30 @@ class PrefixPaths:
 
     `prefix` est le répertoire passé à umu via WINEPREFIX ; umu/Proton y créent
     la vraie racine Wine dans un sous-dossier `pfx/` (layout compatdata).
+
+    `shaders` (T21) est délibérément **hors** de `prefix` : c'est là que
+    `prefix.process._prefix_environment` pointe les caches DXVK/Mesa/NVIDIA,
+    pour qu'ils survivent à une reconstruction du préfixe (`install --only
+    prefix`, `prefix-doctor --repair`) au lieu d'être perdus avec lui — voir
+    `engine.runner._extract_tmpdir` pour le même raisonnement appliqué à
+    `TMPDIR`.
     """
 
     prefix: Path
     logs: Path
+    shaders: Path
 
     @classmethod
     def under(cls, root: Path) -> PrefixPaths:
-        """Arborescence standard `prefix/` et `logs/` sous la racine d'installation."""
-        return cls(prefix=root / "prefix", logs=root / "logs")
+        """Arborescence standard `prefix/`, `logs/` et `cache/shaders/` sous la racine.
+
+        `shaders` vit sous `cache/`, comme `InstallPaths.cache` : même volume
+        que l'installation, et emporté par `uninstall --game-data` en même
+        temps que le reste (il est sous `root`).
+        """
+        return cls(
+            prefix=root / "prefix", logs=root / "logs", shaders=root / "cache" / "shaders"
+        )
 
     @property
     def wine_root(self) -> Path:
@@ -44,5 +59,5 @@ class PrefixPaths:
 
     def ensure_directories(self) -> None:
         """Crée les répertoires manquants. Idempotent, ne touche jamais à leur contenu."""
-        for path in (self.prefix, self.logs):
+        for path in (self.prefix, self.logs, self.shaders):
             path.mkdir(parents=True, exist_ok=True)

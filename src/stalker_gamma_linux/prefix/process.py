@@ -19,7 +19,7 @@ from pathlib import Path
 
 from stalker_gamma_linux.environment import gamemode as gamemode_tool
 from stalker_gamma_linux.environment import performance as performance_tool
-from stalker_gamma_linux.environment import system
+from stalker_gamma_linux.environment import shader_cache, system
 from stalker_gamma_linux.prefix.errors import (
     PrefixCancelledError,
     PrefixCommandError,
@@ -71,6 +71,10 @@ def _prefix_environment(
     paths: PrefixPaths, proton_path: Path, extra: Mapping[str, str] | None
 ) -> dict[str, str]:
     env = dict(os.environ)
+    # Défauts de cache de shaders (T21, `environment.shader_cache`) avant
+    # `extra` : l'appelant peut les surcharger, contrairement aux variables
+    # structurelles ci-dessous qui restent toujours imposées.
+    env.update(shader_cache.build_env(paths.shaders))
     if extra:
         env.update(extra)
     # Les variables structurelles en dernier : l'appelant ne peut pas casser

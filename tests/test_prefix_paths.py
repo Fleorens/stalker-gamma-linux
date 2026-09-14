@@ -8,6 +8,7 @@ def test_under_builds_standard_layout() -> None:
 
     assert paths.prefix == Path("/games/stalker-gamma/prefix")
     assert paths.logs == Path("/games/stalker-gamma/logs")
+    assert paths.shaders == Path("/games/stalker-gamma/cache/shaders")
 
 
 def test_wine_root_falls_back_to_prefix_without_pfx(tmp_path: Path) -> None:
@@ -41,3 +42,4 @@ def test_ensure_directories_is_idempotent(tmp_path: Path) -> None:
 
     assert paths.prefix.is_dir()
     assert paths.logs.is_dir()
+    assert paths.shaders.is_dir()

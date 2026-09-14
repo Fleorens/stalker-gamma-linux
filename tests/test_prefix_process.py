@@ -106,6 +106,37 @@ def test_run_in_prefix_builds_command_and_structural_env(
     assert captured["env"]["DXVK_HUD"] == "1"
 
 
+def test_run_in_prefix_sets_shader_cache_defaults_under_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/umu-run")
+    captured = _patch_popen(monkeypatch, [], 0)
+    paths = PrefixPaths.under(tmp_path)
+
+    process.run_in_prefix(
+        "winetricks", paths=paths, proton_path=tmp_path / "GE-Proton10-34"
+    )
+
+    assert captured["env"]["DXVK_SHADER_CACHE_PATH"] == str(paths.shaders / "dxvk")
+
+
+def test_run_in_prefix_lets_caller_override_shader_cache_defaults(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/umu-run")
+    captured = _patch_popen(monkeypatch, [], 0)
+    paths = PrefixPaths.under(tmp_path)
+
+    process.run_in_prefix(
+        "winetricks",
+        paths=paths,
+        proton_path=tmp_path / "GE-Proton10-34",
+        env={"DXVK_SHADER_CACHE_PATH": "/ailleurs"},
+    )
+
+    assert captured["env"]["DXVK_SHADER_CACHE_PATH"] == "/ailleurs"
+
+
 def test_run_in_prefix_writes_output_to_log_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
