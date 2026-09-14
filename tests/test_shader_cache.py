@@ -98,3 +98,26 @@ def test_build_env_adds_nvidia_vars_only_when_nvidia_present(
     assert env["__GL_SHADER_DISK_CACHE_PATH"] == str(Path("/root/cache/shaders/nvidia"))
     assert env["__GL_SHADER_DISK_CACHE_SIZE"] == str(10 * 1024**3)
     assert "MESA_SHADER_CACHE_DIR" not in env
+
+
+def test_purge_deletes_contents_and_recreates_empty_dir(tmp_path: Path) -> None:
+    shaders = tmp_path / "shaders"
+    (shaders / "dxvk").mkdir(parents=True)
+    (shaders / "dxvk" / "game.dxvk.bin").write_bytes(b"x" * 500)
+    (shaders / "mesa" / "mesa_shader_cache").mkdir(parents=True)
+    (shaders / "mesa" / "mesa_shader_cache" / "index").write_bytes(b"y" * 250)
+
+    freed = shader_cache.purge(shaders)
+
+    assert freed == 750
+    assert shaders.is_dir()
+    assert list(shaders.iterdir()) == []
+
+
+def test_purge_is_a_noop_when_nothing_exists(tmp_path: Path) -> None:
+    shaders = tmp_path / "shaders"
+
+    freed = shader_cache.purge(shaders)
+
+    assert freed == 0
+    assert not shaders.exists()

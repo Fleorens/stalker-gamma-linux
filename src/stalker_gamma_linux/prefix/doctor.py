@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from stalker_gamma_linux.environment import system
+from stalker_gamma_linux.environment import shader_cache, system
 from stalker_gamma_linux.environment.models import Requirement, Status
 from stalker_gamma_linux.environment.report import DEFAULT_INSTALL_TARGET
 from stalker_gamma_linux.i18n import _
@@ -14,6 +14,7 @@ from stalker_gamma_linux.prefix import proton, provision, session, verbs
 from stalker_gamma_linux.prefix.errors import PrefixError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 from stalker_gamma_linux.prefix.session import ProcessHold
+from stalker_gamma_linux.sizing import format_size
 
 _REPAIR_HINT = "stalker-gamma-linux prefix-doctor --repair"
 
@@ -188,6 +189,7 @@ def run_prefix_doctor(
     target: Path | None = None,
     *,
     repair: bool = False,
+    purge_shaders: bool = False,
     force: bool = False,
     search_dirs: Sequence[Path] | None = None,
 ) -> int:
@@ -197,9 +199,28 @@ def run_prefix_doctor(
     du préfixe ou les verbs réellement manquants sont refaits. Refuse de réparer
     si MO2 ou le jeu utilisent le préfixe (`force` passe outre) — voir
     `prefix.session`.
+
+    `purge_shaders` (T21) : vide `PrefixPaths.shaders` (DXVK/Mesa/NVIDIA) et
+    le recrée vide, avant le contrôle de santé — indépendant de `repair`, qui
+    n'y touche jamais (voir `environment.shader_cache.purge`). Même garde que
+    `repair` : refuse si le préfixe est occupé, `force` passe outre.
     """
     root = target if target is not None else DEFAULT_INSTALL_TARGET
     paths = PrefixPaths.under(root)
+
+    if purge_shaders:
+        try:
+            session.require_free(paths, action=_("purging the shader cache"), force=force)
+        except PrefixError as error:
+            print(_("Purge failed: {error}").format(error=error))
+            return 1
+        freed = shader_cache.purge(paths.shaders)
+        print(
+            _("Shader cache purged: {size} freed ({path}).\n").format(
+                size=format_size(freed), path=paths.shaders
+            )
+        )
+
     report = build_prefix_report(paths, search_dirs)
 
     if repair and not report.is_healthy:

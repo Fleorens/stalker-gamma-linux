@@ -155,19 +155,25 @@ def test_build_parser_prefix_doctor_defaults() -> None:
     assert args.command == "prefix-doctor"
     assert args.target is None
     assert args.repair is False
+    assert args.purge_shaders is False
 
 
 def test_build_parser_prefix_doctor_flags() -> None:
-    args = cli.build_parser().parse_args(["prefix-doctor", "--target", "/tmp/game", "--repair"])
+    args = cli.build_parser().parse_args(
+        ["prefix-doctor", "--target", "/tmp/game", "--repair", "--purge-shaders"]
+    )
 
     assert args.target == Path("/tmp/game")
     assert args.repair is True
+    assert args.purge_shaders is True
 
 
 def test_main_dispatches_to_prefix_doctor(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[Path | None, bool]] = []
 
-    def fake_run_prefix_doctor(target: Path | None, *, repair: bool, force: bool) -> int:
+    def fake_run_prefix_doctor(
+        target: Path | None, *, repair: bool, purge_shaders: bool, force: bool
+    ) -> int:
         calls.append((target, repair))
         return 0
 
@@ -177,6 +183,23 @@ def test_main_dispatches_to_prefix_doctor(monkeypatch: pytest.MonkeyPatch) -> No
 
     assert exit_code == 0
     assert calls == [(Path("/tmp/game"), True)]
+
+
+def test_main_dispatches_purge_shaders_to_prefix_doctor(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[bool] = []
+
+    def fake_run_prefix_doctor(
+        target: Path | None, *, repair: bool, purge_shaders: bool, force: bool
+    ) -> int:
+        calls.append(purge_shaders)
+        return 0
+
+    monkeypatch.setattr(cli, "run_prefix_doctor", fake_run_prefix_doctor)
+
+    exit_code = cli.main(["prefix-doctor", "--purge-shaders"])
+
+    assert exit_code == 0
+    assert calls == [True]
 
 
 def test_build_parser_verify_defaults() -> None:

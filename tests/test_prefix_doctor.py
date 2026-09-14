@@ -248,3 +248,81 @@ def test_build_prefix_report_free_prefix_line(
     formatted = doctor.format_prefix_report(doctor.build_prefix_report(paths, []))
 
     assert "free" in formatted.lower()
+
+
+def test_run_prefix_doctor_purge_shaders_deletes_and_recreates(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/umu-run")
+    monkeypatch.setattr(session, "prefix_in_use", lambda paths: None)
+    root = tmp_path / "install"
+    paths = _make_healthy_prefix(root)
+    compat = _make_proton_dir(tmp_path)
+    (paths.shaders / "dxvk").mkdir(parents=True)
+    (paths.shaders / "dxvk" / "game.dxvk.bin").write_bytes(b"x" * 1000)
+
+    exit_code = doctor.run_prefix_doctor(root, purge_shaders=True, search_dirs=[compat])
+
+    assert exit_code == 0
+    assert paths.shaders.is_dir()
+    assert list(paths.shaders.iterdir()) == []
+    assert "1000 B" in capsys.readouterr().out
+
+
+def test_run_prefix_doctor_purge_shaders_noop_when_absent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/umu-run")
+    monkeypatch.setattr(session, "prefix_in_use", lambda paths: None)
+    root = tmp_path / "install"
+
+    exit_code = doctor.run_prefix_doctor(root, purge_shaders=True, search_dirs=[])
+
+    assert exit_code == 1  # préfixe absent — sans rapport avec la purge, qui n'a rien à faire
+    assert "0 B" in capsys.readouterr().out
+
+
+def test_run_prefix_doctor_purge_shaders_refuses_when_busy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(system, "which", lambda cmd: None)
+    monkeypatch.setattr(
+        session,
+        "prefix_in_use",
+        lambda paths: session.ProcessHold(pid=12345, name="Anomaly", what_to_close="it"),
+    )
+    root = tmp_path / "install"
+    paths = PrefixPaths.under(root)
+    paths.shaders.mkdir(parents=True)
+    (paths.shaders / "leftover.bin").write_bytes(b"x")
+
+    exit_code = doctor.run_prefix_doctor(root, purge_shaders=True, search_dirs=[])
+
+    assert exit_code == 1
+    assert (paths.shaders / "leftover.bin").exists()
+    assert "12345" in capsys.readouterr().out
+
+
+def test_run_prefix_doctor_purge_shaders_force_bypasses_busy_prefix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/umu-run")
+    monkeypatch.setattr(
+        session,
+        "prefix_in_use",
+        lambda paths: session.ProcessHold(pid=1, name="Anomaly", what_to_close="it"),
+    )
+    root = tmp_path / "install"
+    paths = PrefixPaths.under(root)
+    paths.shaders.mkdir(parents=True)
+    (paths.shaders / "leftover.bin").write_bytes(b"x")
+
+    doctor.run_prefix_doctor(root, purge_shaders=True, force=True, search_dirs=[])
+
+    assert not (paths.shaders / "leftover.bin").exists()

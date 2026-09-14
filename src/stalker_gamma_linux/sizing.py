@@ -40,3 +40,18 @@ RECOMMENDED_FREE_GIB = 250
 
 MINIMUM_FREE_BYTES = MINIMUM_FREE_GIB * GIB
 RECOMMENDED_FREE_BYTES = RECOMMENDED_FREE_GIB * GIB
+
+# Même logique que `backups.listing.format_size`, dupliquée plutôt qu'importée :
+# `backups` dépend (transitivement, via `report_bundle`/`doctor`) de
+# `prefix.doctor`, qui a besoin de ce formatage pour `--purge-shaders` (T21) —
+# l'importer d'ici créerait un cycle. Ce module-ci n'a aucune dépendance
+# interne, donc rien qui ne dépende de lui ne peut jamais créer de cycle.
+_SIZE_UNITS: tuple[tuple[int, str], ...] = ((GIB, "GiB"), (1024**2, "MiB"), (1024, "KiB"))
+
+
+def format_size(n_bytes: int) -> str:
+    """« 39.2 MiB », « 812 KiB », « 0 B » — lisible à l'échelle d'un dossier."""
+    for threshold, unit in _SIZE_UNITS:
+        if n_bytes >= threshold:
+            return f"{n_bytes / threshold:.1f} {unit}"
+    return f"{n_bytes} B"

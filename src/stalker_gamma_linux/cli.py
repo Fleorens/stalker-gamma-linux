@@ -200,9 +200,21 @@ def build_parser() -> argparse.ArgumentParser:
         help=_("Repairs: downloads Proton-GE, creates the prefix, applies missing verbs"),
     )
     prefix_doctor_parser.add_argument(
+        "--purge-shaders",
+        action="store_true",
+        help=_(
+            "Deletes the DXVK/Mesa/NVIDIA shader cache (forces a full recompile on the "
+            "next launch — never needed after an update, only to force a clean slate "
+            "or reclaim disk space)"
+        ),
+    )
+    prefix_doctor_parser.add_argument(
         "--force",
         action="store_true",
-        help=_("Repairs even if Mod Organizer 2 or the game are still using the prefix"),
+        help=_(
+            "Repairs or purges the shader cache even if Mod Organizer 2 or the "
+            "game are still using the prefix"
+        ),
     )
 
     mo2_parser = subparsers.add_parser(
@@ -464,7 +476,12 @@ def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "verify":
         return run_verify(args.target, repair_damaged=args.repair, full_scan=args.full)
     if args.command == "prefix-doctor":
-        return run_prefix_doctor(args.target, repair=args.repair, force=args.force)
+        return run_prefix_doctor(
+            args.target,
+            repair=args.repair,
+            purge_shaders=args.purge_shaders,
+            force=args.force,
+        )
     if args.command == "mo2":
         return run_mo2(args.target)
     if args.command == "play":

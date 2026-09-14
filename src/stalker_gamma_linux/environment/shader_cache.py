@@ -19,6 +19,7 @@ versions — `DXVK_STATE_CACHE_PATH` par exemple n'existe plus) :
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 # Le module noyau `nvidia` crée ces deux entrées dès qu'il est chargé — que la
@@ -99,3 +100,24 @@ def build_env(shaders_root: Path) -> dict[str, str]:
         env["__GL_SHADER_DISK_CACHE_PATH"] = str(shaders_root / "nvidia")
         env["__GL_SHADER_DISK_CACHE_SIZE"] = _NVIDIA_CACHE_MAX_SIZE_BYTES
     return env
+
+
+def purge(shaders_root: Path) -> int:
+    """Supprime `shaders_root` et le recrée vide. Renvoie le nombre d'octets libérés.
+
+    Pour forcer une recompilation complète (dépannage d'un rendu douteux,
+    récupération d'espace occupé par des entrées devenues obsolètes après une
+    mise à jour — voir `prefix-doctor --purge-shaders`, `docs/MO2-PROTON-COMPAT.md`
+    § T21). DXVK/Mesa/le pilote recréent leurs sous-dossiers tout seuls au
+    lancement suivant : normalement inutile, puisque chaque entrée est indexée
+    par un hash qui inclut la version de DXVK/du pilote — une mise à jour
+    n'invalide jamais silencieusement une entrée, elle la rend juste orpheline.
+    Distinct d'`engine.runner.purge_shader_cache` (cache X-Ray d'Anomaly) :
+    celui-ci ne touche jamais à ce dossier-ci, et réciproquement.
+    """
+    if not shaders_root.exists():
+        return 0
+    freed = sum(entry.stat().st_size for entry in shaders_root.rglob("*") if entry.is_file())
+    shutil.rmtree(shaders_root)
+    shaders_root.mkdir(parents=True, exist_ok=True)
+    return freed
