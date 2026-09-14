@@ -5,7 +5,7 @@ import pytest
 
 from stalker_gamma_linux.environment import system
 from stalker_gamma_linux.environment.models import Status
-from stalker_gamma_linux.prefix import doctor, provision, session
+from stalker_gamma_linux.prefix import doctor, proton, provision, session
 from stalker_gamma_linux.prefix.errors import UmuNotFoundError
 from stalker_gamma_linux.prefix.paths import PrefixPaths
 from stalker_gamma_linux.prefix.verbs import REQUIRED_VERBS
@@ -31,6 +31,14 @@ def _make_proton_dir(root: Path) -> Path:
     return compat
 
 
+def _make_experimental_dir(root: Path) -> Path:
+    common = root / "steamapps" / "common"
+    build = common / proton.PROTON_EXPERIMENTAL
+    build.mkdir(parents=True)
+    (build / "proton").write_text("#!/bin/sh\n")
+    return common
+
+
 def _statuses(report: doctor.PrefixReport) -> dict[str, Status]:
     return {requirement.name: requirement.status for requirement in report.requirements}
 
@@ -54,6 +62,28 @@ def test_report_healthy_prefix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
 
     assert report.is_healthy
     assert set(_statuses(report).values()) == {Status.OK}
+
+
+def test_report_flags_proton_experimental_only_as_not_ok(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Bug rapporté (issue GitHub, Fedora 44, 0.6.0) : sans GE installé, seul
+    Proton Experimental de Steam est détecté — il n'a pas `protonfixes`, donc
+    `--repair` devra télécharger un GE plutôt que réutiliser ce build. Rester
+    en OK tromperait l'utilisateur sur ce qui va se passer.
+
+    `search_dirs` par défaut (None), comme la CLI : seul ce cas fait aussi
+    chercher dans `steam_common_dirs`, là où vit Experimental."""
+    monkeypatch.setattr(system, "which", lambda cmd: "/usr/bin/umu-run")
+    common = _make_experimental_dir(tmp_path)
+    monkeypatch.setattr(proton, "default_search_dirs", lambda: (tmp_path / "compat",))
+    monkeypatch.setattr(proton, "default_steam_common_dirs", lambda: (common,))
+    paths = PrefixPaths.under(tmp_path / "install")
+
+    report = doctor.build_prefix_report(paths)
+
+    assert _statuses(report)["Proton"] is Status.OUTDATED
+    assert not report.is_healthy
 
 
 def test_report_flags_missing_verbs_and_native_dxvk_dll(

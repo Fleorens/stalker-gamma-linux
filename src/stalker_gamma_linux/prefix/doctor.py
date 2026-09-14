@@ -56,17 +56,31 @@ def _check_umu() -> Requirement:
 
 
 def _check_proton(build: proton.ProtonBuild | None) -> Requirement:
-    if build is not None:
+    if build is not None and build.name != proton.PROTON_EXPERIMENTAL:
         return Requirement(name="Proton", status=Status.OK, detail=f"{build.name} ({build.path})")
+    install_hint = _("`{hint}` downloads the latest GE-Proton release (checksum verified)").format(
+        hint=_REPAIR_HINT
+    )
+    if build is not None:
+        # Détecté, mais `ensure_proton` ne l'utilisera pas pour provisionner
+        # (pas de `protonfixes`) : rester en OK tromperait sur ce que `--repair`
+        # va réellement faire (télécharger un GE) juste après.
+        return Requirement(
+            name="Proton",
+            status=Status.OUTDATED,
+            detail=_(
+                "{name} detected, but it has no protonfixes and cannot be used to "
+                "repair the prefix — a GE-Proton build will be downloaded"
+            ).format(name=build.name),
+            install_hint=install_hint,
+        )
     return Requirement(
         name="Proton",
         status=Status.MISSING,
         detail=_(
             "no Proton build (neither GE in compatibilitytools.d, nor Steam's Proton Experimental)"
         ),
-        install_hint=_(
-            "`{hint}` downloads the latest GE-Proton release (checksum verified)"
-        ).format(hint=_REPAIR_HINT),
+        install_hint=install_hint,
     )
 
 

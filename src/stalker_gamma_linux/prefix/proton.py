@@ -11,11 +11,14 @@ from pathlib import Path
 from stalker_gamma_linux.prefix import download
 from stalker_gamma_linux.prefix.download import ProgressCallback
 
-_GE_NAME_RE = re.compile(r"^GE-Proton(\d+)-(\d+)$")
+_GE_NAME_RE = re.compile(r"^GE-Proton(\d+)-(\d+)(?:-x86_64)?$")
 
-# Proton Experimental de Steam : alternative acceptée quand aucun GE n'est
-# installé (décision utilisateur 2026-07-19). Vit dans steamapps/common, pas
-# dans compatibilitytools.d.
+# Proton Experimental de Steam : détecté et affiché par `doctor`, mais jamais
+# accepté par `ensure_proton` pour provisionner le préfixe (voir ce nom plus
+# bas) — signalé (issue GitHub, Fedora 44, 0.6.0) : contrairement à GE-Proton,
+# il n'embarque pas `protonfixes`, qu'umu-run exige pourtant à chaque appel de
+# `run_in_prefix`/`run_detached` (GAMEID/PROTONPATH toujours posés). Vit dans
+# steamapps/common, pas dans compatibilitytools.d.
 PROTON_EXPERIMENTAL = "Proton - Experimental"
 
 
@@ -129,16 +132,22 @@ def ensure_proton(
     release: str | None = None,
 ) -> ProtonBuild:
     """Retourne un build Proton utilisable, en téléchargeant la release GE
-    demandée si aucun build utilisable n'est installé (ni GE, ni Proton
-    Experimental). Idempotent.
+    demandée si aucun build utilisable n'est installé. Idempotent.
+
+    Proton Experimental ne compte jamais comme « déjà installé » ici, même
+    s'il est le choix de `select_proton_build` : il n'a pas de `protonfixes`,
+    qu'umu-run exige pour toute opération de provisioning (créer le préfixe,
+    poser les verbs). Le laisser passer produit un `FileNotFoundError` opaque
+    au milieu de la réparation au lieu de télécharger un GE qui fonctionne.
 
     `release` (optionnel, préférence GUI) épingle une release GE précise
     (ex. `GE-Proton10-8`) au lieu de la dernière publiée (défaut, décision
-    utilisateur du 2026-07-19). Sans effet si un build utilisable est déjà
-    installé : `select_proton_build` ne redemande jamais un téléchargement.
+    utilisateur du 2026-07-19). Sans effet si un build GE (ou autre que Proton
+    Experimental) est déjà installé : `select_proton_build` ne redemande
+    jamais un téléchargement dans ce cas.
     """
     selected = select_proton_build(find_proton_builds(search_dirs))
-    if selected is not None:
+    if selected is not None and selected.name != PROTON_EXPERIMENTAL:
         return selected
     # Télécharger dans le premier répertoire de recherche : la relance suivante
     # doit retrouver ce qu'on vient d'installer.
