@@ -113,9 +113,7 @@ def test_run_in_prefix_sets_shader_cache_defaults_under_root(
     captured = _patch_popen(monkeypatch, [], 0)
     paths = PrefixPaths.under(tmp_path)
 
-    process.run_in_prefix(
-        "winetricks", paths=paths, proton_path=tmp_path / "GE-Proton10-34"
-    )
+    process.run_in_prefix("winetricks", paths=paths, proton_path=tmp_path / "GE-Proton10-34")
 
     assert captured["env"]["DXVK_SHADER_CACHE_PATH"] == str(paths.shaders / "dxvk")
 

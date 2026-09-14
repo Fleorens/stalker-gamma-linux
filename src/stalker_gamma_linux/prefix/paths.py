@@ -33,9 +33,7 @@ class PrefixPaths:
         que l'installation, et emporté par `uninstall --game-data` en même
         temps que le reste (il est sous `root`).
         """
-        return cls(
-            prefix=root / "prefix", logs=root / "logs", shaders=root / "cache" / "shaders"
-        )
+        return cls(prefix=root / "prefix", logs=root / "logs", shaders=root / "cache" / "shaders")
 
     @property
     def wine_root(self) -> Path:
