@@ -47,7 +47,8 @@ gi.require_version("Gsk", "4.0")
 from gi.repository import Adw, GLib, Gsk, Gtk  # noqa: E402
 
 DEMO_ROOT = Path("/home/stalker/Games/GAMMA")
-DEMO_MODS = 412
+DEMO_MODS = 728
+DEMO_ACTIVE_MODS = 579
 SIZE = (1060, 720)
 _MAP_TIMEOUT_SECONDS = 5.0
 _SETTLE_ITERATIONS = 400
@@ -126,7 +127,7 @@ def _demo_window(app: Adw.Application):  # type: ignore[no-untyped-def]
         window._probe_generation,
         summary.SystemSummary(blocking=()),
         space.SpaceReport(free_bytes=493 * 1024**3, verdict=space.SpaceVerdict.OK),
-        stats.InstallStats(mod_count=DEMO_MODS, version="0.6.0"),
+        stats.InstallStats(mod_count=DEMO_MODS, active_mod_count=DEMO_ACTIVE_MODS, version="0.7.0"),
     )
     return window
 
@@ -178,7 +179,7 @@ def _progress(app: Adw.Application, destination: Path) -> None:
         task=task,
         cancellable=True,
         on_finished=lambda _code: None,
-        phase_labels=jobs.install_phase_labels(shortcut=False),
+        phase_labels=jobs.install_phase_labels(shortcut=False, steam=False),
     )
     window._nav_view.push(page)
 
