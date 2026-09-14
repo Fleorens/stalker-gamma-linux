@@ -181,9 +181,14 @@ d'échec réel, sans attendre une vraie release amont.
 
 Un tag `v*` : rejoue lint/types/tests (les tags ne passent pas forcément
 par une PR déjà vérifiée par `ci.yml`, qui ne se déclenche que sur `main`),
-puis publie la GitHub Release via `gh release create --generate-notes`
-(notes auto-générées par GitHub à partir des PRs/commits depuis le tag
-précédent) — pas de script de changelog maison, pas d'artefact à construire
+vérifie que le tag correspond à `version` dans `pyproject.toml` (échoue avant
+de publier plutôt que de laisser passer une release mal étiquetée), puis
+publie la GitHub Release. Si `docs/release-notes/<tag>.md` existe, son
+contenu devient les notes (titre = premier `#`, reste du fichier = corps) —
+la liste de commits générée par GitHub s'adresse à quelqu'un qui connaît déjà
+le projet, pas au joueur qui découvre la release. Sans ce fichier,
+`gh release create --generate-notes` prend le relais (notes auto-générées à
+partir des PRs/commits depuis le tag précédent). Pas d'artefact à construire
 (le seul canal de distribution est `install.sh`, qui clone le repo).
 
 **Historique (T10, 2026-07-23)** : ce workflow construisait aussi un
