@@ -51,7 +51,7 @@ def mesa_present() -> bool:
     """Un pilote Vulkan Mesa (donc concerné par `MESA_SHADER_CACHE_*`) est-il installé ?"""
     for directory in _MESA_ICD_DIRS:
         try:
-            entries = directory.iterdir()
+            entries = list(directory.iterdir())
         except OSError:
             continue
         for entry in entries:
