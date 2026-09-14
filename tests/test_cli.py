@@ -463,6 +463,25 @@ def test_build_parser_rejects_an_unknown_only_step() -> None:
         cli.build_parser().parse_args(["install", "--only", "prefixe"])
 
 
+def test_build_parser_install_retry_failed_defaults_to_false() -> None:
+    args = cli.build_parser().parse_args(["install"])
+
+    assert args.retry_failed is False
+
+
+def test_main_dispatches_install_retry_failed_to_run_retry_failed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[Path | None] = []
+    monkeypatch.setattr(cli, "run_retry_failed", lambda target: calls.append(target) or 0)
+    monkeypatch.setattr(cli, "run_install", lambda *a, **k: 1)  # ne doit pas être appelé
+
+    exit_code = cli.main(["install", "--retry-failed", "--target", "/mnt/disk/GAMMA"])
+
+    assert exit_code == 0
+    assert calls == [Path("/mnt/disk/GAMMA")]
+
+
 def test_build_parser_uninstall_yes_defaults_to_false() -> None:
     args = cli.build_parser().parse_args(["uninstall"])
 

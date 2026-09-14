@@ -14,6 +14,7 @@ from stalker_gamma_linux.environment.models import (
     Requirement,
     Status,
 )
+from stalker_gamma_linux.integrity import repair
 from stalker_gamma_linux.mo2 import instance, modlist_sync
 from stalker_gamma_linux.prefix import provision, session
 from stalker_gamma_linux.prefix.proton import ProtonBuild
@@ -757,3 +758,216 @@ def test_letape_steam_avertit_quand_aucun_compte_nest_trouve(
 
     assert code == 0
     assert "No Steam account" in reporter.text
+
+
+class TestRecordingModDownloadFailures:
+    """`run_install` mémorise les échecs de mod nommés, pour `--retry-failed` (T22)."""
+
+    def test_records_the_failure_when_the_mod_is_known(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        events: list[str] = []
+
+        def boom(*a: Any, **k: Any) -> None:
+            raise EngineExecutionError(
+                "full-install",
+                1,
+                "Download link not found when requesting https://www.moddb.com/x",
+                mod_name="Boomsticks and Sharpsticks",
+                archive_name="Boomsticks_1.4.7z",
+            )
+
+        _patch_all(monkeypatch, events)
+        monkeypatch.setattr(engine, "install_anomaly", lambda *a, **k: None)
+        monkeypatch.setattr(engine, "install_gamma", boom)
+        reporter = _RecordingReporter()
+
+        code = orchestrator.run_install(tmp_path, reporter=reporter)
+
+        assert code == 1
+        failures = state.load_failures(tmp_path)
+        assert len(failures) == 1
+        assert failures[0].name == "Boomsticks and Sharpsticks"
+        assert failures[0].cause == "MOD_LINK_BROKEN"
+        assert failures[0].archive_name == "Boomsticks_1.4.7z"
+        warnings = [message for kind, message in reporter.events if kind == "warn"]
+        assert any("Boomsticks and Sharpsticks" in message for message in warnings)
+
+    def test_does_not_record_anything_without_a_known_mod_name(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        events: list[str] = []
+
+        def boom(*a: Any, **k: Any) -> None:
+            raise EngineExecutionError("full-install", 1, "totally unrelated crash")
+
+        _patch_all(monkeypatch, events)
+        monkeypatch.setattr(engine, "install_anomaly", lambda *a, **k: None)
+        monkeypatch.setattr(engine, "install_gamma", boom)
+
+        assert orchestrator.run_install(tmp_path) == 1
+        assert state.load_failures(tmp_path) == ()
+
+    def test_a_successful_install_still_surfaces_stale_recorded_failures(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Un ancien échec, résolu autrement (ou pas encore), doit rester visible
+        # tant que `--retry-failed` ne l'a pas effacé — même sur une install qui
+        # a réussi cette fois.
+        events: list[str] = []
+        _patch_all(monkeypatch, events)
+        state.record_failure(
+            tmp_path,
+            state.FailedMod(
+                name="Old Broken Mod",
+                cause="MOD_LINK_BROKEN",
+                detail="stale",
+                recorded_at="2026-09-01T00:00:00+00:00",
+            ),
+        )
+        reporter = _RecordingReporter()
+
+        code = orchestrator.run_install(tmp_path, reporter=reporter)
+
+        assert code == 0
+        warnings = [message for kind, message in reporter.events if kind == "warn"]
+        assert any("Old Broken Mod" in message for message in warnings)
+
+
+class TestRunRetryFailed:
+    """`install --retry-failed` (T22) : ne rejoue que les mods enregistrés en échec."""
+
+    def _record(self, target: Path, **overrides: Any) -> state.FailedMod:
+        failure = state.FailedMod(
+            name=overrides.get("name", "Boomsticks and Sharpsticks"),
+            cause=overrides.get("cause", "MOD_LINK_BROKEN"),
+            detail="gamma-launcher full-install failed",
+            recorded_at="2026-09-14T00:00:00+00:00",
+            archive_name=overrides.get("archive_name", ""),
+            expected_md5=overrides.get("expected_md5", ""),
+        )
+        state.record_failure(target, failure)
+        return failure
+
+    def test_nothing_recorded_returns_zero_and_warns(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        reporter = _RecordingReporter()
+
+        code = orchestrator.run_retry_failed(tmp_path, reporter=reporter)
+
+        assert code == 0
+        assert any("nothing to retry" in message for kind, message in reporter.events)
+
+    def test_removes_and_reinstalls_only_the_recorded_mods(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._record(tmp_path, name="Mod A")
+        self._record(tmp_path, name="Mod B")
+        removed: list[tuple[Path, tuple[str, ...]]] = []
+        monkeypatch.setattr(
+            repair,
+            "remove_mods",
+            lambda root, names, **k: removed.append((root, tuple(names))) or tuple(names),
+        )
+        monkeypatch.setattr(repair, "reinstall_mods", lambda root, **k: None)
+        reporter = _RecordingReporter()
+
+        code = orchestrator.run_retry_failed(tmp_path, reporter=reporter)
+
+        assert code == 0
+        assert removed == [(tmp_path, ("Mod A", "Mod B"))]
+        assert state.load_failures(tmp_path) == ()
+        assert any(kind == "success" for kind, _message in reporter.events)
+
+    def test_a_mod_still_failing_after_retry_is_reinstalled_in_state(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._record(tmp_path, name="Mod A")
+        monkeypatch.setattr(repair, "remove_mods", lambda root, names, **k: tuple(names))
+
+        def still_broken(root: Path, **k: Any) -> None:
+            raise EngineExecutionError(
+                "full-install", 1, "Hash verification failed for x.7z", mod_name="Mod A"
+            )
+
+        monkeypatch.setattr(repair, "reinstall_mods", still_broken)
+        reporter = _RecordingReporter()
+
+        code = orchestrator.run_retry_failed(tmp_path, reporter=reporter)
+
+        assert code == 1
+        failures = state.load_failures(tmp_path)
+        assert len(failures) == 1
+        assert failures[0].cause == "LOCAL_CORRUPTION"
+
+    def test_refuses_when_the_prefix_is_busy(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._record(tmp_path)
+        monkeypatch.setattr(
+            session,
+            "prefix_in_use",
+            lambda paths: session.ProcessHold(pid=7, name="the game (Anomaly)", what_to_close="it"),
+        )
+        called: list[str] = []
+        monkeypatch.setattr(repair, "reinstall_mods", lambda root, **k: called.append("reinstall"))
+        reporter = _RecordingReporter()
+
+        code = orchestrator.run_retry_failed(tmp_path, reporter=reporter)
+
+        assert code == 1
+        assert called == []
+        assert any(kind == "error" for kind, _message in reporter.events)
+
+    def test_a_deposited_file_with_the_wrong_md5_is_rejected_before_touching_anything(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        downloads = InstallPaths.under(tmp_path).downloads
+        downloads.mkdir(parents=True)
+        (downloads / "Boomsticks_1.4.7z").write_bytes(b"not the right file at all")
+        # MD5 de "" — n'importe quel MD5 qui ne matche pas le contenu ci-dessus.
+        self._record(
+            tmp_path,
+            archive_name="Boomsticks_1.4.7z",
+            expected_md5="d41d8cd98f00b204e9800998ecf8427",
+        )
+        touched: list[str] = []
+
+        def remove(root: Path, names: Any, **k: Any) -> None:
+            touched.append("remove")
+
+        def reinstall(root: Path, **k: Any) -> None:
+            touched.append("reinstall")
+
+        monkeypatch.setattr(repair, "remove_mods", remove)
+        monkeypatch.setattr(repair, "reinstall_mods", reinstall)
+        reporter = _RecordingReporter()
+
+        code = orchestrator.run_retry_failed(tmp_path, reporter=reporter)
+
+        assert code == 1
+        assert touched == []
+        errors = [message for kind, message in reporter.events if kind == "error"]
+        assert any("MD5" in message for message in errors)
+        # Rien n'a été effacé : l'échec reste enregistré pour un vrai dépôt.
+        assert state.load_failures(tmp_path) != ()
+
+    def test_a_deposited_file_matching_its_md5_lets_the_retry_proceed(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import hashlib
+
+        downloads = InstallPaths.under(tmp_path).downloads
+        downloads.mkdir(parents=True)
+        content = b"the real archive bytes"
+        (downloads / "Boomsticks_1.4.7z").write_bytes(content)
+        digest = hashlib.md5(content, usedforsecurity=False).hexdigest()
+        self._record(tmp_path, archive_name="Boomsticks_1.4.7z", expected_md5=digest)
+        monkeypatch.setattr(repair, "remove_mods", lambda root, names, **k: tuple(names))
+        monkeypatch.setattr(repair, "reinstall_mods", lambda root, **k: None)
+
+        code = orchestrator.run_retry_failed(tmp_path)
+
+        assert code == 0
+        assert state.load_failures(tmp_path) == ()

@@ -19,7 +19,7 @@ from stalker_gamma_linux.i18n import _
 from stalker_gamma_linux.integrity import run_verify
 from stalker_gamma_linux.mo2 import run_mo2, run_play
 from stalker_gamma_linux.mo2.launch import DEFAULT_EXECUTABLE
-from stalker_gamma_linux.orchestrator import run_install, run_update
+from stalker_gamma_linux.orchestrator import run_install, run_retry_failed, run_update
 from stalker_gamma_linux.paths_safety import UnsafeInstallTargetError, validate_install_target
 from stalker_gamma_linux.postmortem import run_postmortem
 from stalker_gamma_linux.prefix import run_prefix_doctor
@@ -108,6 +108,15 @@ def build_parser() -> argparse.ArgumentParser:
             "For troubleshooting: rerun one step and read its log, instead of "
             "replaying the whole pipeline"
         ).format(steps=", ".join(state.STEPS)),
+    )
+    install_parser.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help=_(
+            "Retries only the mods recorded as failed by a previous install "
+            "(ModDB download errors) — see the final summary of a partial "
+            "install. Ignores --only/--shortcut/--steam-shortcut"
+        ),
     )
 
     update_parser = subparsers.add_parser(
@@ -456,6 +465,8 @@ def _selected_sets(args: argparse.Namespace) -> tuple[BackupSet, ...]:
 
 def _dispatch(args: argparse.Namespace) -> int:
     if args.command == "install":
+        if args.retry_failed:
+            return run_retry_failed(args.target)
         return run_install(
             args.target,
             shortcut=args.shortcut,

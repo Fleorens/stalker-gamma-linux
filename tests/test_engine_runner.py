@@ -275,6 +275,81 @@ def test_purge_shader_cache_invokes_subcommand(
     assert calls == [("purge-shader-cache", ["--anomaly", str(paths.anomaly)])]
 
 
+class TestModProgressTracking:
+    """`install_gamma`/`install_anomaly` enrichissent l'erreur avec le mod en cours (T22).
+
+    `output_tail` (20 dernières lignes retenues par `engine.process.run`) ne
+    contient pas forcément la ligne « Processing mod » sur une trace longue —
+    c'est pourquoi le suivi se fait sur le flux complet, pas sur le tail.
+    """
+
+    def test_mod_name_is_read_from_the_processing_line(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        lines = [
+            "[+] Processing mod FDDA Redone Fixes (2/486)",
+            "Calculating hash of FDDARD_FIX.7z: 100%|##########| 147/147",
+        ]
+        monkeypatch.setattr(runner, "run", _run_emitting(lines, exit_error=True))
+
+        with pytest.raises(EngineExecutionError) as excinfo:
+            runner.install_gamma(_paths(tmp_path))
+
+        assert excinfo.value.mod_name == "FDDA Redone Fixes"
+        assert excinfo.value.archive_name == "FDDARD_FIX.7z"
+
+    def test_mod_name_survives_a_traceback_longer_than_the_output_tail(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        # `_OUTPUT_TAIL_LINES` vaut 20 côté `engine.process` : une trace plus
+        # longue pousse la ligne « Processing mod » hors de `output_tail`, mais
+        # pas hors du suivi en direct.
+        lines = [
+            "[+] Processing mod FDDA Redone Fixes (2/486)",
+            "Calculating hash of FDDARD_FIX.7z: 100%|##########| 147/147",
+            *(f'  File "launcher/foo.py", line {i}, in bar' for i in range(25)),
+            "AttributeError: 'NoneType' object has no attribute 'unpackinfo'",
+        ]
+        monkeypatch.setattr(runner, "run", _run_emitting(lines, exit_error=True))
+
+        with pytest.raises(EngineExecutionError) as excinfo:
+            runner.install_gamma(_paths(tmp_path))
+
+        # Simule ce que ferait `engine.process.run` : `output_tail` ne garde
+        # que la queue, la ligne « Processing mod » n'y est plus.
+        assert "Processing mod" not in excinfo.value.output_tail
+        assert excinfo.value.mod_name == "FDDA Redone Fixes"
+
+    def test_no_context_leaves_the_original_error_untouched(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        original = EngineExecutionError("full-install", 1, "boom, no progress line before it")
+
+        def fake_run(subcommand: str, args: list[str], **kw: Any) -> None:
+            raise original
+
+        monkeypatch.setattr(runner, "run", fake_run)
+
+        with pytest.raises(EngineExecutionError) as excinfo:
+            runner.install_gamma(_paths(tmp_path))
+
+        assert excinfo.value is original
+        assert excinfo.value.mod_name is None
+
+    def test_install_anomaly_also_tracks_the_current_mod(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        # Issue amont #286 : le refus ModDB peut frapper `anomaly-install` (le
+        # jeu de base), pas seulement `full-install`.
+        lines = ["[+] Processing mod Anomaly base (0/1)"]
+        monkeypatch.setattr(runner, "run", _run_emitting(lines, exit_error=True))
+
+        with pytest.raises(EngineExecutionError) as excinfo:
+            runner.install_anomaly(_paths(tmp_path))
+
+        assert excinfo.value.mod_name == "Anomaly base"
+
+
 def test_progress_callback_is_forwarded(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     received: list[str] = []
 

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 
 from stalker_gamma_linux import backups, engine, output
@@ -33,7 +34,12 @@ from stalker_gamma_linux import state as state_module
 from stalker_gamma_linux.backups.errors import BackupError
 from stalker_gamma_linux.desktop import install_shortcut
 from stalker_gamma_linux.desktop.errors import DesktopError
-from stalker_gamma_linux.engine.errors import EngineCancelledError, EngineError
+from stalker_gamma_linux.engine.errors import (
+    DepositMismatchError,
+    EngineCancelledError,
+    EngineError,
+    EngineExecutionError,
+)
 from stalker_gamma_linux.engine.paths import InstallPaths
 from stalker_gamma_linux.environment.report import (
     DEFAULT_INSTALL_TARGET,
@@ -42,6 +48,8 @@ from stalker_gamma_linux.environment.report import (
 )
 from stalker_gamma_linux.exit_codes import CANCELLED_EXIT_CODE
 from stalker_gamma_linux.i18n import _
+from stalker_gamma_linux.integrity import repair
+from stalker_gamma_linux.integrity.scan import hash_file
 from stalker_gamma_linux.mo2 import instance, modlist_sync
 from stalker_gamma_linux.mo2.errors import Mo2Error, ModlistSyncError
 from stalker_gamma_linux.mo2.modlist_merge import MergeOutcome
@@ -223,6 +231,17 @@ def run_install(
     except (_InstallCancelledError, EngineCancelledError, PrefixCancelledError):
         reporter.warn(_("Installation cancelled."))
         return CANCELLED_EXIT_CODE
+    except EngineExecutionError as error:
+        # `anomaly-install`/`full-install` n'a aucune option pour sauter un mod
+        # et continuer (`launcher/commands/install.py:_install_mods` n'a pas le
+        # garde-fou par-mod de `check-md5`) : un mod en échec arrête toujours
+        # tout le pipeline ici, on ne prétend pas le contraire. Ce qu'on peut
+        # faire, c'est le dire clairement et le mémoriser pour `--retry-failed`.
+        if error.mod_name is not None:
+            state_module.record_failure(root, _failure_from_error(error))
+        reporter.error(str(error), hint=_RESUME_HINT_TEMPLATE.format(root=root))
+        _warn_known_failures(root, reporter=reporter)
+        return 1
     except (EngineError, PrefixError, Mo2Error, DesktopError, SteamError) as error:
         reporter.error(str(error), hint=_RESUME_HINT_TEMPLATE.format(root=root))
         return 1
@@ -244,7 +263,134 @@ def run_install(
             "{root}/cache/shaders and survives prefix repairs/updates)."
         ).format(root=root)
     )
+    _warn_known_failures(root, reporter=reporter)
     return 0
+
+
+def _failure_from_error(error: EngineExecutionError) -> state_module.FailedMod:
+    """Construit l'enregistrement d'échec à partir d'une `EngineExecutionError` déjà typée.
+
+    N'est appelé que lorsque `error.mod_name` est connu (voir `engine.runner._install`) —
+    les échecs sans mod identifié (annulation, prérequis manquant, panne du
+    binaire lui-même) n'ont rien à faire dans la liste que `--retry-failed` rejoue.
+    """
+    assert error.mod_name is not None
+    return state_module.FailedMod(
+        name=error.mod_name,
+        cause=error.cause.name if error.cause is not None else "unknown",
+        detail=str(error),
+        recorded_at=datetime.now(UTC).isoformat(),
+        archive_name=error.archive_name or "",
+        expected_md5=error.expected_md5 or "",
+    )
+
+
+def _warn_known_failures(root: Path, *, reporter: output.Reporter) -> None:
+    """Rappel de fin de commande : ce qui est encore en échec, s'il y en a.
+
+    Muet si `state.load_failures` est vide — la grande majorité des commandes,
+    qui n'en ont jamais eu ou les ont déjà résolus via `--retry-failed`.
+    """
+    failures = state_module.load_failures(root)
+    if failures:
+        reporter.warn(state_module.format_failures(failures))
+
+
+def run_retry_failed(
+    target: Path | None = None,
+    *,
+    reporter: output.Reporter = output.console_reporter,
+    cancel_event: threading.Event | None = None,
+) -> int:
+    """`install --retry-failed` : ne rejoue que les mods enregistrés en échec (T22).
+
+    Réutilise tel quel le mécanisme de `integrity.repair` (T12, déjà celui de
+    `verify --repair`) : retirer le dossier du mod et son archive en cache,
+    puis relancer `full-install`, qui ne réinstalle que ce qui manque. Comme
+    pour `verify --repair`, ce rejeu délègue à `full-install`, qui ré-extrait
+    **tout** le modpack par-dessus l'existant — d'autres mods peuvent être mis
+    à jour au passage, ce n'est pas une opération strictement chirurgicale
+    (voir docs/ARCHITECTURE.md).
+
+    Avant de relancer le moteur, vérifie le MD5 de chaque fichier déposé à la
+    main dont on connaît le MD5 attendu (rare avec la sortie actuelle de
+    gamma-launcher, voir `engine.runner._MD5_HINT_RE`) : un dépôt qui ne
+    correspond pas est refusé avec un message clair plutôt que laissé au
+    moteur, qui le retélécharge en silence sans jamais le dire.
+
+    Un mod encore en échec après ce rejeu est réenregistré avec sa nouvelle
+    cause ; un mod absent de la sortie (donc réinstallé avec succès, ou déjà
+    présent) est retiré de la liste.
+    """
+    root = target if target is not None else DEFAULT_INSTALL_TARGET
+    failures = state_module.load_failures(root)
+    if not failures:
+        reporter.warn(_("No failed mod recorded for {root} — nothing to retry.").format(root=root))
+        return 0
+
+    reporter.header(
+        _("Retrying {count} failed mod(s) in {root}").format(count=len(failures), root=root)
+    )
+    reporter.progress("\n".join(f"  - {failure.name} ({failure.cause})" for failure in failures))
+
+    try:
+        session.require_free(PrefixPaths.under(root), action=_("retrying failed mods"), force=False)
+    except PrefixBusyError as error:
+        reporter.error(str(error))
+        return 1
+
+    mismatch = _check_deposited_files(root, failures)
+    if mismatch is not None:
+        reporter.error(str(mismatch))
+        return 1
+
+    names = tuple(failure.name for failure in failures)
+    reporter.step("1/2", _("Removing local remnants of the failed mod(s)…"))
+    repair.remove_mods(root, names, reporter=reporter)
+
+    reporter.step("2/2", _("Reinstalling with the engine…"))
+    try:
+        repair.reinstall_mods(root, reporter=reporter, cancel_event=cancel_event)
+    except EngineExecutionError as error:
+        if error.mod_name is not None:
+            state_module.record_failure(root, _failure_from_error(error))
+        reporter.error(str(error))
+        return 1
+    except EngineCancelledError:
+        reporter.warn(_("Retry cancelled."))
+        return CANCELLED_EXIT_CODE
+    except EngineError as error:
+        reporter.error(str(error))
+        return 1
+
+    for name in names:
+        state_module.clear_failure(root, name)
+    reporter.success(
+        _("{count} mod(s) reinstalled: {names}").format(count=len(names), names=", ".join(names))
+    )
+    return 0
+
+
+def _check_deposited_files(
+    root: Path, failures: Sequence[state_module.FailedMod]
+) -> DepositMismatchError | None:
+    """Vérifie le MD5 des fichiers déposés à la main dont le MD5 attendu est connu.
+
+    Ne touche à rien : une seule incohérence bloque tout le rejeu, plutôt que
+    de laisser `full-install` retélécharger silencieusement un fichier que
+    l'utilisateur pensait avoir corrigé.
+    """
+    downloads = InstallPaths.under(root).downloads
+    for failure in failures:
+        if not failure.archive_name or not failure.expected_md5:
+            continue
+        path = downloads / failure.archive_name
+        if not path.is_file():
+            continue
+        actual, _size = hash_file(path)
+        if actual.lower() != failure.expected_md5.lower():
+            return DepositMismatchError(failure.name, path, failure.expected_md5, actual)
+    return None
 
 
 def update_phase_labels(*, merge_modlist: bool = True) -> tuple[str, ...]:

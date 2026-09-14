@@ -1456,6 +1456,118 @@ une installation incomplète. La numérotation « n/total » vient désormais de
 progression de la GUI — le `STEPS[:-1]` que la GUI recopiait décrochait dès
 qu'une seconde étape optionnelle est apparue.
 
+## Résilience ModDB : échec de téléchargement, dépôt manuel (T22)
+
+C'est ce qui casse une installation pour tout le monde, et l'amont y répond
+mal — traceback Python brute, arrêt sec, aucune indication de ce qu'il faut
+faire. Les issues amont le documentent : #282 (captcha Cloudflare, ouverte),
+#286 (`ModDBDownloadError`, lien direct 403 depuis le navigateur), #283/#284
+(`AttributeError: 'NoneType' object has no attribute 'unpackinfo'` — un lien
+ModDB expiré, pas une corruption). On savait déjà traiter ce mur **d'un
+côté** : `engine.runner.verify` classe ces marqueurs en avertissement, pas en
+échec, depuis `a3903dd`. Ce module porte le même raisonnement sur le chemin du
+**téléchargement**, où gamma-launcher, lui, sort bel et bien en échec (code
+non nul) — nuance qu'on ne doit surtout pas effacer : un mod manquant pendant
+un install est manquant, ce n'est pas un « peut-être » comme pour `verify`.
+
+**Une seule table de marqueurs, pas deux qui divergent.** Avant `engine/
+markers.py`, `engine.runner._UNVERIFIABLE_MARKERS` et
+`engine.errors._MODDB_MARKERS` maintenaient chacune leur liste, et « Download
+link not found when requesting » avait fini dupliqué dans les deux — un
+correctif dans l'une pouvait diverger silencieusement de l'autre.
+`engine.markers.classify()` est la source unique, utilisée telle quelle par
+`verify()` (contrat inchangé : `UNVERIFIABLE_MARKERS` reste exactement
+l'ancienne table, aucun marqueur réseau n'y a été ajouté sans que ça ait été
+demandé) et par `engine.errors` (consigne actionnable pendant un install).
+
+**Trois causes, lues dans la source de gamma-launcher v3.1 et non devinées**
+(`launcher/mods/downloader/base.py`, `moddb.py`, `launcher/commands/check.py` —
+tag étudié en `docs/ARCHITECTURE.md` « Intégration du moteur ») :
+
+1. **Réseau/ModDB injoignable** (`requests.exceptions.ConnectionError`, levée
+   par `tenacity` seulement après 3 tentatives internes espacées de 30 s) —
+   rien à voir avec un mod précis, attendre est le seul remède sensé.
+2. **Lien d'un mod cassé ou déplacé en amont** (`ModDBDownloadError`, « Could
+   not find Filename/archive hash in », « No Info URL provided ») — dépôt
+   manuel. Un mirroir mort, un mod retiré du site, et un défi Cloudflare
+   produisent **le même texte** côté `moddb.py::_get_download_url` : la page a
+   répondu (sinon on serait dans la cause 1), mais ce qu'on y cherchait n'y
+   est plus. Indiscernable d'ici, donc la même consigne pour les trois — ce
+   n'est pas une lacune, c'est ce que dit le code amont lui-même.
+   L'`AttributeError` sur `unpackinfo` (py7zr) en est le symptôme indirect :
+   `mod.download()` enregistre sans vérifier le contenu de ce que ModDB a
+   renvoyé (un fichier neuf n'est haché qu'à la prochaine relance,
+   `DefaultDownloader.download`), donc une page d'erreur HTML de 147 octets se
+   retrouve sauvée sous le nom `.7z` attendu, et l'extraction plante plus tard
+   sur une archive qui n'en est pas une.
+3. **Archive locale corrompue** (`Hash verification failed`, `HashError`
+   amont) — seule cause qui ne demande rien à l'utilisateur : supprimer
+   l'archive et relancer suffit, c'est déjà le mécanisme de `verify --repair`.
+
+**Le nom du mod ne se lit pas dans `output_tail`.** `engine.process.run` ne
+garde que les 20 dernières lignes de sortie pour le message d'erreur ; la
+ligne `[+] Processing mod {name} ({i}/{n})` (`launcher/commands/
+install.py:_install_mods`, seule trace du mod en cours dans tout le flux)
+peut s'en trouver poussée dehors par une trace longue — le cas réel
+d'`AttributeError` sur `unpackinfo` en fait ~21 lignes à elle seule.
+`engine.runner._install` enveloppe donc `anomaly-install`/`full-install` d'un
+suivi qui voit **tout** le flux au fur et à mesure, retient le dernier mod et
+le dernier fichier annoncés (`Calculating hash of {file}: `, imprimé par
+`launcher/hash.py:check_hash` juste avant qu'une archive en cache soit
+(re)vérifiée), et les rattache à `EngineExecutionError` si elle finit par
+lever — sans ça, le message aurait pu nommer l'URL sans jamais nommer le mod.
+
+**`--retry-failed` réutilise `integrity.repair`, il ne réinvente rien.**
+`orchestrator.run_retry_failed` retire le dossier et l'archive en cache des
+seuls mods enregistrés en échec (`state.record_failure`/`load_failures`, même
+fichier TOML que la progression du pipeline), puis relance `full-install` —
+exactement le mécanisme déjà utilisé par `verify --repair` (T12). Même
+réserve mesurée qu'à l'époque, et pour la même raison : gamma-launcher v3.1
+n'a **aucune** option pour ne rejouer qu'un sous-ensemble de mods
+(`_install_mods` parcourt toute la liste, sans le garde-fou par-mod que
+`CheckMD5.run()` a, lui, — voir plus bas) ; ce qu'on contrôle, c'est le
+sous-ensemble **retéléchargé**, le reste étant repris du cache
+(`use_cached=True`). `install --retry-failed` peut donc, comme `verify
+--repair`, mettre à jour d'autres mods au passage — ce n'est pas une
+opération strictement chirurgicale.
+
+**Le fichier déposé à la main est vérifié avant de toucher à quoi que ce
+soit**, quand un MD5 attendu est connu (`state.FailedMod.expected_md5`) : un
+dépôt qui ne correspond pas est refusé avec un message clair
+(`engine.errors.DepositMismatchError`) plutôt que laissé au moteur, qui
+retélécharge en silence sans jamais le dire (`ModDBDownloader.download()`
+re-résout systématiquement la page ModDB avant de consulter le cache — voir
+`_check_deposited_files`). En pratique le MD5 attendu est rarement connu :
+rien dans la sortie actuelle de gamma-launcher ne l'imprime
+(`_parse_moddb_metadata` le garde pour elle-même) — `engine.runner.
+_MD5_HINT_RE` est un filet best-effort pour une version amont future qui
+l'afficherait, pas une garantie.
+
+**Une install ne peut pas sauter un mod cassé et continuer — on ne prétend
+pas le contraire.** `launcher/commands/install.py:_install_mods` n'a aucun
+`try`/`except` par mod : la première exception arrête tout le pipeline
+(code de retour non nul), contrairement à `CheckMD5.run()`
+(`launcher/commands/check.py`), qui encaisse `HashError`/`ModDBDownloadError`
+mod par mod et n'échoue qu'à la fin — c'est précisément pour ça que `verify`
+peut accumuler plusieurs entrées « invérifiables » en un seul passage, quand
+`install`/`update` ne peuvent enregistrer **qu'un seul** nouvel échec par
+exécution. Le « compte rendu final » (`state.format_failures`, affiché en fin
+d'`install`/`update`/`--retry-failed`, y compris sur un succès si d'anciens
+échecs traînent encore) est donc honnête sur cette limite plutôt que de
+prétendre un dénombrement qu'on n'a pas : il liste ce qui est *actuellement*
+enregistré en échec, pas un total « X installés / Y échoués » qu'aucune
+commande de gamma-launcher ne peut produire pour `full-install`.
+
+**Ce qu'on ne fait pas, délibérément.** Aucun contournement de captcha, aucune
+simulation de navigateur (Playwright, Marionette…), aucun miroir non officiel
+— la voie explorée par le fork cité en #282. C'est une limite assumée du
+projet, pas un oubli : l'utilisateur a le droit de télécharger le fichier
+depuis son propre navigateur, ce qu'on ne peut ni ne doit faire à sa place.
+Quand le mur ModDB revient trop souvent pour un mod donné (page vraiment
+retirée, comme dans #283/#284), la bonne adresse est une issue en amont
+(`https://github.com/Mord3rca/gamma-launcher/issues`, suggérée dans le
+message), pas un correctif local qui masquerait le problème.
+
 ## Dimensionnement disque (`sizing.py`)
 
 Le volume qu'exige une installation est une donnée **unique**, dans

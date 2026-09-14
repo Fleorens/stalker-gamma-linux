@@ -7,12 +7,32 @@ n'est réimplémentée ici : tout est délégué au binaire `gamma-launcher` via
 
 from __future__ import annotations
 
+import re
 import threading
 from pathlib import Path
 
+from stalker_gamma_linux.engine import markers
 from stalker_gamma_linux.engine.errors import EngineExecutionError, VerificationError
 from stalker_gamma_linux.engine.paths import InstallPaths
 from stalker_gamma_linux.engine.process import ProgressCallback, run
+
+# `launcher/commands/install.py:_install_mods` :
+# `print(f'[+] Processing mod {mod.info.title or mod.info.name} ({i}/{mods_len})')`
+# — seule trace du mod en cours dans le flux ; rien d'équivalent n'existe côté
+# `AttributeError`/`ModDBDownloadError` eux-mêmes.
+_PROCESSING_MOD_RE = re.compile(r"^\[\+\] Processing mod (?P<name>.+) \(\d+/\d+\)$")
+
+# `launcher/hash.py:check_hash` : `tqdm(desc=f"Calculating hash of {file.name}", ...)`
+# — imprimé juste avant qu'une archive en cache soit (re)vérifiée, donc juste
+# avant qu'une extraction sur une archive corrompue échoue (issues #283/#284).
+_HASHING_FILE_RE = re.compile(r"^Calculating hash of (?P<filename>.+?): ")
+
+# Best-effort : rien dans la sortie actuelle de gamma-launcher n'imprime le MD5
+# attendu (`ModDBDownloader._parse_moddb_metadata` le garde pour elle-même). Ce
+# motif ne sert donc à rien aujourd'hui, mais coûte peu et couvre une version
+# amont future — ou un outil tiers — qui l'afficherait sous une forme usuelle
+# (« MD5 Hash: <32 hex> », le nom du champ tel que lu sur la page ModDB).
+_MD5_HINT_RE = re.compile(r"MD5(?:\s*Hash)?\s*[:=]\s*([0-9a-fA-F]{32})\b", re.IGNORECASE)
 
 
 def _gamma_downloads(paths: InstallPaths) -> Path:
@@ -38,6 +58,63 @@ def _extract_tmpdir(paths: InstallPaths) -> Path:
     return paths.cache / "tmp"
 
 
+def _install(
+    subcommand: str,
+    args: list[str],
+    *,
+    on_progress: ProgressCallback | None,
+    cancel_event: threading.Event | None,
+    tmpdir: Path,
+    download_dir: Path,
+) -> None:
+    """Lance `anomaly-install`/`full-install` en suivant en direct le mod en cours.
+
+    Sert uniquement à enrichir une éventuelle `EngineExecutionError` avec le
+    nom du mod et le fichier concernés (voir son docstring) : `output_tail` (20
+    dernières lignes retenues par `engine.process.run`) ne les contient pas
+    forcément, une trace Python longue les poussant dehors. Ce suivi doit donc
+    voir **tout** le flux, pas seulement sa queue — d'où ce wrapper, plutôt
+    qu'une reclassification a posteriori sur `output_tail`.
+    """
+    progress = on_progress or (lambda _line: None)
+    seen: dict[str, str | None] = {"mod": None, "archive": None, "md5": None}
+
+    def watch(line: str) -> None:
+        stripped = line.strip()
+        mod_match = _PROCESSING_MOD_RE.match(stripped)
+        if mod_match:
+            seen["mod"] = mod_match.group("name")
+        archive_match = _HASHING_FILE_RE.match(stripped)
+        if archive_match:
+            seen["archive"] = archive_match.group("filename")
+        md5_match = _MD5_HINT_RE.search(stripped)
+        if md5_match:
+            seen["md5"] = md5_match.group(1)
+        progress(line)
+
+    try:
+        run(
+            subcommand,
+            args,
+            on_progress=watch,
+            cancel_event=cancel_event,
+            tmpdir=tmpdir,
+            download_dir=download_dir,
+        )
+    except EngineExecutionError as error:
+        if seen["mod"] is None and seen["archive"] is None and seen["md5"] is None:
+            raise
+        raise EngineExecutionError(
+            error.subcommand,
+            error.returncode,
+            error.output_tail,
+            error.download_dir,
+            mod_name=seen["mod"],
+            archive_name=seen["archive"],
+            expected_md5=seen["md5"],
+        ) from error
+
+
 def install_anomaly(
     paths: InstallPaths,
     *,
@@ -46,7 +123,7 @@ def install_anomaly(
 ) -> None:
     """Installe S.T.A.L.K.E.R.: Anomaly (`gamma-launcher anomaly-install`)."""
     paths.ensure_directories()
-    run(
+    _install(
         "anomaly-install",
         ["--anomaly", str(paths.anomaly), "--cache-directory", str(paths.cache)],
         on_progress=on_progress,
@@ -91,7 +168,7 @@ def install_gamma(
     args = ["--anomaly", str(paths.anomaly), "--gamma", str(paths.gamma)]
     if (paths.anomaly / "appdata" / "user.ltx").is_file():
         args.append("--preserve-user-config")
-    run(
+    _install(
         "full-install",
         args,
         on_progress=on_progress,
@@ -157,26 +234,6 @@ def purge_shader_cache(
     )
 
 
-# Vraie corruption locale : émis par le downloader de base de gamma-launcher
-# (`Hash verification failed for/since/after ...`) quand une archive du cache
-# est absente ou ne correspond pas au MD5 attendu.
-_CORRUPTION_MARKER = "Hash verification failed"
-
-# Vérification *en ligne* impossible, sans rien dire des fichiers locaux :
-# page ModDB illisible (throttling Cloudflare, addon déplacé/supprimé) ou
-# version amont qui a dérivé depuis le snapshot de la modlist. gamma-launcher
-# compte ces cas comme des erreurs (exit 1) alors que toutes les archives
-# locales ont pu passer le hash — pour nous c'est un avertissement, pas un
-# échec de la mise à jour.
-_UNVERIFIABLE_MARKERS: tuple[str, ...] = (
-    "Could not find Filename in",
-    "Could not find archive hash in",
-    "since ModDB info do not match download url",
-    "Download link not found when requesting",
-    "No Info URL provided",
-)
-
-
 def verify(
     paths: InstallPaths,
     *,
@@ -186,12 +243,12 @@ def verify(
     """Vérifie l'intégrité des archives de mods (`check-md5`).
 
     Retourne les lignes « invérifiables en ligne » (ModDB illisible ou version
-    amont qui a dérivé — voir `_UNVERIFIABLE_MARKERS`) : les archives locales
-    correspondantes n'ont **pas** pu être comparées à leur somme amont, mais
-    rien n'indique une corruption — à présenter comme avertissement. Lève
-    `VerificationError` si une archive locale est réellement corrompue ou
-    manquante (`Hash verification failed`), ou si `check-md5` échoue pour une
-    raison inconnue.
+    amont qui a dérivé — voir `engine.markers.UNVERIFIABLE_MARKERS`) : les
+    archives locales correspondantes n'ont **pas** pu être comparées à leur
+    somme amont, mais rien n'indique une corruption — à présenter comme
+    avertissement. Lève `VerificationError` si une archive locale est
+    réellement corrompue ou manquante (`Hash verification failed`), ou si
+    `check-md5` échoue pour une raison inconnue.
 
     On ne lance **pas** `check-anomaly` ici. Il compare les fichiers d'Anomaly
     aux sommes de contrôle *vanilla* (`tools/checksums.md5`), or une install
@@ -210,9 +267,9 @@ def verify(
         # 20 lignes pourrait masquer une vraie corruption noyée au milieu.
         nonlocal corrupted
         stripped = line.strip()
-        if _CORRUPTION_MARKER in stripped:
+        if any(marker in stripped for marker in markers.CORRUPTION_MARKERS):
             corrupted = True
-        elif any(marker in stripped for marker in _UNVERIFIABLE_MARKERS):
+        elif any(marker in stripped for marker in markers.UNVERIFIABLE_MARKERS):
             unverifiable.append(stripped)
         if on_progress is not None:
             on_progress(line)

@@ -76,6 +76,123 @@ class InstallState:
         return replace(self, **{step: True})
 
 
+@dataclass(frozen=True, slots=True)
+class FailedMod:
+    """Un mod dont le téléchargement/installation a échoué (T22).
+
+    `cause` est le nom du `engine.markers.FailureCause` reconnu (ou `"unknown"`
+    si `EngineExecutionError` n'a rien classé) — stocké en texte, pas en objet,
+    puisque c'est écrit tel quel dans le TOML persisté. `detail` est le message
+    complet de l'erreur d'origine (déjà actionnable, hint compris) : c'est lui
+    qu'un utilisateur colle dans une issue. `archive_name`/`expected_md5`
+    (chaîne vide si inconnus — TOML n'a pas de `None`) alimentent la
+    vérification du fichier déposé à la main par `orchestrator.run_retry_failed`.
+    """
+
+    name: str
+    cause: str
+    detail: str
+    recorded_at: str
+    archive_name: str = ""
+    expected_md5: str = ""
+
+
+def record_failure(target: Path, failure: FailedMod) -> None:
+    """Enregistre (ou remplace) l'échec de `failure.name` pour `target`.
+
+    Un nouvel enregistrement du même mod écrase le précédent — c'est la cause
+    la plus récente qui compte, pas l'historique de ses échecs successifs.
+    """
+    installs = _load_raw()
+    key = _target_key(target)
+    entry = dict(installs.get(key, {}))
+    failed = [row for row in _failed_rows(entry) if row.get("name") != failure.name]
+    failed.append(
+        {
+            "name": failure.name,
+            "cause": failure.cause,
+            "detail": failure.detail,
+            "recorded_at": failure.recorded_at,
+            "archive_name": failure.archive_name,
+            "expected_md5": failure.expected_md5,
+        }
+    )
+    entry["failed_mods"] = failed
+    installs[key] = entry
+    _save_raw(installs)
+
+
+def load_failures(target: Path) -> tuple[FailedMod, ...]:
+    """Échecs actuellement enregistrés pour `target`, dans l'ordre d'enregistrement."""
+    entry = _load_raw().get(_target_key(target), {})
+    return tuple(
+        FailedMod(
+            name=str(row.get("name", "")),
+            cause=str(row.get("cause", "unknown")),
+            detail=str(row.get("detail", "")),
+            recorded_at=str(row.get("recorded_at", "")),
+            archive_name=str(row.get("archive_name", "")),
+            expected_md5=str(row.get("expected_md5", "")),
+        )
+        for row in _failed_rows(entry)
+    )
+
+
+def clear_failure(target: Path, name: str) -> None:
+    """Retire `name` des échecs enregistrés — appelé après une reprise réussie.
+
+    Silencieux si `name` n'y était pas : `install --retry-failed` l'appelle
+    pour chaque mod qu'il vient de réinstaller sans savoir lesquels ont
+    réellement échoué avant lui.
+    """
+    installs = _load_raw()
+    key = _target_key(target)
+    entry = dict(installs.get(key, {}))
+    remaining = [row for row in _failed_rows(entry) if row.get("name") != name]
+    if len(remaining) == len(_failed_rows(entry)):
+        return
+    entry["failed_mods"] = remaining
+    installs[key] = entry
+    _save_raw(installs)
+
+
+def clear_all_failures(target: Path) -> None:
+    """Vide la liste des échecs enregistrés pour `target`.
+
+    Appelé quand `full-install` vient de parcourir tout le modpack sans lever
+    — la preuve la plus directe que plus aucun mod n'est en échec, même si un
+    échec plus ancien traînait encore dans l'état persisté.
+    """
+    installs = _load_raw()
+    key = _target_key(target)
+    entry = dict(installs.get(key, {}))
+    if not _failed_rows(entry):
+        return
+    entry["failed_mods"] = []
+    installs[key] = entry
+    _save_raw(installs)
+
+
+def _failed_rows(entry: dict[str, object]) -> list[dict[str, object]]:
+    rows = entry.get("failed_mods", [])
+    return list(rows) if isinstance(rows, list) else []
+
+
+def format_failures(failures: tuple[FailedMod, ...]) -> str:
+    """Rendu texte des échecs enregistrés — le « compte rendu honnête » de fin d'install."""
+    if not failures:
+        return ""
+    lines = [
+        _(
+            "{count} mod(s) with a known unresolved failure — everything else "
+            "already installed is untouched:"
+        ).format(count=len(failures))
+    ]
+    lines.extend(f"  - {failure.name} ({failure.cause})" for failure in failures)
+    lines.append(_("Run `stalker-gamma-linux install --retry-failed` once addressed."))
+    return "\n".join(lines)
+
+
 def config_dir() -> Path:
     """`$XDG_CONFIG_HOME`, ou `~/.config` par défaut (spec freedesktop)."""
     override = os.environ.get("XDG_CONFIG_HOME")

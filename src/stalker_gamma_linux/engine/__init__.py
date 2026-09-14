@@ -1,12 +1,14 @@
 """Wrapper autour du moteur gamma-launcher (téléchargement/installation GAMMA)."""
 
 from stalker_gamma_linux.engine.errors import (
+    DepositMismatchError,
     EngineCancelledError,
     EngineError,
     EngineExecutionError,
     EngineNotFoundError,
     VerificationError,
 )
+from stalker_gamma_linux.engine.markers import FailureCause
 from stalker_gamma_linux.engine.paths import InstallPaths
 from stalker_gamma_linux.engine.process import ProgressCallback
 from stalker_gamma_linux.engine.runner import (
@@ -19,10 +21,12 @@ from stalker_gamma_linux.engine.runner import (
 )
 
 __all__ = [
+    "DepositMismatchError",
     "EngineCancelledError",
     "EngineError",
     "EngineExecutionError",
     "EngineNotFoundError",
+    "FailureCause",
     "InstallPaths",
     "ProgressCallback",
     "VerificationError",
