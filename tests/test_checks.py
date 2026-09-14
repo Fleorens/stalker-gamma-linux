@@ -300,6 +300,11 @@ def test_check_gtk_gui_missing_when_gi_not_importable(monkeypatch: pytest.Monkey
 
     assert requirement.status is Status.MISSING
     assert requirement.install_hint == "sudo dnf install gtk4 libadwaita python3-gobject"
+    # Le chemin de l'interpréteur doit apparaître : un `import gi` qui échoue
+    # est indiscernable d'un paquet manquant sans savoir QUEL python a été
+    # utilisé (shim mise/pyenv/uv, ou venv --system-site-packages créé contre
+    # le mauvais python après une bascule de version — voir check_gtk_gui).
+    assert sys.executable in requirement.detail
 
 
 def test_check_gtk_gui_ok_when_available() -> None:

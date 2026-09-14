@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 
 from stalker_gamma_linux import sizing
@@ -444,10 +445,21 @@ def check_gtk_gui(family: DistroFamily) -> Requirement:
         gi.require_version("Adw", "1")
         from gi.repository import Adw, Gtk  # noqa: F401
     except (ImportError, ValueError) as error:
+        # `sys.executable` dans le message : un `ModuleNotFoundError: No module
+        # named 'gi'` seul est indiscernable d'un vrai paquet manquant alors que
+        # la cause réelle, vue en usergroup (issue #… — GTK4/libadwaita/PyGObject
+        # bien installés via pacman mais invisibles ici), est un interpréteur
+        # PATH différent de celui contre lequel le venv `--system-site-packages`
+        # a été créé (shim mise/pyenv/uv devant le python système, ou paquet
+        # distro pas encore reconstruit après une bascule de version Python).
+        # Afficher le chemin de l'interpréteur rend ce diagnostic immédiat au
+        # lieu de dépendre d'un aller-retour avec l'utilisateur.
         return Requirement(
             name="GTK GUI",
             status=Status.MISSING,
-            detail=_("GTK4/libadwaita (PyGObject) unavailable: {error}").format(error=error),
+            detail=_(
+                "GTK4/libadwaita (PyGObject) unavailable: {error} (interpreter: {executable})"
+            ).format(error=error, executable=sys.executable),
             install_hint=INSTALL_COMMANDS["gtk-gui"].for_family(family),
             key="gtk-gui",
             needed_to_install=False,

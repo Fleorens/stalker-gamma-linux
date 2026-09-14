@@ -1136,7 +1136,7 @@ msgid "no Vulkan device detected"
 msgstr ""
 
 #, python-brace-format
-msgid "GTK4/libadwaita (PyGObject) unavailable: {error}"
+msgid "GTK4/libadwaita (PyGObject) unavailable: {error} (interpreter: {executable})"
 msgstr ""
 
 #, python-brace-format
