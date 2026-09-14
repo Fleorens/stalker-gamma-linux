@@ -58,10 +58,13 @@ Issue d'une revue d'état de l'art menée le 2026-08-17 sur les autres outils de
 l'écosystème Linux/GAMMA. Sur dix pistes retenues, quatre étaient déjà
 couvertes chez nous ; six deviennent des tâches.
 
-- **T11** 🔴 Garde-fous de chemin sur `uninstall --game-data`. `build_plan()`
-  ajoute `--target` à la liste des suppressions **sans validation**, et
-  `apply_plan()` fait `rmtree` dessus sans confirmation interactive : une faute
-  de frappe (`--target ~`) suffit. À corriger avant tout le reste.
+- **T11** ✅ Garde-fous de chemin sur `uninstall --game-data`. Le chemin est
+  résolu puis validé une seule fois par `paths_safety.validate_wipe_target`
+  juste avant le `rmtree` (racines système, `$HOME` et voisins, répertoire
+  courant, dépôt/venv en cours, chemins relatifs, symlinks, profondeur
+  insuffisante, marqueur d'install requis) — pas de second `resolve()` qui
+  rouvrirait la fenêtre TOCTOU. Confirmation interactive (chemin résolu,
+  taille estimée) avec `--yes` pour l'usage scripté.
 - **T12** ✅ Intégrité MD5 des **mods installés** + réparation ciblée
   (`integrity/`, commande `verify [--repair]` + bouton dans la vue Diagnostic).
   Nous ne vérifiions que les archives (`check-md5` du moteur), pas le contenu
@@ -91,8 +94,12 @@ couvertes chez nous ; six deviennent des tâches.
   de contrôle et se faisait tuer avec toute la chaîne en dessous — `stdin`
   devait être coupé aussi. Rejoué avec le correctif complet : toute la chaîne
   jusqu'à `AnomalyDX11.exe` survit à la fermeture du terminal.
-- **T16** 🔵 Épinglage `WINESERVER` sous umu — investigation à mener, patch
-  seulement si un découplage est mesuré.
+- **T16** ✅ **tranché (2026-08-22)** Épinglage `WINESERVER` sous umu :
+  mesuré sur trois lancements réels (GE-Proton11-3, GE-Proton9-20,
+  GE-Proton11-1) en lisant `/proc/<pid>/environ` et `/proc/<pid>/exe` —
+  aucun découplage client/serveur n'existe sur ce chemin, le conteneur
+  remplaçant `/usr` rend le wineserver de l'hôte inatteignable de toute
+  façon. Aucun patch. Écrit dans `docs/MO2-PROTON-COMPAT.md`.
 
 Déjà couvert, donc écarté de la revue : contournement du rate-limit de l'API
 GitHub (`updates.py` le documente ; `prefix/umu.py` et `prefix/download.py` ont
@@ -184,16 +191,35 @@ ce que seul Linux permet, et les modes d'échec qui font abandonner. Découpage 
   80 issues ouvertes). On le garde parce qu'il est le seul empaqueté et qu'il
   fonctionne ; le successeur à surveiller est vkShade, à basculer quand il
   quittera la pre-alpha **et** entrera dans les dépôts.
-- **T21** 🟡 Cache de shaders hors préfixe. `install --only prefix` est notre
-  remède officiel au « prefix has an invalid version » — et il fait
-  silencieusement perdre des heures de compilation. Les caches DXVK/pilote
-  doivent vivre sous `<root>/cache/`, comme `TMPDIR` déjà.
-- **T22** 🟠 Résilience ModDB. Issue amont **ouverte** (#282, captchas
-  Cloudflare), plus #286/#284/#283. `engine.runner.verify` sait déjà classer ces
-  marqueurs en avertissement ; le raisonnement n'a jamais été porté sur le
-  chemin du téléchargement, où il bloque. Périmètre explicite : **aucun
-  contournement de protection** — on diagnostique, on indique le dépôt manuel
-  (`<gamma>/downloads`), on reprend.
+- **T21** ✅ **livré (2026-09-14)** — Cache de shaders hors préfixe.
+  `DXVK_SHADER_CACHE_PATH`, `MESA_SHADER_CACHE_DIR` et
+  `__GL_SHADER_DISK_CACHE_PATH` (plus les plafonds de taille, et la variable
+  pilote posée seulement si le pilote correspondant est détecté) sont posés
+  par défaut sous `<root>/cache/shaders/` par `environment/shader_cache.py` —
+  épargnés par `install --only prefix`, `prefix-doctor --repair` et un
+  changement de version de Proton-GE, là où `install --only prefix` (notre
+  remède officiel au « prefix has an invalid version ») faisait auparavant
+  perdre silencieusement des heures de compilation. Mesuré en réel (cache
+  froid → chaud, zéro octet recompilé pour le même contenu rendu) ; le
+  pré-chauffage automatique n'est pas implémenté, faute d'outil d'automatisation
+  d'entrée sous Wayland pour aller au-delà du menu. `prefix-doctor
+  --purge-shaders` force une recompilation complète ou récupère l'espace
+  d'entrées orphelines (même garde qu'`--repair` : refuse si le préfixe est
+  occupé, `--force` passe outre) ; ne touche jamais au cache X-Ray. Détail
+  dans docs/MO2-PROTON-COMPAT.md.
+- **T22** ✅ **livré (2026-09-14)** — Résilience ModDB. Issue amont ouverte
+  (#282, captchas Cloudflare), plus #286/#284/#283. La reconnaissance de
+  marqueurs de `verify()` est étendue au chemin de téléchargement
+  (anomaly-install/full-install) via une table unique (`engine/markers.py`)
+  qui classe un échec ModDB en trois causes distinctes — réseau/ModDB
+  injoignable, lien de mod cassé (dépôt manuel), archive locale corrompue
+  (retrait automatique) — au lieu d'une traceback brute. Les échecs nommés
+  sont mémorisés dans l'état persisté pour un compte rendu honnête en fin
+  d'installation, et `install --retry-failed` rejoue uniquement ces mods en
+  réutilisant le mécanisme de `integrity/repair.py` (T12) déjà utilisé par
+  `verify --repair` ; un fichier déposé à la main (`<gamma>/downloads`) est
+  vérifié par MD5 avant de relancer le moteur, quand ce MD5 est connu.
+  Périmètre explicite respecté : **aucun contournement de protection**.
 
 - **Refonte de l'interface** ✅ **livrée (2026-09-07)** L'habillage de la GUI
   reprend la grammaire d'un launcher de jeu : artwork de la Zone redessiné en

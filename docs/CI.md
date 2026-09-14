@@ -4,7 +4,7 @@ Trois workflows GitHub Actions, chacun avec un rôle distinct :
 
 | Workflow | Déclencheur | Rôle |
 |---|---|---|
-| `ci.yml` | push sur `main`, pull request | lint (`ruff`), types (`mypy --strict`), tests (`pytest`) sur Python 3.11/3.12/3.13, build du paquet |
+| `ci.yml` | push sur `main`, pull request | sept jobs indépendants (voir plus bas) : lint/types/tests sur une matrice Python, fumée GUI sous Xvfb, `install.sh` réel sur quatre distributions, build du paquet, scan de secrets, audit de dépendances, vérification des noms de paquets annoncés |
 | `upstream-watch.yml` | cron quotidien, `workflow_dispatch` | détecte une nouvelle révision de `Grokitach/Stalker_GAMMA` ou `Mord3rca/gamma-launcher` ; si oui, exécute un sous-ensemble non-graphique du pipeline dans un conteneur ; ouvre une issue si ça casse |
 | `release.yml` | tag `v*` | rejoue les vérifications, publie une GitHub Release (notes générées) — plus d'artefact de packaging depuis le retrait de Flatpak/AppImage (2026-07-26) |
 
@@ -18,9 +18,17 @@ rapides sur une PR) ; `upstream-watch`/`release` ne s'annulent pas entre eux
 (un run en cours ne doit pas être tué par un second déclenchement accidentel
 pendant qu'il committe ou publie).
 
+Les actions tierces sont épinglées par SHA de commit (pas par tag mobile,
+CWE-1357/CWE-494) ; `.github/dependabot.yml` ouvre chaque semaine les PR de
+bump vers le SHA à jour pour que ces épingles ne pourrissent pas sur place.
+
 ## `ci.yml`
 
-Piège réel rencontré en écrivant ce workflow (validé dans un conteneur
+Sept jobs, tous indépendants sauf `build` (qui attend `test`) :
+
+### `test` — lint + types + tests
+
+Piège réel rencontré en écrivant ce job (validé dans un conteneur
 `ubuntu:24.04` avant d'être commité) : l'extra `dev` de `pyproject.toml`
 inclut `PyGObject-stubs`, qui déclare une dépendance dure sur `PyGObject`
 lui-même (confirmé via `pip show PyGObject-stubs` : `Requires: PyGObject,
@@ -28,11 +36,67 @@ typing_extensions`). Sans en-têtes système, `pip install ".[dev]"` échoue à
 la compilation de `pycairo`/`PyGObject` (pas de roue manylinux, voir
 `pyproject.toml`). D'où l'étape `apt-get install libcairo2-dev
 libgirepository-2.0-dev gir1.2-gtk-4.0 gir1.2-adw-1 pkg-config` avant
-l'install Python — testé pour de vrai sur les trois versions de la matrice
-(3.11.15, 3.12.3, 3.13.14 via le PPA deadsnakes dans un conteneur
-`ubuntu:24.04`, la même base que les runners `ubuntu-latest` GitHub-hosted) :
-~10-20s de compilation par version, `ruff`/`mypy --strict`/`pytest`
-(260 tests) et `python -m build` tous verts.
+l'install Python : `ruff`, `ruff format --check`, `mypy src` puis `pytest -q`.
+
+Matrice **Python 3.11, 3.12, 3.13 et 3.14** : la 3.14 a été ajoutée car c'est
+ce que livrent Fedora 44 et Arch aujourd'hui — donc ce que fait tourner une
+grande partie des utilisateurs et la machine de dev. Son absence signifiait
+que « CI verte » et « ça marche chez moi » ne parlaient pas de la même chose.
+
+### `gui` — fumée GTK4 sous Xvfb
+
+`install.sh` finit par lancer la GUI et l'entrée de menu aussi, mais ses
+~1360 lignes de widgets n'étaient jamais importées en CI : le job `test`
+n'installe PyGObject que pour les stubs `mypy`, et `install-script` tourne
+délibérément sans GTK. Ce job construit chaque écran pour de vrai, dans un
+venv `--system-site-packages` (PyGObject vient du paquet distro, pas d'une
+roue manylinux — comme sur la machine d'un utilisateur), sous serveur X
+virtuel (`xvfb-run`), via `tests/test_gui_smoke.py`.
+
+### `install-script` — l'installeur réel sur quatre distributions
+
+`install.sh` est le point d'entrée de 100 % des utilisateurs (`curl | bash`)
+et n'était exécuté nulle part d'autre que sur la Fedora du mainteneur, alors
+que le README promet « any Linux distribution ». Ce job le lance pour de vrai
+dans des conteneurs Debian 12, Ubuntu 24.04, Fedora et Arch, et vérifie : le
+remède GTK affiché est celui de la bonne distribution (GTK n'est
+volontairement pas installé — le script doit s'arrêter proprement en
+recommandant la commande adaptée), le venv/raccourcis/entrée de bureau sont
+en place, la CLI installée démarre, et relancer le script est idempotent.
+
+### `build` — construction du paquet
+
+`python -m build` (sdist + wheel), dépend de `test`. Artefact conservé
+14 jours.
+
+### `secrets` — gitleaks
+
+Les règles du projet interdisent tout secret en dur ; ce job le vérifie au
+lieu de s'appuyer sur la seule revue humaine. `gitleaks` scanne **l'historique
+complet** (`fetch-depth: 0`), pas seulement l'arbre de travail — une clé
+committée puis retirée reste exploitable tant qu'elle est dans les objets
+git. Binaire épinglé par version et vérifié par somme SHA-256 (pas l'action
+officielle, qui exige une clé de licence pour un dépôt d'organisation).
+
+### `deps` — pip-audit (non bloquant)
+
+`constraints.txt` fige la clôture transitive, mais figer n'est pas auditer :
+une version épinglée ne bouge pas quand un avis de sécurité tombe dessus.
+Ce job installe la clôture épinglée (Python 3.11, la plus large : `py7zr` n'y
+tire `backports.zstd` que sous 3.14) et interroge `pip-audit` sur
+l'environnement réellement installé. `continue-on-error: true` pour
+l'instant — à rendre bloquant quand plusieurs semaines seront vertes d'affilée
+et qu'une porte de sortie écrite existera pour les alertes non corrigeables en
+amont.
+
+### `package-names` — les paquets annoncés existent-ils vraiment ?
+
+Les noms de paquets pourrissent en silence (constaté le 2026-08-16 : `p7zip`
+avait disparu de Fedora/Arch au profit de `7zip`, et `libunrar5t64` n'existe
+pas sur Debian 13). Ce job interroge chaque distribution (Debian 12, Ubuntu
+24.04, Fedora, Arch, dépôts non-free/multilib activés comme le fait le remède
+affiché à l'utilisateur) pour vérifier que les noms extraits de
+`environment/commands.py` existent réellement chez elle. N'installe rien.
 
 ## `upstream-watch.yml`
 

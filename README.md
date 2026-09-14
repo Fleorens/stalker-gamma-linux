@@ -73,6 +73,14 @@ install target, download/install, then Play. Already have a checkout?
 `./install.sh` does the same without cloning; `--no-launch` sets everything up
 without opening the window.
 
+ModDB (where GAMMA's mods are hosted) occasionally blocks a download — a
+Cloudflare captcha, a dead link, a corrupted archive. Rather than a raw
+traceback, a failed install now names the mod and the reason (network/ModDB
+unreachable, broken link, corrupted archive) and remembers it: drop the file
+yourself into `<gamma>/downloads` if it's a broken link, then
+`stalker-gamma-linux install --retry-failed` retries only those mods. No
+captcha bypass, no browser simulation — that stays out of scope.
+
 ### Uninstall
 
 ```sh
@@ -150,6 +158,11 @@ launcher would need in a container.
   2026-09-08**: nested under a desktop Wayland session it dies on a Wayland
   protocol error and takes the running game down with it. The measurement and
   the conditions for bringing it back are in docs/ARCHITECTURE.md.
+- The **shader cache lives outside the Proton prefix**, under
+  `<root>/cache/shaders/`, so `install --only prefix`, `prefix-doctor --repair`
+  and a Proton-GE version change no longer throw away hours of DXVK/driver
+  compilation. `prefix-doctor --purge-shaders` forces a full recompile or
+  reclaims space from orphaned entries, if you ever need to.
 
 Once installed (or with the venv activated), the CLI is `stalker-gamma-linux`:
 
@@ -170,9 +183,11 @@ stalker-gamma-linux shortcut                     # (re)create the .desktop menu 
 stalker-gamma-linux steam-shortcut               # add GAMMA to the Steam library, artwork included
 stalker-gamma-linux steam-shortcut --remove      # take it back out (entry + artwork)
 stalker-gamma-linux install --only prefix        # replay one step (troubleshooting), even if done
+stalker-gamma-linux install --retry-failed       # retry only the mods a previous install recorded as failed (ModDB errors)
 stalker-gamma-linux verify                       # check the installed mods against their reference fingerprint
 stalker-gamma-linux verify --repair              # + reinstall the damaged modpack mods (yours are never touched)
 stalker-gamma-linux prefix-doctor --repair        # repair the shared Proton prefix in place
+stalker-gamma-linux prefix-doctor --purge-shaders # delete the DXVK/Mesa/NVIDIA shader cache (full recompile, or reclaim disk space)
 stalker-gamma-linux uninstall                    # remove shortcuts/settings/logs (keeps the game)
 stalker-gamma-linux doctor --report              # write a report to attach to an issue
 ```
