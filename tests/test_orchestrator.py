@@ -225,6 +225,52 @@ def test_run_update_warns_on_unverifiable_archives_but_succeeds(
     assert "Could not find Filename in https://moddb/x" in warnings[0]
 
 
+class TestRecordingModDownloadFailuresOnUpdate:
+    """`run_update` mémorise aussi les échecs de mod nommés, comme `run_install`.
+
+    Sans ça, `install --retry-failed` retombe sur un état vide après un
+    `update` raté — `update_gamma` est un alias de `full-install`, donc
+    l'échec est du même type, mais seul `run_install` le mémorisait avant.
+    """
+
+    def test_records_the_failure_when_the_mod_is_known(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def boom(*a: Any, **k: Any) -> None:
+            raise EngineExecutionError(
+                "full-install",
+                1,
+                "Hash verification failed since FDDARD_FIX.7z does not exist",
+                mod_name="FDDARD Fix",
+                archive_name="FDDARD_FIX.7z",
+            )
+
+        monkeypatch.setattr(engine, "update_gamma", boom)
+        reporter = _RecordingReporter()
+
+        code = orchestrator.run_update(tmp_path, reporter=reporter)
+
+        assert code == 1
+        failures = state.load_failures(tmp_path)
+        assert len(failures) == 1
+        assert failures[0].name == "FDDARD Fix"
+        assert failures[0].cause == "LOCAL_CORRUPTION"
+        assert failures[0].archive_name == "FDDARD_FIX.7z"
+        warnings = [message for kind, message in reporter.events if kind == "warn"]
+        assert any("FDDARD Fix" in message for message in warnings)
+
+    def test_does_not_record_anything_without_a_known_mod_name(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def boom(*a: Any, **k: Any) -> None:
+            raise EngineExecutionError("full-install", 1, "totally unrelated crash")
+
+        monkeypatch.setattr(engine, "update_gamma", boom)
+
+        assert orchestrator.run_update(tmp_path) == 1
+        assert state.load_failures(tmp_path) == ()
+
+
 def test_run_update_refuses_when_mo2_is_running(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

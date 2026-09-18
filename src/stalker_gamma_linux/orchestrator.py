@@ -524,6 +524,16 @@ def run_update(
     except EngineCancelledError:
         reporter.warn(_("Update cancelled."))
         return CANCELLED_EXIT_CODE
+    except EngineExecutionError as error:
+        # Même échec, même moteur que `run_install` (`update_gamma` est un
+        # alias de `full-install`) : sans ce mémorisage, `install
+        # --retry-failed` retombe sur un état vide et n'a rien à rejouer après
+        # un `update` raté.
+        if error.mod_name is not None:
+            state_module.record_failure(root, _failure_from_error(error))
+        reporter.error(str(error))
+        _warn_known_failures(root, reporter=reporter)
+        return 1
     except EngineError as error:
         reporter.error(str(error))
         return 1
