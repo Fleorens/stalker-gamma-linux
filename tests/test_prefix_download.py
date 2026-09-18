@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import tarfile
+import urllib.error
 from pathlib import Path
 
 import pytest
@@ -29,16 +30,31 @@ def _make_release_archive(tmp_path: Path, release: str = RELEASE) -> tuple[bytes
 
 
 def _patch_remote(
-    monkeypatch: pytest.MonkeyPatch, archive_bytes: bytes, checksum_line: str
+    monkeypatch: pytest.MonkeyPatch,
+    archive_bytes: bytes,
+    checksum_line: str,
+    *,
+    asset: str = RELEASE,
 ) -> list[str]:
+    """Sert les fichiers publiés sous le nom `asset`, et 404 pour tout autre nom.
+
+    Une release GE n'existe que sous **une** convention de nom : répondre à
+    n'importe quelle URL laisserait passer un code qui demande un asset
+    inexistant — précisément le bug des releases ≥ GE-Proton11-4.
+    """
     fetched_urls: list[str] = []
 
-    def fake_read_remote_text(url: str) -> str:
+    def _serve(url: str) -> None:
         fetched_urls.append(url)
+        if not url.rsplit("/", 1)[-1].startswith(f"{asset}."):
+            raise urllib.error.HTTPError(url, 404, "Not Found", hdrs=None, fp=None)  # type: ignore[arg-type]
+
+    def fake_read_remote_text(url: str) -> str:
+        _serve(url)
         return checksum_line
 
     def fake_download_to(url: str, dest: Path, **kwargs: object) -> None:
-        fetched_urls.append(url)
+        _serve(url)
         dest.write_bytes(archive_bytes)
 
     monkeypatch.setattr(download, "read_remote_text", fake_read_remote_text)
@@ -164,13 +180,60 @@ def test_download_defaults_to_latest_release(
     latest = "GE-Proton12-3"
     monkeypatch.setattr(download, "resolve_latest_ge_release", lambda **kwargs: latest)
     data, digest = _make_release_archive(tmp_path, latest)
-    _patch_remote(monkeypatch, data, f"{digest}  {latest}.tar.gz\n")
+    _patch_remote(monkeypatch, data, f"{digest}  {latest}.tar.gz\n", asset=latest)
     install_dir = tmp_path / "compatibilitytools.d"
 
     result = download.download_proton_ge(install_dir=install_dir)
 
     assert result == install_dir / latest
     assert (result / "proton").is_file()
+
+
+def test_download_handles_the_x86_64_asset_naming(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Convention depuis GE-Proton11-4 : l'archive, le .sha512sum *et* le
+    # répertoire qu'elle contient portent le suffixe `-x86_64`. Le tag, non.
+    release = "GE-Proton11-7"
+    asset = f"{release}-x86_64"
+    data, digest = _make_release_archive(tmp_path, asset)
+    urls = _patch_remote(monkeypatch, data, f"{digest}  {asset}.tar.gz\n", asset=asset)
+    install_dir = tmp_path / "compatibilitytools.d"
+
+    result = download.download_proton_ge(release, install_dir)
+
+    # Installé sous le nom du tag : notre convention ne suit pas celle de l'amont.
+    assert result == install_dir / release
+    assert (result / "proton").is_file()
+    assert f"{asset}.tar.gz" in urls[-1]
+
+
+def test_download_still_handles_the_unsuffixed_asset_naming(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Une version épinglée par l'utilisateur peut être antérieure au
+    # basculement (la GUI propose `GE-Proton10-8` en exemple).
+    release = "GE-Proton10-8"
+    data, digest = _make_release_archive(tmp_path, release)
+    urls = _patch_remote(monkeypatch, data, f"{digest}  {release}.tar.gz\n", asset=release)
+    install_dir = tmp_path / "compatibilitytools.d"
+
+    result = download.download_proton_ge(release, install_dir)
+
+    assert (result / "proton").is_file()
+    # Le suffixe est sondé d'abord, et son 404 ne fait pas échouer la reprise.
+    assert any(f"{release}-x86_64.sha512sum" in url for url in urls)
+
+
+def test_download_reports_when_no_asset_convention_matches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data, digest = _make_release_archive(tmp_path)
+    _patch_remote(monkeypatch, data, f"{digest}  x\n", asset="GE-Proton99-9")
+    install_dir = tmp_path / "compatibilitytools.d"
+
+    with pytest.raises(ProtonDownloadError, match="No published archive found"):
+        download.download_proton_ge(RELEASE, install_dir)
 
 
 def test_download_rejects_archive_without_proton_executable(

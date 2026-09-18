@@ -36,6 +36,9 @@ _LATEST_RELEASE_API_URL = (
     "https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest"
 )
 _GE_TAG_RE = re.compile(r"^GE-Proton\d+-\d+$")
+# Ordre de sondage des conventions de nom d'asset, la plus récente d'abord
+# (voir `_resolve_asset`). Le suffixe vide couvre les releases < GE-Proton11-4.
+_ASSET_SUFFIXES: tuple[str, ...] = ("-x86_64", "")
 _FETCH_TIMEOUT_SECONDS = 30
 _HASH_CHUNK_BYTES = 1024 * 1024
 _DOWNLOAD_CHUNK_BYTES = 1024 * 1024
@@ -107,8 +110,8 @@ def _sha512(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _remote_checksum(release: str) -> str:
-    """Somme SHA-512 publiée pour `release`, validée comme un vrai digest hexadécimal.
+def _remote_checksum(release: str, asset: str | None = None) -> str:
+    """Somme SHA-512 publiée pour `asset` (défaut : `release`), validée comme un digest.
 
     Contrôler la seule longueur laissait passer n'importe quels 128 caractères
     (une page d'erreur HTML tronquée, par exemple) : la comparaison échouait
@@ -116,13 +119,44 @@ def _remote_checksum(release: str) -> str:
     que c'est la somme de référence qui est illisible. Le message doit désigner
     le vrai coupable.
     """
-    url = f"{_RELEASE_BASE_URL}/{release}/{release}.sha512sum"
+    basename = asset if asset is not None else release
+    url = f"{_RELEASE_BASE_URL}/{release}/{basename}.sha512sum"
     tokens = read_remote_text(url).split()
     if not tokens or not _SHA512_HEX_RE.match(tokens[0]):
         raise ProtonDownloadError(
             _("Unreadable checksum file for {release} ({url})").format(release=release, url=url)
         )
     return tokens[0].lower()
+
+
+def _resolve_asset(release: str) -> tuple[str, str]:
+    """Nom de base des fichiers publiés pour `release`, et sa somme SHA-512.
+
+    GloriousEggroll a commencé à publier des builds aarch64 à partir de
+    GE-Proton11-1, puis a suffixé l'archive x86_64 à partir de **GE-Proton11-4** :
+    `GE-Proton11-3.tar.gz` mais `GE-Proton11-4-x86_64.tar.gz` (vérifié sur l'API
+    GitHub). Le suffixe vaut aussi pour le `.sha512sum` **et** pour le
+    répertoire contenu dans l'archive. Une version épinglée par l'utilisateur
+    peut être antérieure au basculement (la GUI propose `GE-Proton10-8` en
+    exemple), donc les deux conventions doivent rester servies.
+
+    On sonde le `.sha512sum` (quelques centaines d'octets) plutôt que l'API
+    GitHub : `resolve_latest_ge_release` se replie déjà quand l'API est
+    rate-limitée (60 req/h sans authentification), et faire dépendre le
+    téléchargement de cette même API annulerait ce repli.
+    """
+    last_error: OSError | None = None
+    for suffix in _ASSET_SUFFIXES:
+        basename = f"{release}{suffix}"
+        try:
+            return basename, _remote_checksum(release, basename)
+        except OSError as error:  # 404 sur une convention : on tente l'autre
+            last_error = error
+    raise ProtonDownloadError(
+        _("No published archive found for {release} ({error})").format(
+            release=release, error=last_error
+        )
+    ) from last_error
 
 
 def resolve_latest_ge_release(*, on_progress: ProgressCallback | None = None) -> str:
@@ -176,13 +210,16 @@ def download_proton_ge(
         raise PrefixCancelledError(_("downloading {release}").format(release=release))
 
     resolved_dir.mkdir(parents=True, exist_ok=True)
+    # Provisoire : ne sert qu'au message d'erreur si la résolution du nom
+    # d'asset échoue avant d'avoir pu déterminer la bonne URL.
     archive_url = f"{_RELEASE_BASE_URL}/{release}/{release}.tar.gz"
     try:
-        expected = _remote_checksum(release)
+        asset, expected = _resolve_asset(release)
+        archive_url = f"{_RELEASE_BASE_URL}/{release}/{asset}.tar.gz"
         # Répertoire temporaire dans resolved_dir : même système de fichiers,
         # le rename final est atomique et un échec ne laisse aucun résidu.
         with tempfile.TemporaryDirectory(dir=resolved_dir) as tmp:
-            archive = Path(tmp) / f"{release}.tar.gz"
+            archive = Path(tmp) / f"{asset}.tar.gz"
             progress(_("Downloading {release}…").format(release=release))
             download_to(archive_url, archive, cancel_event=cancel_event)
             progress(_("Verifying SHA-512 checksum…"))
@@ -192,7 +229,11 @@ def download_proton_ge(
             progress(_("Extracting…"))
             with tarfile.open(archive) as tar:
                 safe_extractall(tar, Path(tmp))
-            extracted = Path(tmp) / release
+            # Le répertoire contenu dans l'archive porte le nom de l'asset, pas
+            # celui du tag : `GE-Proton11-7-x86_64/` depuis GE-Proton11-4.
+            # `target`, lui, reste nommé d'après le tag — c'est notre convention
+            # d'installation, et `prefix.proton` accepte déjà les deux formes.
+            extracted = Path(tmp) / asset
             if not (extracted / "proton").exists():
                 raise ProtonDownloadError(
                     _(
