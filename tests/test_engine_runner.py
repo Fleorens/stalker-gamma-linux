@@ -220,6 +220,42 @@ class TestVerifyClassification:
         with pytest.raises(VerificationError):
             runner.verify(_paths(tmp_path))
 
+    def test_une_archive_absente_ne_leve_pas(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        # Le cas réel de toute install GAMMA : `full-install` saute « FDDA
+        # Redone Fixes » en dur, `check-md5` le réclame quand même. Avant, cette
+        # seule ligne suffisait à faire échouer `verify` sur une install saine.
+        line = "Hash verification failed since FDDARD_FIX.7z does not exist"
+        monkeypatch.setattr(runner, "run", _run_emitting([line], exit_error=True))
+
+        assert runner.verify(_paths(tmp_path)) == (line,)
+
+    def test_archive_absente_et_moddb_illisible_ne_levent_pas(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        # La sortie exacte remontée par les utilisateurs : l'archive sautée plus
+        # des pages ModDB périmées, et aucune vraie corruption dans le lot.
+        lines = [
+            "Hash verification failed since FDDARD_FIX.7z does not exist",
+            "Could not find Filename in https://www.moddb.com/mods/x/addons/laser-settings-v2-2",
+        ]
+        monkeypatch.setattr(runner, "run", _run_emitting(lines, exit_error=True))
+
+        assert runner.verify(_paths(tmp_path)) == tuple(lines)
+
+    def test_une_archive_presente_au_hash_faux_leve_toujours(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        lines = [
+            "Hash verification failed since FDDARD_FIX.7z does not exist",
+            "Hash verification failed for GAMMA_RC3.7z",
+        ]
+        monkeypatch.setattr(runner, "run", _run_emitting(lines, exit_error=True))
+
+        with pytest.raises(VerificationError):
+            runner.verify(_paths(tmp_path))
+
     def test_echec_sans_marqueur_connu_leve(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:

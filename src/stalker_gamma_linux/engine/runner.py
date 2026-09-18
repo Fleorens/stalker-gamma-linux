@@ -242,13 +242,14 @@ def verify(
 ) -> tuple[str, ...]:
     """Vérifie l'intégrité des archives de mods (`check-md5`).
 
-    Retourne les lignes « invérifiables en ligne » (ModDB illisible ou version
-    amont qui a dérivé — voir `engine.markers.UNVERIFIABLE_MARKERS`) : les
-    archives locales correspondantes n'ont **pas** pu être comparées à leur
-    somme amont, mais rien n'indique une corruption — à présenter comme
-    avertissement. Lève `VerificationError` si une archive locale est
-    réellement corrompue ou manquante (`Hash verification failed`), ou si
-    `check-md5` échoue pour une raison inconnue.
+    Retourne les lignes « non confirmées » : ModDB illisible ou version amont
+    qui a dérivé (`markers.UNVERIFIABLE_MARKERS`), ou archive absente du cache
+    (`markers.MISSING_ARCHIVE_MARKERS`). Dans les deux cas l'archive locale n'a
+    pas pu être comparée à sa somme amont, mais rien n'indique que le contenu
+    installé soit en cause — à présenter comme avertissement. Lève
+    `VerificationError` uniquement si une archive **présente** ne correspond pas
+    à son MD5 (`markers.CORRUPTION_MARKERS`), ou si `check-md5` échoue pour une
+    raison inconnue.
 
     On ne lance **pas** `check-anomaly` ici. Il compare les fichiers d'Anomaly
     aux sommes de contrôle *vanilla* (`tools/checksums.md5`), or une install
@@ -269,7 +270,15 @@ def verify(
         stripped = line.strip()
         if any(marker in stripped for marker in markers.CORRUPTION_MARKERS):
             corrupted = True
-        elif any(marker in stripped for marker in markers.UNVERIFIABLE_MARKERS):
+        elif any(
+            marker in stripped
+            for marker in markers.UNVERIFIABLE_MARKERS + markers.MISSING_ARCHIVE_MARKERS
+        ):
+            # Une archive absente n'est pas une corruption : soit le mod est
+            # l'un des deux que `full-install` saute en dur, soit son archive a
+            # été purgée du cache après installation. Dans les deux cas le
+            # contenu installé n'est pas en cause — c'est « non confirmé », pas
+            # « abîmé ».
             unverifiable.append(stripped)
         if on_progress is not None:
             on_progress(line)

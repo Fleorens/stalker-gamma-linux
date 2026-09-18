@@ -57,6 +57,26 @@ def test_classify_recognizes_local_corruption() -> None:
     assert markers.classify(_HASH_FAILURE) is markers.FailureCause.LOCAL_CORRUPTION
 
 
+def test_a_missing_archive_is_not_classified_as_corruption() -> None:
+    # `full-install` saute deux mods en dur (« FDDA Redone Fixes », « 164-
+    # Hunger Thirst Sleep UI 0.71 - xcvb ») que `check-md5` réclame quand même :
+    # leur archive manque à *chaque* install saine. La compter comme corruption
+    # rendait `verify` structurellement incapable de réussir.
+    missing = "Hash verification failed since FDDARD_FIX.7z does not exist"
+    assert markers.classify(missing) is not markers.FailureCause.LOCAL_CORRUPTION
+
+
+def test_missing_archive_markers_do_not_overlap_corruption_markers() -> None:
+    missing = "Hash verification failed since FDDARD_FIX.7z does not exist"
+    corrupted = "Hash verification failed for GAMMA_RC3.7z"
+    redownloaded = "Hash verification failed after download for GAMMA_RC3.7z"
+
+    assert any(marker in missing for marker in markers.MISSING_ARCHIVE_MARKERS)
+    assert not any(marker in missing for marker in markers.CORRUPTION_MARKERS)
+    assert any(marker in corrupted for marker in markers.CORRUPTION_MARKERS)
+    assert any(marker in redownloaded for marker in markers.CORRUPTION_MARKERS)
+
+
 def test_classify_recognizes_network_unreachable() -> None:
     assert markers.classify(_CONNECTION_ERROR) is markers.FailureCause.NETWORK_UNREACHABLE
 

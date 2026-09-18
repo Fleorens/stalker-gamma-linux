@@ -240,9 +240,9 @@ class TestRecordingModDownloadFailuresOnUpdate:
             raise EngineExecutionError(
                 "full-install",
                 1,
-                "Hash verification failed since FDDARD_FIX.7z does not exist",
-                mod_name="FDDARD Fix",
-                archive_name="FDDARD_FIX.7z",
+                "Hash verification failed for Boomsticks_1.4.7z",
+                mod_name="Boomsticks and Sharpsticks",
+                archive_name="Boomsticks_1.4.7z",
             )
 
         monkeypatch.setattr(engine, "update_gamma", boom)
@@ -253,11 +253,11 @@ class TestRecordingModDownloadFailuresOnUpdate:
         assert code == 1
         failures = state.load_failures(tmp_path)
         assert len(failures) == 1
-        assert failures[0].name == "FDDARD Fix"
+        assert failures[0].name == "Boomsticks and Sharpsticks"
         assert failures[0].cause == "LOCAL_CORRUPTION"
-        assert failures[0].archive_name == "FDDARD_FIX.7z"
+        assert failures[0].archive_name == "Boomsticks_1.4.7z"
         warnings = [message for kind, message in reporter.events if kind == "warn"]
-        assert any("FDDARD Fix" in message for message in warnings)
+        assert any("Boomsticks and Sharpsticks" in message for message in warnings)
 
     def test_does_not_record_anything_without_a_known_mod_name(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

@@ -40,10 +40,26 @@ class FailureCause(Enum):
     NETWORK_UNREACHABLE = auto()
 
 
-# `launcher/mods/downloader/base.py` : `_check_if_exist`/`_check_if_non_exist`
-# lèvent `HashError` avec ce préfixe quand l'archive du cache est absente ou ne
-# correspond pas au MD5 attendu.
-CORRUPTION_MARKERS: tuple[str, ...] = ("Hash verification failed",)
+# `launcher/mods/downloader/base.py` lève `HashError` avec trois textes
+# distincts, que le préfixe commun « Hash verification failed » confondait :
+#   l.94 `… failed for {name}`                — archive présente, MD5 faux
+#   l.80 `… failed after download for {name}` — retéléchargée, MD5 encore faux
+#   l.74 `… failed since {name} does not exist` — archive simplement absente
+# Seuls les deux premiers décrivent une corruption. Le troisième est attendu :
+# `full-install` saute deux mods en dur (`commands/install.py:_install_mods`,
+# « FDDA Redone Fixes » et « 164- Hunger Thirst Sleep UI 0.71 - xcvb ») que
+# `check-md5` réclame quand même, n'ayant pas ces gardes. Les confondre rendait
+# `verify` structurellement incapable de réussir : l'archive sautée manque à
+# chaque install, donc `corrupted` était vrai à chaque run, sur une install
+# pourtant saine.
+CORRUPTION_MARKERS: tuple[str, ...] = (
+    "Hash verification failed for",
+    "Hash verification failed after download for",
+)
+
+# Archive absente du cache (`_check_if_non_exist`). Ne vient que de `check-md5` :
+# `full-install` passe par `download()`, qui ne lève jamais ce message.
+MISSING_ARCHIVE_MARKERS: tuple[str, ...] = ("Hash verification failed since",)
 
 # `launcher/mods/downloader/moddb.py` : `ModDBDownloadError`/`HashError` levées
 # quand la page ModDB répond mais que le lien, le nom de fichier ou le hash
