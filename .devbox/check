@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Vérifications automatiques de stalker-gamma-linux : les jobs `test` et `gui`
+# de .github/workflows/ci.yml, rejoués sur la devbox. Code 0 = tout passe.
+#
+# Le venv vient du clone principal, pas du dépôt courant : un job tourne dans
+# un worktree neuf sans `.venv`, et le recréer à chaque job recompilerait
+# PyGObject (pas de roue manylinux). Ce venv est installé en mode éditable sur
+# le `src/` du clone principal : `PYTHONPATH=$PWD/src` passe devant, pour que
+# pytest teste le code de CE dépôt et pas celui du clone principal.
+# Corollaire : un job qui change les dépendances de pyproject.toml est vérifié
+# contre l'ancien venv. Recréer le venv à la main dans ce cas (voir AGENTS.md).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+VENV="${SGL_VENV:-$HOME/work/stalker-gamma-linux/.venv}"
+if [[ ! -x "$VENV/bin/python" ]]; then
+  echo "venv introuvable : $VENV — voir AGENTS.md, « Environnement »." >&2
+  exit 2
+fi
+export PATH="$VENV/bin:$PATH"
+export PYTHONPATH="$PWD/src${PYTHONPATH:+:$PYTHONPATH}"
+
+echo "== ruff check";        ruff check .
+echo "== ruff format";       ruff format --check .
+echo "== mypy";              mypy src
+# Sous serveur X virtuel : tests/test_gui_smoke.py construit les écrans GTK
+# pour de vrai, et se saute en silence sans affichage.
+echo "== pytest (+ GUI)";    xvfb-run -a python -m pytest -q -p no:cacheprovider
