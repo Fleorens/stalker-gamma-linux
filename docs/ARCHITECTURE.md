@@ -8,18 +8,18 @@ Three layers. We only rewrite what is specific to Linux.
 ┌─────────────────────────────────────────────┐
 │  GUI (GTK4/libadwaita) — phase 3            │
 ├─────────────────────────────────────────────┤
-│  stalker-gamma-linux (ce repo)              │
-│  - CLI orchestrateur (install/update/play)  │
-│  - Détection environnement & prérequis      │
-│  - Gestion préfixe Proton (umu, Proton-GE,  │
+│  stalker-gamma-linux (this repo)            │
+│  - Orchestrator CLI (install/update/play)   │
+│  - Environment & prerequisites detection    │
+│  - Proton prefix management (umu, Proton-GE,│
 │    verbs winetricks)                        │
-│  - MO2 sous Proton (mode principal)         │
-│  - Raccourci bureau (.desktop + icône)      │
-│  - Install natif (install.sh, pas de sandbox)│
+│  - MO2 under Proton (main mode)             │
+│  - Desktop shortcut (.desktop + icon)       │
+│  - Native install (install.sh, no sandbox)  │
 ├─────────────────────────────────────────────┤
-│  Moteur : Mord3rca/gamma-launcher (GPL-3.0) │
-│  - Résolution miroirs ModDB, téléchargement │
-│  - Parsing modlist GAMMA, directives        │
+│  Engine: Mord3rca/gamma-launcher (GPL-3.0)  │
+│  - ModDB mirror resolution, download        │
+│  - GAMMA modlist parsing, directives        │
 │  - anomaly-install, full-install, update,   │
 │    check-md5                                │
 └─────────────────────────────────────────────┘
@@ -30,7 +30,7 @@ Three layers. We only rewrite what is specific to Linux.
 1. **Option B**: wrapper above `gamma-launcher`, no rewrite of the engine. We
    benefit from upstream maintenance when the modpack changes.
 2. **MO2 under Proton is the main mode** (user decision): this is what works
-   today and what preserves mod flexibility (enable/disable/add). The « flat »
+   today and what preserves mod flexibility (enable/disable/add). The “flat”
    mode (`usvfs-workaround`) is only a documented fallback for configs where MO2
    does not run.
 3. **Single prefix**: MO2 and the game live in the *same* Proton prefix. MO2
@@ -50,13 +50,13 @@ Three layers. We only rewrite what is specific to Linux.
 
 ```
 ~/Games/stalker-gamma/            # configurable
-├── prefix/                       # préfixe Proton partagé (MO2 + jeu)
-├── anomaly/                      # jeu de base (archives ModDB)
-├── gamma/                        # MO2 + mods + profils GAMMA
+├── prefix/                       # shared Proton prefix (MO2 + game)
+├── anomaly/                      # base game (ModDB archives)
+├── gamma/                        # MO2 + mods + GAMMA profiles
 │   ├── ModOrganizer.exe
 │   ├── mods/
 │   └── profiles/G.A.M.M.A/
-└── cache/                        # archives téléchargées (reprise/update)
+└── cache/                        # downloaded archives (resume/update)
 ```
 
 ## gamma-launcher engine integration (T03)
@@ -154,7 +154,7 @@ The `prefix/` module creates and maintains the **unique and shared** prefix
 3. **Creation**: the `createprefix` sentinel of umu-run (initializes the
    prefix without launching anything). Verified for real: official umu 1.4.1
    sentinel (empty string or `createprefix` in `umu_run.py`); prefix creation
-   observed (« Upgrading prefix from None to GE-Proton11-1 »). After
+   observed (“Upgrading prefix from None to GE-Proton11-1”). After
    creation we check `system.reg`.
 4. **Verb idempotence**: the source of truth is the `winetricks.log`
    that winetricks keeps itself at the root of the prefix (including one placed
@@ -170,7 +170,7 @@ The `prefix/` module creates and maintains the **unique and shared** prefix
    (resolved via the GitHub API, pinned fallback `GE-Proton11-1` if the API is
    rate-limited) with SHA-512 verification against the published `.sha512sum`,
    extraction to a temporary directory then rename — no residue on failure. The
-   recommendation « Proton 9/10 vanilla » of the guides is
+   recommendation “Proton 9/10 vanilla” of the guides is
    replaced by this decision; if the MO2/GE matrix (T05) reveals an
    issue, it will arbitrate it.
 6. **Any external command** goes through `run_in_prefix()`: output captured
@@ -191,7 +191,7 @@ The `mo2/` module runs Mod Organizer 2 in the shared prefix with
 flexibility). Breakdown:
 
 1. **Instance configuration (`instance.py`)** — the step gamma-launcher
-   does not do. The MO2 instance livrée by GAMMA is built outside Wine, so its
+   does not do. The MO2 instance shipped by GAMMA is built outside Wine, so its
    `gamePath` is invalid. We edit it **surgically** in
    `ModOrganizer.ini`: `gamePath` → the Anomaly folder in **Windows path**
    form (`Z:\...`, translated by `winepath.py`), `selected_profile` → `G.A.M.M.A`.
@@ -203,7 +203,7 @@ flexibility). Breakdown:
    `launch_game()` passes to `ModOrganizer.exe` the URI `moshortcut://:Anomaly (DX11)`
    (portable instance = empty instance part), which mounts USVFS and launches the
    game through it. Everything goes through `run_in_prefix` (T04).
-3. **Diagnostics (`diagnostics.py`)** — symptom #1: game launched « vanilla »
+3. **Diagnostics (`diagnostics.py`)** — symptom #1: game launched “vanilla”
    (dead USVFS). After a launch, we read the last `logs/usvfs-*.log` of
    the instance: marker `proxy run successful` ⇒ VFS mounted; absent ⇒ USVFS
    probably dead. We also check that the profile has active mods (`modlist.txt`).
@@ -251,7 +251,7 @@ GameMode is installed. Three choices worth writing down:
 - **The trap of the `gamemode` group**: Fedora and Arch ship a polkit
    rule that reserves `cpugovctl`/`gpuclockctl` to members of the `gamemode`
    group (the action is in `allow_active: no`). Outside the group, the mode
-   activates and `gamemoded -s` answers « active », but each governor change
+   activates and `gamemoded -s` answers “active”, but each governor change
    fails with `pkexec … Not authorized` in the log — nothing visible on the
    player side, half the benefit gone. `gamemode.group_status()` detects it and
    `doctor` shows the corresponding `usermod`. Membership is read from the system
@@ -294,7 +294,7 @@ therefore subject to the same boundary: `launch_game` and `launch_flat` only,
 never `launch_mo2` nor the installation steps.
 
 **Everything is off by default**, GameMode excepted. These layers change
-rendering and performance: « nothing enabled » must remain a phrase a player can
+rendering and performance: “nothing enabled” must remain a phrase a player can
 write in an issue without having to verify it. GameMode, for its part, only
 touches system priorities — it stays active by default, as since T02.
 
@@ -350,7 +350,7 @@ where FSR really serves. But we have no Deck to verify it, and a switch that
 kills the session on the only testable machine is worse than no switch at all.
 The decision is that of the project's user, made with knowledge of this tradeoff.
 
-**What would be needed to reintroduce it** : a Deck (or a native gamescope
+**What would be needed to reintroduce it**: a Deck (or a native gamescope
 session) to verify the nominal case, and a launch-side guard that refuses
 gamescope nested under a desktop Wayland session rather than letting the player
 lose their session.
@@ -370,7 +370,7 @@ for the whole process tree. If gamescope comes back one day, the Vulkan layer
 variables will have to apply to the *internal* command
 (`gamescope … -- env MANGOHUD=1 … gamemoderun umu-run …`), not to the whole thing.
 
-#### The real risk: are these layers visible in the container ?
+#### The real risk: are these layers visible in the container?
 
 This is the question that had to be settled before writing a switch, because the
 project already has a precedent: `libgamemodeauto.so.0` is indeed preloaded into
@@ -379,15 +379,15 @@ not there — hence the dozens of `gamemodeauto: dlopen failed` documented just
 above.
 
 **What is established, and by what** (reading of the sources and upstream
-documentation, on 2026-09-08) :
+documentation, on 2026-09-08):
 
 - the two manifests are implicit `GLOBAL`-type layers with `enable_environment`
   (`MangoHud` : `MANGOHUD=1` ; `vkBasalt` : `ENABLE_VKBASALT=1`) — so a variable
   is enough, there is nothing to preload ourselves;
 - pressure-vessel **imports the Vulkan layers of the host** into the container
   (manifest *and* library, by ABI). This is what makes `MANGOHUD=1 %command%`
-  work under Proton since the « soldier » runtime, and Valve's documentation
-  reasons explicitly about vkBasalt *loaded into the container* (see « vkBasalt »
+  work under Proton since the “soldier” runtime, and Valve's documentation
+  reasons explicitly about vkBasalt *loaded into the container* (see “vkBasalt”
   below). The only known regression of this mechanism is specific to the
   **Steam Flatpak** ([steam-runtime#662](https://github.com/ValveSoftware/steam-runtime/issues/662)),
   where the imported folder came out of the loader's search paths;
@@ -406,7 +406,7 @@ documentation, on 2026-09-08) :
 **What was measured, and on what** (2026-09-08, dev machine: Fedora 44
 KDE/Wayland, Ryzen 7 5700X3D, Radeon RX 7900 GRE (RADV NAVI31), umu 1.4.1,
 GE-Proton11-6 → runtime **steamrt4**). The reasoning above is confirmed end to
-end; the record, in the order it was done :
+end; the record, in the order it was done:
 
 1. **pressure-vessel does import the host layers.** In the container,
    `/usr/lib/pressure-vessel/overrides/share/vulkan/implicit_layer.d/` contains
@@ -423,7 +423,7 @@ end; the record, in the order it was done :
    `VK_ADD_LAYER_PATH` are absent. In other words, nothing from the host arrives
    by accident: what is there was imported deliberately.
 3. **The loader does in fact load the layer.** With `MANGOHUD=1` and
-   `VK_LOADER_DEBUG=layer`, inside the container :
+   `VK_LOADER_DEBUG=layer`, inside the container:
 
    ```
    LAYER: Loading layer library /run/host/usr/lib64/mangohud/libMangoHud.so
@@ -442,10 +442,10 @@ end; the record, in the order it was done :
 **Consequence: the fallback `VK_ADD_LAYER_PATH` is not necessary** on this
 configuration. We keep it documented below because it remains the lead if
 someone hits the Flatpak regression cited above, but the nominal path is indeed
-« an environment variable, and nothing else ».
+“an environment variable, and nothing else”.
 
 **Expected noise, which we do not filter.** MangoHud active, the launch log
-contains one line per measurement interval :
+contains one line per measurement interval:
 
 ```
 [MANGOHUD] [error] [cpu.cpp:786] Failed to initialize CPU power data
@@ -457,7 +457,7 @@ of conduct as for the noise of umu and wine — we do not swallow it.
 
 In-game record, the loop is closed (2026-09-08, GAMMA launched on the real
 installation, GE-Proton11-6 / steamrt4). The process that renders the game is
-`AnomalyDX11.exe`, an **ELF 64-bit** file. In its address space, live :
+`AnomalyDX11.exe`, an **ELF 64-bit** file. In its address space, live:
 
 ```
 /run/host/usr/lib64/mangohud/libMangoHud.so     ← loaded
@@ -467,7 +467,7 @@ installation, GE-Proton11-6 / steamrt4). The process that renders the game is
 Both come from `/run/host/`, that is, host layers imported by pressure-vessel:
 the mechanism measured empty above behaves identically under DXVK and wine. Its
 environment does carry `MANGOHUD=1`, `ENABLE_VKBASALT=1` and the two `…_CONFIG…`
-pointing to **our** files, and vkBasalt announces itself what it read :
+pointing to **our** files, and vkBasalt announces itself what it read:
 
 ```
 vkBasalt info:  config file: ~/.config/stalker-gamma-linux/vkBasalt.conf
@@ -482,7 +482,7 @@ the last risk of the chain. Only message from MangoHud: `process 'explorer.exe'
 is blacklisted`, which is the wanted behavior (no overlay on the wine shell,
 only on the game).
 
-**The four-step verification**, if the overlay does not show for someone :
+**The four-step verification**, if the overlay does not show for someone:
 
 1. `stalker-gamma-linux doctor` must show the three tools in `[OPTIONAL]`
    with, for MangoHud and vkBasalt, the **manifest path** found. No path = the
@@ -508,12 +508,12 @@ hide the container layers.
 A Vulkan layer is loaded into the process that creates the instance, and must
 therefore exist in **its** ABI. MangoHud in fact installs a manifest per
 architecture (`VK_LAYER_MANGOHUD_overlay_x86_64` and `…_x86_32`). According to
-how the Proton build runs a 32-bit executable (32-bit unix layer, or « new »
+how the Proton build runs a 32-bit executable (32-bit unix layer, or “new”
 WoW64 where the whole unix stage is 64-bit), it is one or the other that counts
-— and it is not us who decide that. Hence :
+— and it is not us who decide that. Hence:
 
 - Arch: `lib32-mangohud` is part of the shown remedy, as `lib32-gamemode` for
-  GameMode ;
+  GameMode;
 - Fedora and Debian package the 32-bit variant under the same name but another
   architecture (`mangohud.i686`, `mangohud:i386`): impossible to announce as a
   simple package name — `apt` does not even know how to *query* `:i386` without
@@ -529,18 +529,18 @@ and the layer did not load: the game looks for `/usr/lib64/vkbasalt/`, which did
 not exist. Measured in the container — `ENABLE_VKBASALT=1`, **zero** occurrences
 of `VK_LAYER_VKBASALT`, and not a single line of warning. The failure mode is
 strictly silent, which is the worst case for a cosmetic setting: nothing
-distinguishes « the layer is off » from « the layer is broken ».
+distinguishes “the layer is off” from “the layer is broken”.
 
 `environment.vulkan.layer_abi_support()` now handles this case: it goes through
 **all** the manifests of the layer, expands `$LIB` over the known values
 (`lib64` on Fedora/Arch, `lib/x86_64-linux-gnu` on Debian), and reads the
 **ELF class** of the found file — it is that which designates the ABI, not the
 directory name, which varies from one distribution to another. Three verdicts,
-and the third counts as much as the others :
+and the third counts as much as the others:
 
-- `PRESENT` — a library of the game's ABI exists ;
+- `PRESENT` — a library of the game's ABI exists;
 - `MISSING` — libraries exist, none in the right ABI: `doctor` says so and gives
-  the package to install ;
+  the package to install;
 - `UNKNOWN` — unreadable manifest, or simple soname left to the linker
   (`libVkLayer_MESA_device_select.so`): we **say nothing**. Same rule as
   `checks._libunrar_version` — not knowing is not a reason to alarm.
@@ -553,7 +553,7 @@ carries the nuance.
 #### vkBasalt: the preset the README promised
 
 The pipeline removes ReShade on every install and every update, and the README
-offered vkBasalt « as an equivalent » without anything in the code providing it.
+offered vkBasalt “as an equivalent” without anything in the code providing it.
 The delivered preset is `effects = cas:lut` : *Contrast Adaptive Sharpening*
 sharpness (reason #1 for installing ReShade), then a color lookup table
 **generated by us** — light S curve (contrast +18 %) and saturation gain (+8 %),
@@ -562,8 +562,8 @@ neutral at 0, 0.5 and 1.
 Why a LUT `.CUBE` and not a ReShade `.fx` shader, which vkBasalt can nonetheless
 run: a `.fx` requires `reshadeIncludePath`/`reshadeTexturePath`, so a
 third-party shader repo installed somewhere — and Valve's documentation lists
-exactly this trap, « vkBasalt crashes if you ask it for shaders that cannot be
-found », the host's `/usr/share` not existing in the container
+exactly this trap, “vkBasalt crashes if you ask it for shaders that cannot be
+found”, the host's `/usr/share` not existing in the container
 ([steam-runtime#381](https://github.com/ValveSoftware/steam-runtime/issues/381)).
 A LUT is a text file that we write in the home folder, whose generation is tested
 without launching anything, and which cannot be missing since we produce it just
@@ -572,23 +572,23 @@ before the launch.
 **Upstream is dead, and we keep it anyway — assumed decision.** Noted on
 2026-09-08: the last commit of [vkBasalt](https://github.com/DadSchoorse/vkBasalt)
 dates from **October 4, 2023**, the last release (`v0.3.2.10`) from July 3, 2023,
-and its content was « fixed build with GCC 12 ». 80 open issues, nobody to close
+and its content was “fixed build with GCC 12”. 80 open issues, nobody to close
 them. On the Fedora side, the whole changelog since 2024 is only *mass rebuilds*
 — no version bump in three years. To compare with the other two layers in the
 batch: MangoHud is at 0.8.3~rc1 (January 2026).
 
-We keep it for three reasons, in this order :
+We keep it for three reasons, in this order:
 
-1. **it is the only packaged.** The whole `doctor` model rests on « here is the
-   command for your distribution ». The natural successor,
+1. **it is the only packaged.** The whole `doctor` model rests on “here is the
+   command for your distribution”. The natural successor,
    [vkShade](https://github.com/ralgar/vkShade) — rewritten from scratch,
    ReShade-compatible, actively developed — is in no repo and announces itself in
-   **pre-alpha** (« expect bugs, incomplete features, and breaking changes »).
+   **pre-alpha** (“expect bugs, incomplete features, and breaking changes”).
    Asking a player to compile a pre-alpha Vulkan layer is contrary to the reason
-   for being of this project ;
+   for being of this project;
 2. **dormant is not broken.** It is a small layer against a retro-compatible
    Vulkan API; it is measured functional in the container, in game, on a 1.4
-   loader (record above) ;
+   loader (record above);
 3. **replacing it will cost little.** `environment/vkbasalt.py` comes down to
    three things — a manifest name (`LAYER_STEM`), an activation variable
    (`ENABLE_VARIABLE`) and a configuration file. Switching to vkShade the day it
@@ -639,7 +639,7 @@ prefix (T04) and the MO2 instance (T05).
 Each step is already idempotent **on the module side** (see above); `state.py`
 adds on top a resume shortcut: a TOML under
 `~/.config/stalker-gamma-linux/install-state.toml`, keyed by absolute target
-path, marks each validée step. A re-run after Ctrl-C skips the steps already done
+path, marks each validated step. A re-run after Ctrl-C skips the steps already done
 instead of re-playing them (in particular `full-install`, whose MD5 re-
 verification on ~90 GB is not free). This is **not** the health source of truth
 of the installation — if a step is broken manually afterwards, it is
@@ -683,7 +683,7 @@ The GUI (`src/stalker_gamma_linux/gui/`) consumes exactly the same functions as
 the CLI (`orchestrator.run_install`/`run_update`,
 `mo2.session.run_mo2`/`run_play`, `doctor.build_full_report`) — nothing is
 reimplemented. Two small additions, shared with the CLI and tested independently
-of GTK, made this possible :
+of GTK, made this possible:
 
 1. **`output.Reporter`** (structural protocol): `orchestrator.run_install`/
    `run_update` used to call `output.header`/`step`/`warn`/… hard-coded
@@ -691,10 +691,10 @@ of GTK, made this possible :
    output.console_reporter` — the CLI does not change behavior (the default is the
    old `output.py`), the GUI provides `gui.worker.QueueReporter`, which pushes
    each event onto a `queue.Queue` instead of printing it.
-2. **`cancel_event: threading.Event | None`** : added to `engine.process.run`,
+2. **`cancel_event: threading.Event | None`**: added to `engine.process.run`,
    `prefix.process.run_in_prefix`, and propagated through `engine/runner.py`,
    `prefix/provision.py`/`proton.py`/`verbs.py`/`download.py` and
-   `orchestrator.run_install`/`run_update`. A dedicated « watchdog » thread
+   `orchestrator.run_install`/`run_update`. A dedicated “watchdog” thread
    (`_watch_cancellation`) kills the subprocess (`terminate` then `kill`) as soon
    as the event is raised; the subprocess then raises `EngineCancelledError`/
    `PrefixCancelledError` instead of the usual error code.
@@ -716,45 +716,44 @@ later sees nothing. The fix (already in use elsewhere in the code,
 `engine/process.py` etc.): `on_progress: ... | None = None` + `progress =
 on_progress or print` **in the body** of the function, resolved on every call.
 
-### Pure modules (`viewmodel`, `worker`, `prefs`, `phases`, `space`, `summary`,
-`format`): testable without `gi`
+### Pure modules (`viewmodel`, `worker`, `prefs`, `phases`, `space`, `summary`, `format`): testable without `gi`
 
 `gui/__init__.py` is empty of any import: these modules never depend on PyGObject
 and are tested by `pytest` like any other module of the project
 (`tests/test_gui_*.py`), including on a machine without GTK4/libadwaita. Only
 `gui/app.py`, `gui/theme/` and `gui/windows/*.py` import `gi`.
 
-The « launcher » rendering (post-T08 overhaul) rests on six additional pure
-modules, each with its test suite :
+The “launcher” rendering (post-T08 overhaul) rests on six additional pure
+modules, each with its test suite:
 
-- **`phases.py`** : immutable timeline of install/update steps. Each
-   `Reporter` event (`step`/`skip` indexed « n/total », `progress`,
+- **`phases.py`**: immutable timeline of install/update steps. Each
+   `Reporter` event (`step`/`skip` indexed “n/total”, `progress`,
    `error`, `success`) produces a **new** `Timeline`; the progress view only
-   redraws it (states done / already done / en cours with engine detail /
+   redraws it (states done / already done / in progress with engine detail /
    failure) and draws from it a **real fraction** — no more pulsating bar during
    an installation.
-- **`space.py`** : free space on the volume of the target
+- **`space.py`**: free space on the volume of the target
    (`shutil.disk_usage` on the first existing ancestor), verdict
-   OK / just / insufficient / unknown. The pre-installation dialog blocks
+   OK / tight / insufficient / unknown. The pre-installation dialog blocks
    under `MINIMUM_FREE_BYTES` (160 GiB) and warns under
    `RECOMMENDED_FREE_BYTES` (250 GiB, upstream recommendation). These two
-   thresholds come from `sizing.py` (see « Disk sizing » below) — no local
+   thresholds come from `sizing.py` (see “Disk sizing” below) — no local
    constant.
-- **`summary.py`** : compresses the `EnvironmentReport` (7 prerequisites) into a
-   chip « Système prêt / N prérequis manquants » for the home — the collection
+- **`summary.py`**: compresses the `EnvironmentReport` (7 prerequisites) into a
+   chip “System ready / N missing prerequisites” for the home — the collection
    runs in a thread at startup and on every return from a task.
-- **`format.py`** : parsing of « n/total » indices, sizes (`Gio`), durations, and
-   the `UNKNOWN` constant (« — »): « je ne sais pas » must have *one* single
-   appearance throughout the interface, and never be written « 0 ».
-- **`stats.py`** : the figures of the home tiles — mods **active /
-   installed** (« 579 / 728 ») and launcher version. The denominator comes from a
+- **`format.py`**: parsing of “n/total” indices, sizes (`Gio`), durations, and
+   the `UNKNOWN` constant (“—”): “je ne sais pas” must have *one* single
+   appearance throughout the interface, and never be written “0”.
+- **`stats.py`**: the figures of the home tiles — mods **active /
+   installed** (“579 / 728”) and launcher version. The denominator comes from a
    single `scandir` on `<root>/gamma/mods` (no recursive descent: MO2 puts a
    folder per mod flat), the numerator from the `modlist.txt` of the
    `G.A.M.M.A` profile — this is the number Mod Organizer itself shows. The
    separators are excluded from both: they are real folders, but never active
    mods, and at the denominator they would make the fraction unreachable.
    Read in the same polling thread as the environment and disk space.
-- **`jobs.py`** : the seven long tasks (install, update, verify, backup,
+- **`jobs.py`**: the seven long tasks (install, update, verify, backup,
    restore, play, MO2) described outside GTK — title, function to launch in the
    thread, cancellability, step labels. Each `run` calls exactly the function
    that the corresponding CLI command calls; the point of the module is that
@@ -764,18 +763,18 @@ modules, each with its test suite :
 
 The visual identity lives in `gui/theme/` — no view does inline CSS: they lay
 down classes (`deck`, `tile`, `console`, `phase-node`…) and `theme/style.css`
-decides their rendering. Four decisions structure this file :
+decides their rendering. Four decisions structure this file:
 
 - **the CSS is a CSS file**, not a Python string. A 460-line sheet in a f-string
   forces doubling every brace and forbids any normal re-reading. It is declared
   in `package-data`: without this line, a `pip` installation would ship a GUI
-  without style ;
+  without style;
 - **one definition per color**, in `@define-color` at the head of the file — and
   not the GTK 4.16 CSS variables, the target remaining Ubuntu 24.04 (GTK 4.14,
-  libadwaita 1.5) ;
+  libadwaita 1.5);
 - **nothing that costs much in software rendering**. The GUI forces
   `GSK_RENDERER=cairo` (cf. `gui/launch.py`), so short and few shadows, no blur
-  computed at display ;
+  computed at display;
 - **the keyboard focus stays visible everywhere**. A skin that erases it makes the
   application unusable without a mouse.
 
@@ -797,9 +796,9 @@ visual vocabulary of the Zone — Duga antenna, reactor chimney, power lines, de
 trees, grass — traced by supersampling then reduced in BOX, a kernel with negative
 lobes bordering the silhouettes with a light outline), `scene` (the composition
 in successive planes, atmospheric perspective included) and `grade` (bloom,
-bicolor shift, chromatic aberration, vignette, grain). Two files come out of it :
+bicolor shift, chromatic aberration, vignette, grain). Two files come out of it:
 
-- `assets/background.jpg` — the home, where the artwork is the subject ;
+- `assets/background.jpg` — the home, where the artwork is the subject;
 - `assets/background-blur.jpg` — the content pages (progress, diagnostics), where
   it is only an ambiance behind text. Blurred and darkened **at generation** and
   at half resolution: readability no longer depends on a CSS veil, and there are
@@ -819,13 +818,13 @@ same under KDE, GNOME or on a CI runner. The window must still be presented for
 the duration of the rendering: GTK allocates and draws nothing until a widget is
 mapped.
 
-- **`viewmodel.py`** : `InstallStatus` (NOT_INSTALLED/INSTALLED) reads only
+- **`viewmodel.py`**: `InstallStatus` (NOT_INSTALLED/INSTALLED) reads only
   `state.py` (local TOML, quasi-instant) — **not**
   `doctor.build_full_report`, which launches several subprocesses
   (`which`/`ldconfig`/`vulkaninfo`…) and would refresh the status of the main
   window by freezing the UI for the duration of these calls. The Diagnostic view,
   for its part, calls `build_full_report` in a dedicated thread.
-- **`worker.BackgroundTask`** : launches `func(events, cancel_event) -> int`
+- **`worker.BackgroundTask`**: launches `func(events, cancel_event) -> int`
   in a daemon thread; publishes `ReporterEvent`/`DoneEvent`/`FailedEvent` on a
   `queue.Queue`. The GTK side (`ProgressPage`) drains it via
   `GLib.timeout_add` (poll, 80 ms) — this is the only point of contact with the
@@ -834,33 +833,33 @@ mapped.
   the **rendering** is capped at `_POLL_EVENT_BUDGET` events per tick:
   gamma-launcher comes out in bursts of hundreds of lines, and rendering them all
   in a single loop turn froze the window (138 ms measured on a burst of 5000
-  lines, 24 ms with the budget) — yet « Annuler » is the only control on this
+  lines, 24 ms with the budget) — yet “Annuler” is the only control on this
   screen. The delay is picked up on subsequent ticks; a task end seen behind a
   burst is handled in the very tick it arrives, without waiting for the delay to
   display. The console is bounded to `_LOG_MAX_LINES` (the buffer would otherwise
   reach hundreds of thousands of lines on a complete install): the truncation
   concerns **only** the display, the complete log staying written to disk by
   `QueueReporter`.
-- **`prefs.py`** : GUI preferences (installation path, Proton-GE version,
+- **`prefs.py`**: GUI preferences (installation path, Proton-GE version,
   creation of the shortcut) in TOML under
   `~/.config/stalker-gamma-linux/gui-prefs.toml` (reuses
   `state.config_dir()` — same XDG root as `install-state.toml`, separate file).
-  « Version Proton-GE » needed a small shared addition (not GUI-only):
+  “Version Proton-GE” needed a small shared addition (not GUI-only):
   `proton.ensure_proton(..., release=...)` /
   `provision.ensure_prefix(..., proton_release=...)` /
   `orchestrator.run_install(..., proton_release=...)`, empty = unchanged default
   behavior (latest GE release, decision T04).
 
-### « Mise à jour disponible»: no detection, explicit action
+### “Update available”: no detection, explicit action
 
-The T08 prompt asked for a status « pas installé / installé / mise à jour disponible
-». Verified in `gamma-launcher` (v3.1, `commands/install.py`) : there is
+The T08 prompt asked for a status “not installed / installed / update
+available”. Verified in `gamma-launcher` (v3.1, `commands/install.py`): there is
 **no cheap way** to know if an update is available without launching the download
 itself — the revision comparison (`crev == g.downloader.revision`) is done
 *after* downloading the GitHub archive. Building a detection (e.g. calling an
 external API) without a real mechanism behind it would have been business logic
 invented in the GUI, contrary to the principle of the prompt. The status is
-therefore binary (`InstallStatus`), and « Mettre à jour » is exposed as an
+therefore binary (`InstallStatus`), and “Update” is exposed as an
 explicit action of the menu (always visible, enabled only if installed) rather
 than as a third auto-detected state — exactly what the CLI already does with its
 separate `install`/`update` commands.
@@ -868,7 +867,7 @@ separate `install`/`update` commands.
 ### Cancellation
 
 `ProgressPage` passes a fresh `threading.Event` per task to `BackgroundTask`; the
-« Annuler » button raises it. Propagated to `orchestrator.run_install`/
+“Annuler” button raises it. Propagated to `orchestrator.run_install`/
 `run_update` (see above), it cleanly interrupts the running subprocess — never a
 `kill -9` of the GUI process itself. `mo2.session.run_mo2`/`run_play` do not
 accept `cancel_event` (scope deliberately limited: these are short launches, not
@@ -912,17 +911,17 @@ distribution) if absent, instead of a raw `ModuleNotFoundError`.
 
 ## Integrity of installed mods (T12)
 
-`engine.verify` (`check-md5` of the engine) answers « was the download correct »:
+`engine.verify` (`check-md5` of the engine) answers “was the download correct”:
 it compares the **archives** of `gamma/downloads` to the published sums. It says
 nothing about what is actually placed on the disk. The `integrity/` package
-covers the other half — « is the install still intact » — that is, the first
-symptom a player reports (« the game has been crashing since yesterday », after
+covers the other half — “is the install still intact” — that is, the first
+symptom a player reports (“the game has been crashing since yesterday”, after
 another tool overwrote a file or a full disk truncated one). Command
 `verify [--repair]`, plus two buttons in the Diagnostic view of the GUI;
 `integrity.run_verify` is the only entry point, shared word for word by both
 (`Reporter` + `cancel_event`).
 
-Seven decisions that are not read in the code :
+Seven decisions that are not read in the code:
 
 1. **The reference is a text file next to the install** (`<install>/gamma-md5.txt`,
    `md5sum` format), not a state under `~/.config`. It describes *this*
@@ -930,29 +929,29 @@ Seven decisions that are not read in the code :
    human-readable. The parsing splits **after the hash** instead of truncating at
    offset 32: a file produced by `md5sum -b` (prefix `*`) or retabulated
    continues to be read, and any line that does not re-read is reported to the
-   user — never swallowed, because it produces false « supprimé ».
+   user — never swallowed, because it produces false “deleted”.
 2. **First pass = recording, not verification.** Without a prior reference there
-   is nothing to compare; announcing « aucun écart » would suggest a verification.
+   is nothing to compare; announcing “no difference” would suggest a verification.
    We record, we say so, and the reference re-take after repair is a **step in
    its own right** (a second complete scan, announced as such) — without it, the
-   mods we just put back in state would show up as « modifiés » on the next pass.
+   mods we just put back in state would show up as “modified” on the next pass.
 3. **An interrupted scan cannot reach the writing of the reference.** This is not
    a calling convention: `scan.scan_tree` **raises** `IntegrityCancelledError`
    instead of returning a partial result. A potentially broken install cannot
    therefore be frozen as a new reference by a Ctrl-C or a Annuler button.
-4. **« Coming from the modpack » is not read in a single file.** This is the trap
+4. **“Coming from the modpack” is not read in a single file.** This is the trap
    that only a real install revealed: `full-install` populates `mods/` from
    **three** sources, and `modlist.txt` is only one of them.
    - `modlist.txt`, separators included — `mo2/modlist.py` excludes them for good
      reason for those who count mods, but gamma-launcher creates real folders with
-     a `meta.ini` (`SeparatorInstaller.install`) : 28 on the test install ;
+     a `meta.ini` (`SeparatorInstaller.install`): 28 on the test install;
    - `modpack_addons/` — 388 folders delivered as-is, copied as-is by
-     `_copy_gamma_modpack`, **absent from `modlist.txt`** ;
+     `_copy_gamma_modpack`, **absent from `modlist.txt`**;
    - the Git resources (`gamma_large_files_v2`, `teivaz_anomaly_gunslinger`),
      whose folders are only known after cloning.
 
    We combine the first two, which are read offline. The third stays out of reach
-   without plumbing Git: its mods fall into « source inconnue » and are reported
+   without plumbing Git: its mods fall into “source inconnue” and are reported
    then **left intact** — the right failure, the doubt must always prevent a
    deletion. On the test install, the number of unrecognized folders went from 43
    to 5, of which 3 fall under this last case; the message therefore no longer
@@ -974,7 +973,7 @@ Seven decisions that are not read in the code :
    upstream source (player extras). The authoritative list is the `modlist.txt` of
    `modpack_data/` placed by gamma-launcher, disabled entries included — disabled
    in MO2 does not mean absent from the disk.
-6. **« Reinstalling this subset » does not exist on the engine side.**
+6. **“Reinstalling this subset” does not exist on the engine side.**
    gamma-launcher v3.1 has no option to install only one mod
    (`FullInstall._install_mods` walks the whole list). What we control is the
    **re-downloaded** subset: by removing the mod folder *and* its archive, only
@@ -1006,7 +1005,7 @@ Seven decisions that are not read in the code :
    short-circuit on the next pass, and the fault would come out of the report
    without having been repaired.
 
-Three implementation points that have a precise reason :
+Three implementation points that have a precise reason:
 
 - **The progress is paced by elapsed time, never by index.** Mod files range from
   a few bytes to several gigabytes: an `i % 500 == 0` freezes the interface for
@@ -1020,7 +1019,7 @@ Three implementation points that have a precise reason :
   the GIL, the serialization cost would eat the gain). Measured on 7.86 GiB and
   20,735 files, page cache emptied before each pass: 18.6 s before, 10.4 s after
   — the fingerprints being bit identical. Three precautions make this gain
-  acceptable :
+  acceptable:
   - **The order does not move.** The tasks are consumed in the order of
     *submission* and not of completion, which leaves `digests` in the traversal
     order; `unreadable` is filtered at output, its entries arising both from the
@@ -1038,7 +1037,7 @@ Three implementation points that have a precise reason :
     at the next block (~1 MB) instead of finishing a file of several GiB, and
     `scan_tree` never gives back control leaving a thread behind it.
 - **The mod names are validated before any `rmtree`/`unlink`**, by the same
-  functions as T11 (`paths_safety.validate_removable_child`) : they come from the
+  functions as T11 (`paths_safety.validate_removable_child`): they come from the
   upstream list and from `meta.ini`, not from us. A `..`, a path separator or a
   symbolic link makes everything refuse — and the refusal occurs **before** the
   least deletion, so that a dubious `meta.ini` does not leave a mod half removed.
@@ -1056,9 +1055,9 @@ The escaping concerns only the console rendering: the logger and the GUI
 ## Backup, restore, and modlist merge (T17)
 
 This is G.A.M.M.A.'s #1 complaint, all platforms combined. The official wiki
-writes it itself: « *every time you click Install / Update GAMMA, your modlist,
+writes it itself: “*every time you click Install / Update GAMMA, your modlist,
 settings, and mod settings will reset. This is on purpose […] remember to make
-backups before clicking that button* ». Under Windows, the answer therefore
+backups before clicking that button*”. Under Windows, the answer therefore
 comes down to advice nobody follows. Two halves, and they do not do the same
 thing: the `backups/` package makes the loss **reversible**, the merge of
 `mo2/modlist_merge.py` makes it **not happen**.
@@ -1070,7 +1069,7 @@ savedgames\`), but under MO2 the USVFS can redirect these writes to `overwrite/`
 or to the profile depending on the instance configuration. The question was
 therefore settled **on the test install** before being coded
 (`/mnt/games_samsung/Games/GAMMA`, GAMMA 920, MO2 2.5.2, recorded on 2026-09-07,
-sessions played until August 26) :
+sessions played until August 26):
 
 | Observation | Measurement |
 |---|---|
@@ -1079,7 +1078,7 @@ sessions played until August 26) :
 | `profiles/G.A.M.M.A/settings.ini` | `LocalSaves=false`, and no `profiles/G.A.M.M.A/saves/` |
 | last `usvfs-*.log` | **no** match for `savedgames` ; the only entries under `appdata\` concern `shaders_cache`, and they map the real path onto itself |
 
-Conclusion: on the configuration livrée by GAMMA, the game writes its saves
+Conclusion: on the configuration shipped by GAMMA, the game writes its saves
 **live** in `anomaly/appdata/savedgames`, without going through `overwrite/`. The
 other two locations remain reachable by configuration (`LocalSaves=true` groups
 sessions by profile; the USVFS would divert a write made in a virtualized folder
@@ -1100,7 +1099,7 @@ the date). The prefix is therefore an assumed vestige: it is the **manifest**
 (`backup.toml` : date, GAMMA version, sets, destinations, sizes) that says what is
 inside, and it is that which `--list` reads, never a `stat` of the folder.
 
-Three rules carry the rest :
+Three rules carry the rest:
 
 1. **Rotation** — at most five automatic backups, the oldest goes beyond. A backup
    created explicitly (`stalker-gamma-linux backup`) never enters it: it is a
@@ -1109,7 +1108,7 @@ Three rules carry the rest :
    from `--target`, exactly the perimeter of T11.
 2. **Restore** — `restore <id>` backs up the current state **before** overwriting
    it (a failed restore must not be a one-way trip), refuses to run if MO2 or the
-   game occupy the prefix (`prefix.session`, T13 ; `--force` overrides), and shows
+   game occupy the prefix (`prefix.session`, T13; `--force` overrides), and shows
    its plan with `--dry-run` like `uninstall` and `import`. Each destination is
    rebuilt **beside** then swapped by two `rename` : a copy failure leaves the
    player's folder intact, and a swap failure puts it back.
@@ -1141,19 +1140,19 @@ The first reflex is to use
 it is there, it is upstream, it is free. Compared to the real profile of the test
 install — 751 entries against 756, written the same day by the same
 `full-install` — it differs by **27 entries**, of which a dozen are demonstrably
-*not* player deviations :
+*not* player deviations:
 
-- a sentinel `-End` (line 2) that MO2 does not take up ;
-- a duplicate: `G.A.M.M.A. Vehicles in Darkscape` appears twice there ;
+- a sentinel `-End` (line 2) that MO2 does not take up;
+- a duplicate: `G.A.M.M.A. Vehicles in Darkscape` appears twice there;
 - two lines with trailing blank (`-G.A.M.M.A. FDDA Rework ` with a space,
   `+425- Dynamic News Manager Fixes and Tweaks - dEmergence` with a tabulation),
-  that MO2 rewrites trimmed ;
+  that MO2 rewrites trimmed;
 - names that do not correspond to the folder actually placed under `mods/`
   (`272- Grulag's Dead Bushes - Grulag` against `Grulag's Dead Bushes`), and at
   least one upstream typo corrected along the way (`DarkasleQif's` →
   `Darkasleif's`).
 
-Using it as `base` would therefore invent a dozen false « player additions » and
+Using it as `base` would therefore invent a dozen false “player additions” and
 as many false deletions. We record **our own snapshot** (`<root>/backups/
 upstream-modlist.txt`), taken just after the engine wrote the profile — at the
 end of the `gamma` step of an `install`, and on every `update`. Assumed
@@ -1171,17 +1170,17 @@ moved *and* disabled is not twice the same deviation.
 - **State** is decided name by name: if the player changed it since `base`, it is
   theirs; otherwise it is that of upstream, which may have legitimately activated
   or disabled a mod in the new version. The whole marker is taken back, not only
-  « active/disabled »: turning a `*` into a `+` would change the meaning of the
+  “active/disabled”: turning a `*` into a `+` would change the meaning of the
   line.
 
-Five rules that are not obvious, and that the code applies :
+Five rules that are not obvious, and that the code applies:
 
 1. `modlist.txt` is read **from bottom to top** (increasing priority towards the
-   top). Reasoning « line N » gets the direction wrong half the time: nothing is
+   top). Reasoning “line N” gets the direction wrong half the time: nothing is
    indexed in absolute terms here, everything is positioned relative to
    **named neighbors**.
 2. A mod **removed upstream** is never resurrected — its folder no longer exists
-   under `mods/`, MO2 would show it as « missing ». The set of names of the result
+   under `mods/`, MO2 would show it as “missing”. The set of names of the result
    is constrained to `theirs ∪ (ours − base)`, and nothing else; if diff3 cannot
    hold this constraint, we fall back on the upstream order, which is complete by
    construction.
@@ -1193,13 +1192,13 @@ Five rules that are not obvious, and that the code applies :
 4. The **separators** are entries like the others — this is what makes a
    reinserted mod fall back in the right section — but are not counted as mods in
    the report.
-5. **In case of doubt, we do not merge** : empty list, same mod twice,
+5. **In case of doubt, we do not merge**: empty list, same mod twice,
    incomprehensible line → we keep upstream, we keep the backup, and we announce
    it. A silently wrong merge is worse than a manual restore.
 
-After merge, the report says what was re-applied (« N mods reactivated/disabled
+After merge, the report says what was re-applied (“N mods reactivated/disabled
 according to your settings, M mods added by you reinserted, K entries removed
-upstream not restored »). Without this report, the user does not know whether to
+upstream not restored”). Without this report, the user does not know whether to
 open MO2 to check.
 
 **Line endings.** The MO2 instance comes from Windows: the `modlist.txt` of the
@@ -1207,7 +1206,7 @@ test install is in CRLF. `Path.read_text` applies the universal newline
 translation and would return a text in LF — the rewritten file would then change
 line encoding from end to end without anyone asking for it. Hence
 `open(..., newline="")` in read **and** write, and a always-atomic write (sibling
-file then `os.replace`) : a cut in the middle leaves the old file intact, never a
+file then `os.replace`): a cut in the middle leaves the old file intact, never a
 truncated `modlist.txt` that would start MO2 with no mods.
 
 Validated offline on the real list (756 entries, CRLF): the player's settings
@@ -1217,7 +1216,7 @@ resurrected, no duplicate, and the file stays entirely in CRLF.
 ## Session post-mortem (T18)
 
 The post-launch diagnostic existed since T05/T14, but since `play` returns control
-without waiting (T15), **no one called it anymore** : at the moment `play`
+without waiting (T15), **no one called it anymore**: at the moment `play`
 returns, the game is still running and the logs have nothing to say. T18 adds the
 command that re-reads them when they finally have something to tell, and the half
 that was missing — the X-Ray engine log, the only place where a GAMMA crash is
@@ -1225,26 +1224,26 @@ attributed to a mod.
 
 The records that ground each marker (real location of the log, false-positive
 measurements, provenance of the patterns) are in
-`docs/MO2-PROTON-COMPAT.md` § « Session post-mortem » — they belong to the
+`docs/MO2-PROTON-COMPAT.md` § “Session post-mortem” — they belong to the
 document that already serves as reference for the diagnostic, not to this one.
 
 ### Command name: `postmortem`
 
-« Post-mortem » is jargon, and the player's question is « why did it crash ? ».
-The command keeps this name nonetheless, for two reasons :
+“Post-mortem” is jargon, and the player's question is “why did it crash?”.
+The command keeps this name nonetheless, for two reasons:
 
 1. the CLI of this project names **tools**, in English, and already on this
    register: `doctor`, `prefix-doctor`, `verify`, `import`. A `why-did-it-crash`
    command would stand out, and `crash` would lie — the command also serves to say
-   « nothing broken » ;
+   “nothing broken”;
 2. the surface made for the player is not the CLI: it is the button
-   **« Le jeu a planté ? »** of the main window, which appears only on the return
+   **“Did the game crash?”** of the main window, which appears only on the return
    of a `play` — the exact moment when it is sought. The technical name stays on
    the technical side.
 
 ### Breakdown
 
-`postmortem/` package, one file per question :
+`postmortem/` package, one file per question:
 
 | Module | Question |
 |---|---|
@@ -1259,7 +1258,7 @@ The command keeps this name nonetheless, for two reasons :
 
 ### A single main diagnostic, and how we settle it
 
-Priority order, from most upstream to most downstream :
+Priority order, from most upstream to most downstream:
 
     launch failure > lack of memory > engine crash > dead USVFS > normal session
 
@@ -1267,7 +1266,7 @@ Same rule as in T14: a user to whom three problems are announced fixes none of
 them. A measured exception adds to it — two of the launch-failure markers are
 **not fatal** (Proton writes `Prefix has an invalid version?!` then launches the
 game anyway, measured in T16). Applied mechanically, the order would hide a real
-crash behind a « rebuild your prefix ». The fact that settles it is not read in a
+crash behind a “rebuild your prefix”. The fact that settles it is not read in a
 message but in the **modification dates** of the two logs: if the engine one dates
 from another session, it does not describe this launch
 (`analysis.describes_same_session`).
@@ -1278,14 +1277,14 @@ An X-Ray log is several megabytes and nothing bounds its size. The header
 (`Game started:`, `'xrCore' build`) fits in the first kilobytes; the verdict and
 the traceback are at the end, reached by `seek` then bounded `deque` — not by
 re-reading the whole file to reach its end. Cost measured on the real install
-(5.2 MB, 761 mods) : **0.02 s**, attribution included.
+(5.2 MB, 761 mods): **0.02 s**, attribution included.
 
 ### Nothing is re-attributed twice
 
 `integrity.report.mod_of` is already the only place that decides which mod a path
 under `mods/` belongs to; `attribution.py` calls it instead of re-reading the
 folder name, so the two never diverge. What this module adds — and which existed
-nowhere — is the translation « engine resource name » (a *visual* without
+nowhere — is the translation “engine resource name” (a *visual* without
 extension, a bare script in a Lua traceback) to the plausible path under
 `gamedata/`. The attribution does not walk the mod tree (hundreds of thousands of
 files): it builds a few paths per mod and tests their existence, the
@@ -1295,7 +1294,7 @@ case-insensitive resolution only attempted in a second pass.
 
 T06 had set aside the writing of `shortcuts.vdf` and sent the user to
 *Steam → Ajouter un jeu non-Steam*. This workaround **does not execute where it
-serves most** : in Gaming mode (Steam Deck, Bazzite, SteamOS), you have to go back
+serves most**: in Gaming mode (Steam Deck, Bazzite, SteamOS), you have to go back
 to Desktop mode to do it. The technical reservations of T06 held, though: they
 became the specification below rather than a reason to give up.
 
@@ -1304,8 +1303,8 @@ became the specification below rather than a reason to give up.
 No public specification exists. The codec (`steam/vdf.py`) was written against a
 real `shortcuts.vdf` of the development machine: sequence of typed fields
 (`0x00` map, `0x01` string, `0x02` signed 32-bit integer, `0x08` end of block).
-The criterion that validates it is not « it re-reads » but **the byte-by-byte
-round-trip** : reading then rewriting an unmodified file must return the same
+The criterion that validates it is not “it re-reads” but **the byte-by-byte
+round-trip**: reading then rewriting an unmodified file must return the same
 bytes. This real file, anonymized by substitution of bytes of the same length, is
 versioned in `tests/data/shortcuts-real.vdf` — a hand-made file would have proven
 only our own understanding.
@@ -1314,7 +1313,7 @@ Three consequences in the code: `VdfOpaque` keeps verbatim every typed field we
 cannot interpret; the `trailer` of the document keeps the tail of the file as-is
 (the real file ends with four `0x08` — three block closures and a document
 terminator); the strings are decoded in `surrogateescape`, so that a badly encoded
-shortcut name survives instead of being « repaired ». A byte of unknown type, for
+shortcut name survives instead of being “repaired”. A byte of unknown type, for
 its part, is **refused** (`VdfFormatError` with its offset): guessing the length of
 a field would make everything that follows unreadable, in a file we are about to
 rewrite.
@@ -1365,7 +1364,7 @@ and always refuse to write.
 ### Multi-accounts: we write for all
 
 Shortcuts live per account (`userdata/<id>/config/shortcuts.vdf`), and native
-Steam as well as Steam Flatpak can coexist. Guessing « the right » account from
+Steam as well as Steam Flatpak can coexist. Guessing “the right” account from
 the modification dates is a heuristic that is wrong on a shared machine; asking is
 impossible where it counts — in Gaming mode, there is no terminal to answer. We
 therefore write for **all** the accounts found: the gesture is reversible, and its
@@ -1402,7 +1401,7 @@ user's choice to zero.
 
 On the pipeline side, `steam` joins `shortcut` in `state.OPTIONAL_STEPS` : two
 steps that `install` plays only if asked, and whose absence does not make an
-installation incomplete. The « n/total » numbering now comes from
+installation incomplete. The “n/total” numbering now comes from
 `state.planned_steps`, read both by the orchestrator and by the GUI progress bar —
 the `STEPS[:-1]` that the GUI copied descending broke as soon as a second optional
 step appeared.
@@ -1415,15 +1414,15 @@ issues document it: #282 (Cloudflare captcha, open), #286 (`ModDBDownloadError`,
 direct link 403 from the browser), #283/#284
 (`AttributeError: 'NoneType' object has no attribute 'unpackinfo'` — an expired
 ModDB link, not a corruption). We already knew how to handle this wall **on one
-side** : `engine.runner.verify` classifies these markers as warning, not failure,
+side**: `engine.runner.verify` classifies these markers as warning, not failure,
 since `a3903dd`. This module carries the same reasoning on the path of the
 **download**, where gamma-launcher, for its part, does indeed fail (non-zero code)
 — a nuance we must never erase: a mod missing during an install is missing, this
-is not a « maybe » like for `verify`.
+is not a “maybe” like for `verify`.
 
 **A single table of markers, not two that diverge.** Before `engine/ markers.py`,
 `engine.runner._UNVERIFIABLE_MARKERS` and `engine.errors._MODDB_MARKERS` each
-maintained their list, and « Download link not found when requesting » ended up
+maintained their list, and “Download link not found when requesting” ended up
 duplicated in both — a fix in one could silently diverge from the other.
 `engine.markers.classify()` is the unique source, used as-is by `verify()`
 (contract unchanged: `UNVERIFIABLE_MARKERS` remains exactly the old table, no
@@ -1433,13 +1432,13 @@ network marker added to it without that being asked for) and by `engine.errors`
 **Three causes, read in the source of gamma-launcher v3.1 and not guessed**
 (`launcher/mods/downloader/base.py`, `moddb.py`,
 `launcher/commands/check.py` — tag studied in `docs/ARCHITECTURE.md`
-« Engine integration ») :
+“Engine integration”):
 
 1. **Network/ModDB unreachable** (`requests.exceptions.ConnectionError`, raised by
    `tenacity` only after 3 internal attempts spaced 30 s apart) — nothing to do
    with a specific mod, waiting is the only sensible remedy.
 2. **Link of a mod broken or moved upstream** (`ModDBDownloadError`,
-   « Could not find Filename/archive hash in », « No Info URL provided ») — manual
+   “Could not find Filename/archive hash in”, “No Info URL provided”) — manual
    deposit. A dead mirror, a mod removed from the site, and a Cloudflare challenge
    produce **the same text** on the `moddb.py::_get_download_url` side: the page
    answered (otherwise we would be in cause 1), but what we were looking for is no
@@ -1450,11 +1449,14 @@ network marker added to it without that being asked for) and by `engine.errors`
    (a new file is hashed only on the next re-run, `DefaultDownloader.download`), so
    a 147-byte HTML error page ends up saved under the expected `.7z` name, and the
    extraction crashes later on an archive that is not one.
+3. **Corrupted local archive** (`Hash verification failed`, upstream `HashError`)
+   — the only cause that asks nothing of the user: deleting the archive and
+   re-running is enough, which is already the `verify --repair` mechanism.
 
 **The mod name is not read in `output_tail`.** `engine.process.run` keeps only the
 last 20 lines of output for the error message; the line
 `[+] Processing mod {name} ({i}/{n})` (`launcher/commands/install.py:_install_mods`,
-the only trace of the mod en cours in the whole flow) can be pushed out by a long
+the only trace of the current mod in the whole flow) can be pushed out by a long
 traceback — the real case of `AttributeError` on `unpackinfo` is ~21 lines by
 itself. `engine.runner._install` therefore wraps `anomaly-install`/`full-install`
 in a tracking that sees **all** the flow as it happens, retains the last mod and
@@ -1476,7 +1478,7 @@ mod guard that `CheckMD5.run()` has, itself — see below); what we control is t
 along the way — this is not a strictly surgical operation.
 
 **The file deposited by hand is verified before touching anything**, when an
-expected MD5 is known (`state.FailedMod.expected_md5`) : a deposit that does not
+expected MD5 is known (`state.FailedMod.expected_md5`): a deposit that does not
 match is refused with a clear message (`engine.errors.DepositMismatchError`)
 rather than left to the engine, which would re-download in silence without ever
 saying so (`ModDBDownloader.download()` re-resolves the ModDB page systematically
@@ -1491,13 +1493,13 @@ opposite.** `launcher/commands/install.py:_install_mods` has no per-mod `try`/
 `except` : the first exception stops the whole pipeline (non-zero return code),
 unlike `CheckMD5.run()` (`launcher/commands/check.py`), which absorbs
 `HashError`/`ModDBDownloadError` mod by mod and only fails at the end — it is
-precisely for this reason that `verify` can accumulate several « unverifiable »
+precisely for this reason that `verify` can accumulate several “unverifiable”
 entries in a single pass, when `install`/`update` can record **only a single** new
-failure per execution. The « final report » (`state.format_failures`, shown at the
+failure per execution. The “final report” (`state.format_failures`, shown at the
 end of `install`/`update`/`--retry-failed`, including on a success if old failures
 still linger) is therefore honest about this limit rather than claiming a count we
 do not have: it lists what is *currently* recorded in failure, not a total
-« X installed / Y failed » that no gamma-launcher command can produce for
+“X installed / Y failed” that no gamma-launcher command can produce for
 `full-install`.
 
 **What we do not do, deliberately.** No captcha workaround, no browser simulation
@@ -1518,16 +1520,16 @@ blocking threshold (160 GiB, the total plus the extraction margin) and upstream
 recommendation (250 GiB).
 
 Why a dedicated module rather than local constants: the two consumers — the
-« Disk space » line of `doctor` (`environment/checks.py`) and the pre-installation
+“Disk space” line of `doctor` (`environment/checks.py`) and the pre-installation
 dialog of the GUI (`gui/space.py`) — had diverged. `checks.py` took back the
-upstream figure « 27 GB downloaded / 76 GB installed », which our own manual
+upstream figure “27 GB downloaded / 76 GB installed”, which our own manual
 invalidates (we **keep** the cache for incremental updates), while the GUI blocked
-under 160 GiB. Result: at 120 GiB free, `doctor` showed « [ OK ] Disk space »
+under 160 GiB. Result: at 120 GiB free, `doctor` showed “[ OK ] Disk space”
 while the GUI refused to launch the installation. `tests/test_sizing.py` locks
 this agreement threshold by threshold.
 
 Unit: everything is in **GiB** (2³⁰ bytes), which `shutil.disk_usage` returns and
-which the CLI as well as the GUI show — `gui/format.format_gib` labeled « GB »
+which the CLI as well as the GUI show — `gui/format.format_gib` labeled “GB”
 values that were already GiB.
 
 ## Packaging: Flatpak/AppImage removed (2026-07-26)
@@ -1540,7 +1542,7 @@ against the Wine/Proton nature of the tool (host tools invisible behind
 side — spam of `pressure-vessel` crash notifications), whereas the **native**
 install (`install.sh`, venv `--system-site-packages`) uses directly the
 Wine/Proton/Steam/libunrar that the user already has on their machine. Only the
-native channel remains; see « Development environment » below and `install.sh` at
+native channel remains; see “Development environment” below and `install.sh` at
 the root for the current mechanism.
 
 ## CI (T10)
@@ -1551,7 +1553,7 @@ install GTK4/libadwaita system headers (`libcairo2-dev`, `libgirepository-2.0-de
 `gir1.2-gtk-4.0`, `gir1.2-adw-1`) before `pip install ".[dev]"`, even though the
 CLI never needs GTK — the `dev` extra ships `PyGObject-stubs`, which pulls
 `PyGObject` as a hard dependency (no manylinux wheel, same constraint as above
-« Development environment »), so any installation of the `dev` extra on a bare
+“Development environment”), so any installation of the `dev` extra on a bare
 machine fails to compile without these headers.
 
 `upstream-watch.yml` relies on a real asymmetry between the two upstream repos:
@@ -1567,26 +1569,26 @@ import `unrar` (ctypes) on load, which requires `libunrar.so` — absent from
 All strings visible to the user (CLI, GUI, error messages of the shared business
 modules) are in **English in the source code** (`msgid` gettext) and go through
 `stalker_gamma_linux.i18n._()`. English is **the default language**, end —
-deliberately no follow-up of the system locale (`LANG`/`LC_ALL`/`LC_MESSAGES`) :
+deliberately no follow-up of the system locale (`LANG`/`LC_ALL`/`LC_MESSAGES`):
 otherwise a machine in `fr_FR.UTF-8` would display French without the user having
 asked for it, which is not the wanted behavior here. Only the GNU `LANGUAGE`
 variable, explicitly set, changes the language (e.g. `LANGUAGE=fr
 stalker-gamma-linux doctor`) ; `gettext.translation(..., fallback=True)` returns
 the `msgid` (hence English) as-is as soon as no requested language has a
 corresponding `.mo`. Resolved **once** on the module import (classic gettext model:
-changing language en cours de session requires a restart, never a bug).
+changing language mid-session requires a restart, never a bug).
 
 Available translations: `src/stalker_gamma_linux/locale/<code>/LC_MESSAGES/
 stalker-gamma-linux.po` (+ compiled `.mo`, shipped to the package via
 `package-data`). French provided 100 % at the i18n overhaul (2026-07-26, 226
 strings). **Babel** tooling (`dev` extra, pure pip — no system `gettext`/
 `xgettext` dependency, consistent with the rest of the project which never requires
-sudo) :
+sudo):
 
 ```sh
-make extract-messages   # régénère le .pot depuis tous les `_("...")` de src/
-make update-messages    # fusionne les nouveaux msgids dans chaque .po existant
-make compile-messages   # .po → .mo, à refaire avant de tester une traduction
+make extract-messages   # regenerates the .pot from every `_("...")` in src/
+make update-messages    # merges the new msgids into each existing .po
+make compile-messages   # .po → .mo, redo before testing a translation
 ```
 
 Adding a language: `pybabel init -i src/stalker_gamma_linux/locale/
@@ -1596,7 +1598,7 @@ stalker-gamma-linux`, translate the generated `.po`, then `make compile-messages
 Test trap: the `pytest` assertions are on the English text (source), which must
 not depend on the locale of the machine running the suite (e.g. development machine
 in `fr_FR.UTF-8`). `tests/conftest.py` sets `LANGUAGE=en` **at module level** (not
-in a fixture) : `i18n.py` resolves its translation only once, on the first import —
+in a fixture): `i18n.py` resolves its translation only once, on the first import —
 a fixture, even `autouse`, runs after this import and would come too late.
 
 Outside the gettext perimeter (left as-is, these are not translatable strings):
