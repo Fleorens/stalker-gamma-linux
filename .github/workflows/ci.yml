@@ -19,11 +19,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.14 : ce que livrent Fedora 44 et Arch aujourd'hui — donc ce que fait
-        # tourner une grande partie des utilisateurs, et la machine de dev. Son
-        # absence signifiait que « CI verte » et « ça marche chez moi » ne
-        # parlaient pas de la même chose.
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
+        # 3.14 : ce que livre Arch aujourd'hui. 3.15 : Fedora 45 (2026-11), et la
+        # machine de dev. Leur absence signifiait que « CI verte » et « ça marche
+        # chez moi » ne parlaient pas de la même chose — 3.15 est entrée après
+        # coup, le jour où Fedora 45 a cassé l'installation (voir install.sh,
+        # `build_tools_hint`).
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -113,6 +114,10 @@ jobs:
             image: fedora:latest
             setup: dnf install -y -q python3 git ca-certificates
             expected_hint: "dnf install gtk4"
+            # Fedora 45 (Python 3.15) : trois dépendances de py7zr n'ont pas de
+            # roue, pip doit compiler. Voir l'étape « Lancer install.sh ».
+            build_tools: dnf install -y -q gcc python3-devel
+            build_hint: "dnf install gcc python3-devel"
           - name: Arch
             image: archlinux:latest
             setup: pacman -Syu --noconfirm --needed python git ca-certificates
@@ -123,8 +128,31 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Le chemin d'un joueur, sans compilateur au départ. Si pip doit compiler
+      # (aucune roue pour le Python de la distribution), install.sh doit
+      # s'arrêter sur le remède de CETTE distribution ; on l'applique alors et on
+      # relance, comme le ferait le joueur. Quand les roues existent, le premier
+      # passage réussit et la branche de repli ne sert pas : rien à retoucher ici
+      # le jour où l'amont les publie.
       - name: Lancer install.sh --no-launch
-        run: bash install.sh --no-launch 2>&1 | tee /tmp/install-output.txt
+        shell: bash
+        env:
+          BUILD_TOOLS: ${{ matrix.build_tools }}
+          BUILD_HINT: ${{ matrix.build_hint }}
+        run: |
+          set -uo pipefail
+          if bash install.sh --no-launch > /tmp/install-output.txt 2>&1; then
+            cat /tmp/install-output.txt
+            exit 0
+          fi
+          cat /tmp/install-output.txt
+          if [ -z "$BUILD_HINT" ] || ! grep -qF -- "$BUILD_HINT" /tmp/install-output.txt; then
+            echo "::error::install.sh a échoué sans proposer le remède attendu (${BUILD_HINT:-aucun prévu})."
+            exit 1
+          fi
+          echo "::notice::Compilation nécessaire : remède affiché, appliqué, puis relance."
+          $BUILD_TOOLS
+          bash install.sh --no-launch 2>&1 | tee /tmp/install-output.txt
 
       - name: Le remède GTK proposé correspond à la distribution
         env:

@@ -38,10 +38,12 @@ la compilation de `pycairo`/`PyGObject` (pas de roue manylinux, voir
 libgirepository-2.0-dev gir1.2-gtk-4.0 gir1.2-adw-1 pkg-config` avant
 l'install Python : `ruff`, `ruff format --check`, `mypy src` puis `pytest -q`.
 
-Matrice **Python 3.11, 3.12, 3.13 et 3.14** : la 3.14 a été ajoutée car c'est
-ce que livrent Fedora 44 et Arch aujourd'hui — donc ce que fait tourner une
-grande partie des utilisateurs et la machine de dev. Son absence signifiait
-que « CI verte » et « ça marche chez moi » ne parlaient pas de la même chose.
+Matrice **Python 3.11 à 3.15** : la 3.14 a été ajoutée car c'est ce que
+livraient Fedora 44 et Arch — donc ce que fait tourner une grande partie des
+utilisateurs et la machine de dev. Son absence signifiait que « CI verte » et
+« ça marche chez moi » ne parlaient pas de la même chose. La 3.15 a suivi le
+2026-11-07, après coup : Fedora 45 l'a livrée et l'installation y cassait (voir
+`install-script` ci-dessous).
 
 ### `gui` — fumée GTK4 sous Xvfb
 
@@ -63,6 +65,15 @@ remède GTK affiché est celui de la bonne distribution (GTK n'est
 volontairement pas installé — le script doit s'arrêter proprement en
 recommandant la commande adaptée), le venv/raccourcis/entrée de bureau sont
 en place, la CLI installée démarre, et relancer le script est idempotent.
+
+Le premier passage se fait **sans compilateur**, comme chez un joueur. Sur
+Fedora 45 (Python 3.15), `inflate64`, `pybcj` et `pyppmd` — tirées par `py7zr`,
+que `gamma-launcher` importe au chargement — n'ont aucune roue, et la
+distribution ne les empaquette pas : pip doit les compiler. Le job vérifie alors
+qu'`install.sh` s'arrête sur le remède de la distribution (`build_hint` de la
+matrice, miroir d'`INSTALL_COMMANDS["build-tools"]`), l'applique
+(`build_tools`) et relance. Le jour où l'amont publie les roues, le premier
+passage réussit et ce repli ne sert plus, sans rien à retoucher.
 
 ### `build` — construction du paquet
 
