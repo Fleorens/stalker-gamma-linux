@@ -39,7 +39,7 @@ die() { printf '\033[1;31mErreur :\033[0m %s\n' "$*" >&2; exit 1; }
 # Trois conditions, toutes nécessaires :
 # 1. chemin ABSOLU — un chemin relatif viserait le répertoire courant ;
 # 2. pas de `..` — comme `paths_safety`, on refuse ce qu'on ne peut pas lire ;
-# 3. suffixe `/stalker-gamma-linux` (ou son `/src`) ET au moins deux segments,
+# 3. suffixe `/stalker-gamma-linux` (ou son `/src`, son `/venv`) ET au moins deux segments,
 #    soit exactement le `len(resolved.parts) < 3` du module Python — un
 #    `XDG_DATA_HOME=/data` légitime donne `/data/stalker-gamma-linux` et doit
 #    passer, `/stalker-gamma-linux` à la racine non.
@@ -57,7 +57,7 @@ safe_rm_rf() {
         *..*) die "Refus de supprimer « $target » : le chemin contient « .. »." ;;
     esac
     case "$target" in
-        */stalker-gamma-linux | */stalker-gamma-linux/src) : ;;
+        */stalker-gamma-linux | */stalker-gamma-linux/src | */stalker-gamma-linux/venv) : ;;
         *) die "Refus de supprimer « $target » : ne ressemble pas à un dossier de l'outil." ;;
     esac
     local separators="${target#/}"
@@ -105,16 +105,54 @@ fi
 # Commande d'installation du stack GTK selon la distribution (le seul prérequis
 # système de la GUI native ; PyGObject n'a pas de roue pip, il vient du paquet
 # distro). Miroir de `environment.commands` INSTALL_COMMANDS["gtk-gui"].
+#
+# `OS_RELEASE` n'existe que pour les tests (`tests/test_install_script.py`), qui
+# vérifient que ces remèdes ne divergent pas de leur source Python.
+OS_RELEASE="${OS_RELEASE:-/etc/os-release}"
+distro_ids() {
+    # shellcheck disable=SC1090
+    [ -r "$OS_RELEASE" ] && (. "$OS_RELEASE" 2>/dev/null && echo "${ID:-} ${ID_LIKE:-}")
+    return 0
+}
+
 gtk_install_hint() {
-    local ids=""
-    # shellcheck disable=SC1091
-    [ -r /etc/os-release ] && ids="$(. /etc/os-release 2>/dev/null && echo "${ID:-} ${ID_LIKE:-}")"
-    case " $ids " in
+    case " $(distro_ids) " in
         *fedora*|*rhel*|*centos*|*nobara*) echo "sudo dnf install gtk4 libadwaita python3-gobject" ;;
         *arch*|*manjaro*|*endeavouros*|*cachyos*|*steamos*) echo "sudo pacman -S gtk4 libadwaita python-gobject" ;;
         *debian*|*ubuntu*|*pop*|*linuxmint*) echo "sudo apt install gir1.2-gtk-4.0 gir1.2-adw-1 python3-gi" ;;
         *) echo "installe gtk4 + libadwaita + les bindings Python (PyGObject) via ton gestionnaire de paquets" ;;
     esac
+}
+
+# Compilateur C + en-têtes Python. Inutiles tant que PyPI publie des roues pour
+# le Python du système, indispensables le jour où il n'en publie pas : constaté
+# sur Fedora 45 (Python 3.15, 2026-11), où `inflate64`, `pybcj` et `pyppmd` —
+# tirées par `py7zr`, que `gamma-launcher` importe au chargement — n'ont aucune
+# roue et ne sont pas empaquetées par la distribution. pip les compile alors,
+# et échouait sur un « gcc: No such file or directory » perdu dans sa sortie.
+# Miroir de `environment.commands` INSTALL_COMMANDS["build-tools"].
+build_tools_hint() {
+    case " $(distro_ids) " in
+        *fedora*|*rhel*|*centos*|*nobara*) echo "sudo dnf install gcc python3-devel" ;;
+        *arch*|*manjaro*|*endeavouros*|*cachyos*|*steamos*) echo "sudo pacman -S base-devel" ;;
+        *debian*|*ubuntu*|*pop*|*linuxmint*) echo "sudo apt install build-essential python3-dev" ;;
+        *) echo "installe un compilateur C (gcc) et les en-têtes de développement de Python via ton gestionnaire de paquets" ;;
+    esac
+}
+
+# Version « majeure.mineure » du Python qui a créé le venv $1, lue dans son
+# `pyvenv.cfg` ; vide si le fichier manque ou ne la donne pas.
+venv_python_version() {
+    sed -n 's/^version\(_info\)\{0,1\} *= *\([0-9]*\.[0-9]*\).*/\2/p' \
+        "$1/pyvenv.cfg" 2>/dev/null | head -n 1 || true
+}
+
+# Vrai si pip peut compiler une extension C : un compilateur ET `Python.h` pour
+# l'interpréteur du venv (pas celui du PATH, qui peut être une autre version).
+build_tools_present() {
+    { command -v cc >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1; } || return 1
+    "$VENV_DIR/bin/python" -c 'import os, sys, sysconfig
+sys.exit(not os.path.isfile(os.path.join(sysconfig.get_paths()["include"], "Python.h")))' 2>/dev/null
 }
 
 # 1. Python >= 3.11 (vérification seule, aucune installation système).
@@ -180,6 +218,23 @@ fi
 #    n'a pas de roue pip (extension liée au GObject-introspection du système) ;
 #    il doit venir du paquet distro, donc le venv doit voir les site-packages
 #    système. Aucun sudo, aucune écriture hors du home.
+#
+#    Un venv créé par un AUTRE Python est reconstruit. Son `bin/python` n'est
+#    qu'un lien vers `python3` du système : après une mise à niveau de la
+#    distribution (Fedora 44 → 45 : 3.14 → 3.15), ce lien mène au nouvel
+#    interpréteur, qui cherche ses paquets dans `lib/python3.15/` — vide. Le
+#    lanceur meurt alors sur `No module named 'stalker_gamma_linux'`, et
+#    réinstaller par-dessus laisserait l'ancien `lib/python3.14/` en place.
+#    `version` dans `pyvenv.cfg` : écrit par `venv` depuis Python 3.11 au
+#    moins (`version_info` avant) ; un fichier illisible ou sans version
+#    compte comme périmé, la reconstruction ne coûte qu'un téléchargement.
+if [ -e "$VENV_DIR" ]; then
+    VENV_VERSION="$(venv_python_version "$VENV_DIR")"
+    if [ "$VENV_VERSION" != "$PYTHON_VERSION" ]; then
+        warn "Venv créé sous Python ${VENV_VERSION:-inconnu}, système en $PYTHON_VERSION : reconstruction."
+        safe_rm_rf "$VENV_DIR"
+    fi
+fi
 log "Venv (--system-site-packages) sous $VENV_DIR…"
 "$PYTHON_BIN" -m venv --system-site-packages "$VENV_DIR"
 "$VENV_DIR/bin/pip" install --quiet --upgrade pip
@@ -190,7 +245,18 @@ log "Venv (--system-site-packages) sous $VENV_DIR…"
 # une semaine d'écart n'obtiennent pas le même code, et un bug rapporté n'est
 # plus reproductible. Le fichier ne nomme que NOS dépendances, jamais PyGObject
 # ni aucun paquet distro visible ici via `--system-site-packages`.
-"$VENV_DIR/bin/pip" install --quiet -c "$SRC_DIR/constraints.txt" "$SRC_DIR"
+#
+# En cas d'échec, le remède vient APRÈS la sortie de pip, donc en dernier à
+# l'écran : c'est la seule ligne que l'utilisateur lira.
+if ! "$VENV_DIR/bin/pip" install --quiet -c "$SRC_DIR/constraints.txt" "$SRC_DIR"; then
+    if ! build_tools_present; then
+        printf '\n' >&2
+        die "pip doit compiler des dépendances (aucun paquet précompilé pour Python $PYTHON_VERSION), mais le compilateur C ou les en-têtes Python manquent. Installe-les :
+    $(build_tools_hint)
+  puis relance ce script."
+    fi
+    die "L'installation des dépendances Python a échoué (voir la sortie de pip ci-dessus)."
+fi
 
 # Révision réellement installée : le numéro de version seul ne distingue pas
 # deux utilisateurs de `main` entre deux releases. On la note ici plutôt que de
@@ -232,6 +298,40 @@ if [ -n "$ICON_SRC" ] && [ -f "$ICON_SRC" ]; then
     mkdir -p "$ICON_DIR"
     cp -f "$ICON_SRC" "$ICON_DIR/stalker-gamma-linux-gui.png"
 fi
+
+# 5bis. L'entrée du menu passe par ce lanceur plutôt que d'appeler le venv en
+#       direct. Elle est en `Terminal=false` : quand le venv casse (mise à
+#       niveau de Python par la distribution, voir l'étape 3), le clic ne
+#       produisait RIEN — pas de fenêtre, pas d'erreur visible. Le lanceur
+#       vérifie d'abord que le venv sait importer l'appli, et sinon dit quoi
+#       faire, par notification ou boîte de dialogue selon ce que le bureau a.
+#       Il ne répare pas lui-même : la réparation demande le réseau et parfois
+#       sudo (étape 3), donc un terminal.
+LAUNCHER="$APP_DATA_DIR/launch-gui.sh"
+{
+    printf '#!/usr/bin/env bash\n'
+    printf '# Généré par install.sh — réécrit à chaque exécution, ne pas modifier.\n'
+    printf 'VENV_DIR=%q\n' "$VENV_DIR"
+    printf 'INSTALLER=%q\n' "$SRC_DIR/install.sh"
+    cat <<'LAUNCHER'
+if "$VENV_DIR/bin/python" -c 'import stalker_gamma_linux' >/dev/null 2>&1; then
+    exec "$VENV_DIR/bin/stalker-gamma-linux-gui" "$@"
+fi
+title="Lanceur GAMMA : réinstallation nécessaire"
+body="L'environnement Python de l'application ne fonctionne plus, souvent après une mise à niveau de la distribution. Dans un terminal : bash $INSTALLER"
+printf '%s\n%s\n' "$title" "$body" >&2
+if command -v notify-send >/dev/null 2>&1; then
+    notify-send --app-name="Lanceur GAMMA" --icon=stalker-gamma-linux-gui "$title" "$body"
+elif command -v zenity >/dev/null 2>&1; then
+    zenity --error --title="$title" --text="$body"
+elif command -v kdialog >/dev/null 2>&1; then
+    kdialog --title "$title" --error "$body"
+fi
+exit 1
+LAUNCHER
+} > "$LAUNCHER"
+chmod +x "$LAUNCHER"
+
 cat > "$APPLICATIONS_DIR/stalker-gamma-linux-gui.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
@@ -242,7 +342,7 @@ GenericName=S.T.A.L.K.E.R. GAMMA installer & launcher
 GenericName[fr]=Installeur et lanceur S.T.A.L.K.E.R. GAMMA
 Comment=Install, manage and launch S.T.A.L.K.E.R. G.A.M.M.A. on Linux
 Comment[fr]=Installe, gère et lance S.T.A.L.K.E.R. G.A.M.M.A. sous Linux
-Exec=$VENV_DIR/bin/stalker-gamma-linux-gui
+Exec=$LAUNCHER
 Icon=stalker-gamma-linux-gui
 Categories=Game;
 Terminal=false

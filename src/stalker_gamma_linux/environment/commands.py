@@ -179,4 +179,15 @@ INSTALL_COMMANDS: Mapping[str, InstallCommand] = {
             DistroFamily.DEBIAN: ("gir1.2-gtk-4.0", "gir1.2-adw-1", "python3-gi"),
         },
     ),
+    # Seul consommateur : `install.sh` (`build_tools_hint`), quand pip doit
+    # compiler une dépendance faute de roue pour le Python du système (Fedora 45,
+    # Python 3.15). Déclaré ici pour que le job CI `package-names` vérifie aussi
+    # ces noms, et que `tests/test_install_script.py` attrape une divergence.
+    "build-tools": InstallCommand(
+        packages={
+            DistroFamily.FEDORA: ("gcc", "python3-devel"),
+            DistroFamily.ARCH: ("base-devel",),
+            DistroFamily.DEBIAN: ("build-essential", "python3-dev"),
+        },
+    ),
 }
