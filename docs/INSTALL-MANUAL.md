@@ -1,77 +1,77 @@
-# Installation manuelle de S.T.A.L.K.E.R. G.A.M.M.A. sur Linux — spécification de référence
+# Manual installation of S.T.A.L.K.E.R. G.A.M.M.A. on Linux — reference specification
 
-> **Rôle de ce document** : c'est la procédure manuelle complète que
-> `stalker-gamma-linux` doit automatiser (mode principal : **MO2 sous
-> Proton**). Chaque étape donne les commandes exactes et un critère de
-> vérification. Les points incertains sont marqués `⚠ À VALIDER` — à
-> confirmer sur machine réelle avant d'automatiser.
+> **Role of this document**: it is the complete manual procedure that
+> `stalker-gamma-linux` must automate (main mode: **MO2 under
+> Proton**). Each step gives the exact commands and a verification
+> criterion. Uncertain points are marked `⚠ TO CONFIRM` — to
+> confirm on a real machine before automating.
 >
-> Rédigé le 2026-07-19 à partir des sources croisées listées en fin de
-> document. Guide de référence principal : gist de v1ld (mis à jour sept.
-> 2025, méthode protontricks + Steam).
+> Written on 2026-07-19 from the cross-referenced sources listed at the end
+> of the document. Main reference guide: v1ld's gist (updated Sept.
+> 2025, protontricks + Steam method).
 
-## 0. Vue d'ensemble
+## 0. Overview
 
 ```
-gamma-launcher (Python) ──► télécharge Anomaly + les ~400 mods (ModDB/GitHub)
-                            et construit l'instance MO2 dans gamma/
-Steam + Proton          ──► exécute ModOrganizer.exe (jeu non-Steam)
-protontricks            ──► injecte les DLL Windows requises dans le préfixe
-MO2 (sous Proton)       ──► lance Anomaly avec les mods montés via USVFS
+gamma-launcher (Python) ──► downloads Anomaly + the ~400 mods (ModDB/GitHub)
+                            and builds the MO2 instance in gamma/
+Steam + Proton          ──► runs ModOrganizer.exe (non-Steam game)
+protontricks            ──► injects the required Windows DLLs into the prefix
+MO2 (sous Proton)       ──► launches Anomaly with the mods mounted via USVFS
 ```
 
-Points clés validés par les sources :
-- MO2 + USVFS **fonctionnent** sous Proton (avec un surcoût CPU connu) ;
-  c'est la méthode recommandée par tous les guides récents.
-- Le préfixe utilisé est celui créé par Steam pour le jeu non-Steam
-  `ModOrganizer.exe` → MO2 et le jeu partagent naturellement le même préfixe.
-- ReShade doit être retiré (incompatible DXVK) — étape obligatoire.
+Key points validated by the sources :
+- MO2 + USVFS **work** under Proton (with a known CPU overhead) ;
+  it is the method recommended by all recent guides.
+- The prefix used is the one created by Steam for the non-Steam game
+  `ModOrganizer.exe` → MO2 and the game naturally share the same prefix.
+- ReShade must be removed (incompatible with DXVK) — required step.
 
-### Divergences notables entre les sources
+### Notable divergences between the sources
 
-| Sujet | v1ld (2025, réf.) | FaithBeam wiki | maxastyler (Deck, ancien) |
+| Topic | v1ld (2025, ref.) | FaithBeam wiki | maxastyler (Deck, old) |
 |---|---|---|---|
-| Verbs winetricks | `d3dcompiler_47 d3dx10 d3dx11_43 d3dx9 dx8vb quartz vcrun2022` (+`cmd` optionnel) | `d3dcompiler_43 d3dcompiler_47 d3dx10 d3dx11_43 d3dx9 vcrun2022` | `d3dcompiler_43 d3dcompiler_47 d3dx10 d3dx11_43 d3dx9 d3dx9_43` |
-| Proton | Proton **9/10 vanilla** via Steam | proton-ge-9-20 | non précisé |
-| Outil préfixe | protontricks (prefix Steam) | winetricks/protontricks | protontricks (Discover) |
-| Espace disque | 17 + 83 + 46 Go ≈ **146 Go** | n/a | n/a |
+| winetricks verbs | `d3dcompiler_47 d3dx10 d3dx11_43 d3dx9 dx8vb quartz vcrun2022` (+`cmd` optional) | `d3dcompiler_43 d3dcompiler_47 d3dx10 d3dx11_43 d3dx9 vcrun2022` | `d3dcompiler_43 d3dcompiler_47 d3dx10 d3dx11_43 d3dx9 d3dx9_43` |
+| Proton | Proton **9/10 vanilla** via Steam | proton-ge-9-20 | not specified |
+| Prefix tool | protontricks (Steam prefix) | winetricks/protontricks | protontricks (Discover) |
+| Disk space | 17 + 83 + 46 GB ≈ **146 GB** | n/a | n/a |
 
-Décisions pour l'automatisation : partir du **surensemble des verbs** puis
-élaguer par tests. **Élagage fait (2026-08-15)** — la liste retenue est
-`vcrun2022 d3dcompiler_43 d3dcompiler_47 d3dx9 d3dx10 d3dx11_43`, sans
-`dx8vb` ni `quartz` : le premier est la typelib DirectX 8 pour *Visual
-Basic* (X-Ray est en C++ et embarque ses propres rendus DX8/9/10/11), le
-second est le runtime DirectShow alors qu'Anomaly ne livre aucun fichier
-vidéo ni codec. Préfixe réel du mainteneur : ces 6 verbs, rien d'autre, jeu
-fonctionnel. Proton : décision utilisateur (2026-07-19) —
-**dernière release GE-Proton par défaut** (ou Proton Experimental de Steam
-s'il est présent et qu'aucun GE ne l'est) ; les retours signalant des
-soucis MO2 avec certaines versions GE seront arbitrés par la matrice T05.
+Decisions for automation: start from the **union of the verbs** then
+prune by tests. **Pruning done (2026-08-15)** — the retained list is
+`vcrun2022 d3dcompiler_43 d3dcompiler_47 d3dx9 d3dx10 d3dx11_43`, without
+`dx8vb` nor `quartz` : the first is the DirectX 8 typelib for *Visual
+Basic* (X-Ray is in C++ and ships its own DX8/9/10/11 renders), the
+second is the DirectShow runtime, while Anomaly ships no file
+video nor codec. The maintainer's real prefix: these 6 verbs, nothing else, game
+working. Proton: user decision (2026-07-19) —
+**latest GE-Proton release by default** (or Proton Experimental from Steam
+if it is present and no GE is) ; reports flagging
+MO2 issues with certain GE versions will be arbitrated by the T05 matrix.
 
 ---
 
-## 1. Prérequis système
+## 1. System requirements
 
-### Espace disque
+### Disk space
 
-| Dossier | Taille (sept. 2025) |
+| Folder | Size (Sept. 2025) |
 |---|---|
-| `anomaly/` (jeu de base) | ~17 Go |
-| `gamma/` (MO2 + mods) | ~83 Go |
-| `cache/` (archives téléchargées) | ~46 Go |
-| **Total pendant l'installation** | **~146 Go** |
+| `anomaly/` (base game) | ~17 GB |
+| `gamma/` (MO2 + mods) | ~83 GB |
+| `cache/` (downloaded archives) | ~46 GB |
+| **Total during installation** | **~146 GB** |
 
-Le chiffre officiel « 27 Go téléchargés / 76 Go installés » (wiki Grokitach)
-est sous-estimé pour notre pipeline car le cache est conservé pour les
-mises à jour. Le cache peut être purgé après install si l'espace manque
-(mais toute mise à jour retéléchargera).
+The official figure "27 GB downloaded / 76 GB installed" (Grokitach wiki)
+is underestimated for our pipeline because the cache is kept for the
+updates. The cache can be purged after install if space is short
+(but any update will re-download).
 
-### Paquets requis
+### Required packages
 
 Fedora :
 ```bash
 sudo dnf install python3 python3-virtualenv p7zip p7zip-plugins unrar protontricks
-# unrar est dans RPM Fusion ; sinon libunrar via https://www.rarlab.com
+# unrar is in RPM Fusion ; otherwise libunrar via https://www.rarlab.com
 ```
 
 Arch :
@@ -83,71 +83,71 @@ yay -S libunrar        # AUR
 Debian/Ubuntu :
 ```bash
 sudo apt install python3 python3-venv p7zip-full libunrar5 protontricks
-# ⚠ À VALIDER : nom exact du paquet libunrar selon la version de Debian/Ubuntu
+# ⚠ TO CONFIRM: exact name of the libunrar package according to the Debian/Ubuntu version
 ```
 
-Plus : **Steam** (natif de préférence ; Flatpak fonctionne mais protontricks
-doit alors être le Flatpak `com.github.Matoking.protontricks` et les accès
-disque étendus avec Flatseal — `⚠ À VALIDER`).
+Plus: **Steam** (native if possible; Flatpak works but protontricks
+must then be the Flatpak `com.github.Matoking.protontricks` and the
+disk extended with Flatseal — `⚠ TO CONFIRM`).
 
-**Vérification** : `protontricks --version`, `7z`, `python3 --version`
-(≥ 3.10) répondent ; `df -h` montre ≥ 150 Go libres sur la cible.
+**Verification**: `protontricks --version`, `7z`, `python3 --version`
+(≥ 3.10) respond; `df -h` shows ≥ 150 GB free on the target.
 
-### Matériel
-- GPU Vulkan fonctionnel (`vulkaninfo --summary` liste un device).
-- 16 Go de RAM recommandés (8 Go = swap conseillé pendant l'install).
+### Hardware
+- Working Vulkan GPU (`vulkaninfo --summary` lists a device).
+- 16 GB of RAM recommended (8 GB = swap advised during install).
 
 ---
 
-## 2. Installation de gamma-launcher
+## 2. Installing gamma-launcher
 
-Trois méthodes (par ordre de préférence pour l'automatisation) :
+Three methods (in order of preference for automation) :
 
-**a) venv + pip (recommandée, reproductible)** :
+**a) venv + pip (recommended, reproducible)** :
 ```bash
 git clone https://github.com/Mord3rca/gamma-launcher
 cd gamma-launcher
-git checkout <dernier tag de release>      # ex. v3.1 — épingler, pas master
+git checkout <latest release tag>          # e.g. v3.1 — pin it, not master
 python3 -m venv .venv && source .venv/bin/activate
-pip install setuptools                     # requis Python ≥ 3.12
+pip install setuptools                     # required Python ≥ 3.12
 pip install .
 ```
 
-**b) Binaire de release** (autonome, buildé sur Ubuntu) : télécharger depuis
+**b) Release binary** (self-contained, built on Ubuntu): download from
 https://github.com/Mord3rca/gamma-launcher/releases, `chmod +x`.
-Piège connu : erreur `symbol lookup` sur certaines distros → lancer avec
+Known pitfall: `symbol lookup` error on certain distros → run with
 `LD_PRELOAD=/usr/lib/libreadline.so ./gamma-launcher`.
 
-**c) AUR** (Arch) : `yay -S gamma-launcher`.
+**c) AUR** (Arch): `yay -S gamma-launcher`.
 
-**Vérification** : `gamma-launcher --help` liste les sous-commandes
+**Verification**: `gamma-launcher --help` lists the subcommands
 (`anomaly-install`, `full-install`, `check-md5`, …).
 
 ---
 
-## 3. Arborescence et installation d'Anomaly
+## 3. Structure and installation of Anomaly
 
 ```bash
 mkdir -p ~/Games/stalker-gamma/{anomaly,gamma,cache}
 gamma-launcher anomaly-install --anomaly ~/Games/stalker-gamma/anomaly
 ```
 
-Le launcher télécharge Anomaly 1.5.1 + patch 1.5.2 depuis ModDB (gros
-téléchargement, reprise possible en relançant).
+The launcher downloads Anomaly 1.5.1 + patch 1.5.2 from ModDB (large
+download, resumable by re-running).
 
-⚠ Règle absolue : **chemins sans espaces ni caractères spéciaux** (les
-chemins traversent la frontière Linux→Windows via Wine ; les espaces sont
-une source classique de casse).
+⚠ Absolute rule: **paths without spaces or special characters** (the
+paths cross the Linux→Windows boundary via Wine ; spaces are
+a classic source of crashes).
 
-**Vérification** :
+**Verification**:
 ```bash
 gamma-launcher check-anomaly --anomaly ~/Games/stalker-gamma/anomaly
-ls ~/Games/stalker-gamma/anomaly/AnomalyLauncher.exe   # doit exister
+ls ~/Games/stalker-gamma/anomaly/AnomalyLauncher.exe   # must exist
 ```
 
 ---
 
-## 4. Installation du modpack G.A.M.M.A.
+## 4. Installing the G.A.M.M.A. modpack
 
 ```bash
 gamma-launcher full-install \
@@ -156,206 +156,206 @@ gamma-launcher full-install \
   --cache-directory ~/Games/stalker-gamma/cache
 ```
 
-Ce que fait cette commande : récupère la définition du modpack
-(Grokitach/Stalker_GAMMA + api stalker-gamma.com), résout les liens ModDB,
-télécharge ~400 archives dans le cache, les extrait selon les directives
-d'installation, et construit l'instance MO2 dans `gamma/` (mods, profils,
+What this command does: fetch the modpack definition
+(Grokitach/Stalker_GAMMA + api stalker-gamma.com), resolve the ModDB links,
+download ~400 archives into the cache, extract them according to the directives
+of installation, and build the MO2 instance in `gamma/` (mods, profiles,
 `ModOrganizer.exe`).
 
-C'est long (dépend du débit ; ModDB rate-limite). **Interruption = pas
-grave** : relancer la même commande reprend sur le cache.
+This is long (depends on the bandwidth; ModDB rate-limits). **Interruption = no
+problem** : re-running the same command resumes from the cache.
 
-Pièges connus :
-- `ModDB download link not found` (issue #167 amont) : miroir mort côté
-  ModDB, généralement corrigé en amont — mettre à jour gamma-launcher et
-  relancer.
-- Python 3.14 : bug d'extraction py7zr sur les grosses archives
-  (contournement documenté dans les commentaires du gist v1ld).
+Known pitfalls :
+- `ModDB download link not found` (upstream issue #167): dead mirror on the
+  ModDB side, usually fixed upstream — update gamma-launcher and
+  re-run.
+- Python 3.14: py7zr extraction bug on large archives
+  (workaround documented in the comments of the v1ld gist).
 
-**Vérification** :
+**Verification**:
 ```bash
-gamma-launcher check-md5 --gamma ~/Games/stalker-gamma/gamma   # 0 erreur
+gamma-launcher check-md5 --gamma ~/Games/stalker-gamma/gamma   # 0 errors
 ls ~/Games/stalker-gamma/gamma/ModOrganizer.exe
-ls ~/Games/stalker-gamma/gamma/profiles/                        # profil G.A.M.M.A présent
+ls ~/Games/stalker-gamma/gamma/profiles/                        # G.A.M.M.A profile present
 ```
 
 ---
 
-## 5. Retrait de ReShade (obligatoire)
+## 5. Removing ReShade (required)
 
-ReShade (injecté par le modpack pour Windows) ne fonctionne pas sous
-DXVK/Proton et casse le rendu ou le lancement :
+ReShade (injected by the modpack for Windows) does not work under
+DXVK/Proton and breaks the rendering or the launch :
 
 ```bash
 gamma-launcher remove-reshade --anomaly ~/Games/stalker-gamma/anomaly
 gamma-launcher purge-shader-cache --anomaly ~/Games/stalker-gamma/anomaly
 ```
 
-Équivalent cosmétique côté Linux : **vkBasalt**, désormais fourni par l'outil
-avec son préset « ReShade-like » (`play --vkbasalt`, ou l'interrupteur des
-Préférences) — voir docs/ARCHITECTURE.md « Couches de performance ». En
-installation manuelle : `ENABLE_VKBASALT=1` devant la commande de lancement, la
-couche lisant alors votre propre `~/.config/vkBasalt/vkBasalt.conf`.
+Cosmetic equivalent on Linux: **vkBasalt**, now provided by the tool
+with its "ReShade-like" preset (`play --vkbasalt`, or the switch of
+Preferences) — see docs/ARCHITECTURE.md "Performance layers". In
+manual installation: `ENABLE_VKBASALT=1` in front of the launch command, the
+layer then reads your own `~/.config/vkBasalt/vkBasalt.conf`.
 
-**Vérification** : plus de `ReShade*.dll` / `reshade-shaders/` dans
-`anomaly/bin/` ; `anomaly/appdata/shaders_cache/` vide ou absent.
+**Verification**: no more `ReShade*.dll` / `reshade-shaders/` in
+`anomaly/bin/` ; `anomaly/appdata/shaders_cache/` empty or missing.
 
 ---
 
-## 6. Jeu non-Steam + préfixe Proton
+## 6. Non-Steam game + Proton prefix
 
-### 6.1 Ajout à Steam
-1. Steam → *Ajouter un jeu* → *Ajouter un jeu non Steam* → parcourir vers
-   `~/Games/stalker-gamma/gamma/ModOrganizer.exe`.
-2. Propriétés de l'entrée → *Compatibilité* → cocher *Forcer l'utilisation
-   d'un outil de compatibilité* → **Proton 9 ou 10 (vanilla)**.
-3. Lancer une fois l'entrée depuis Steam (MO2 peut s'afficher ou non),
-   puis quitter : ce premier lancement **crée le préfixe**.
+### 6.1 Adding to Steam
+1. Steam → *Add a game* → *Add a non-Steam game* → browse to
+    ~/Games/stalker-gamma/gamma/ModOrganizer.exe.
+2. Entry properties → *Compatibility* → check *Force the use of
+    a compatibility tool* → **Proton 9 or 10 (vanilla)**.
+3. Run the entry once from Steam (MO2 may or may not display),
+    then quit : this first launch **creates the prefix**.
 
-**Vérification** : un nouveau dossier
-`~/.steam/steam/steamapps/compatdata/<APPID>/pfx/` est apparu (APPID
-négatif/grand nombre = jeu non-Steam ; `protontricks -l` l'affiche).
+**Verification**: a new folder
+~/.steam/steam/steamapps/compatdata/<APPID>/pfx/ has appeared (APPID
+negative/large number = non-Steam game ; `protontricks -l` shows it).
 
-### 6.2 Injection des DLL Windows
+### 6.2 Injecting the Windows DLLs
 
 ```bash
-protontricks -l          # repérer l'APPID de "ModOrganizer.exe" / du raccourci
+protontricks -l          # locate the APPID of "ModOrganizer.exe" / the shortcut
 protontricks <APPID> d3dcompiler_43 d3dcompiler_47 d3dx9 d3dx10 d3dx11_43 \
-                     dx8vb quartz vcrun2022
+                      dx8vb quartz vcrun2022
 ```
 
 Notes :
-- Ne **pas** installer `dxvk` via winetricks (Proton l'embarque déjà).
-- Avertissements de hash SHA sur `vcrun2022` : ignorables (source amont).
-- `cmd` est listé par v1ld mais échoue parfois → optionnel, skipper si erreur.
-- `dx8vb`/`quartz` (chez v1ld uniquement) : **écartés**, voir le tableau des
-  divergences plus haut. `quartz` reste le premier remède à tenter si une
-  vidéo refuse de se lire — du dépannage, pas un prérequis.
-- `d3dcompiler_43` (absent chez v1ld) : **conservé**, il est présent dans les
-  deux autres sources et ne coûte rien.
+- Do **not** install `dxvk` via winetricks (Proton already ships it).
+- SHA hash warnings on `vcrun2022` : ignorable (upstream source).
+- `cmd` is listed by v1ld but sometimes fails → optional, skip on error.
+- `dx8vb`/`quartz` (only in v1ld): **excluded**, see the table of
+   divergences above. `quartz` remains the first remedy to try if a
+   video refuses to play — troubleshooting, not a requirement.
+- `d3dcompiler_43` (absent in v1ld): **kept**, it is present in the
+   other two sources and costs nothing.
 
-**Vérification** :
+**Verification**:
 ```bash
 ls ~/.steam/steam/steamapps/compatdata/<APPID>/pfx/drive_c/windows/system32/d3dcompiler_47.dll
 ```
 
-### 6.3 Variante sans Steam (umu-launcher) — voie cible pour l'automatisation
+### 6.3 Steamless variant (umu-launcher) — target path for automation
 
-**Validée en réel le 2026-07-19** (umu 1.4.1, GE-Proton11-1, Fedora 44) pour
-la création du préfixe et l'injection des verbs — c'est le chemin principal
-de `stalker-gamma-linux` (T04, `prefix-doctor --repair`). Le lancement de MO2
-et du jeu via umu est **implémenté et validé en T05** (`mo2/launch.py`,
-commandes `mo2` et `play`). **Validé en réel le 2026-07-22** (umu 1.4.1,
-GE-Proton11-1, install GAMMA de 93 Go) : MO2 s'ouvre, `play` lance Anomaly DX11
-via `moshortcut://`, l'USVFS est monté (577 mods servis) et une partie tourne.
+**Verified in reality on 2026-07-19** (umu 1.4.1, GE-Proton11-1, Fedora 44) for
+prefix creation and verb injection — it is the main path
+of `stalker-gamma-linux` (T04, `prefix-doctor --repair`). The launch of MO2
+of the game via umu is **implemented and verified in T05** (`mo2/launch.py`,
+commands `mo2` and `play`). **Verified in reality on 2026-07-22** (umu 1.4.1,
+GE-Proton11-1, 93 GB GAMMA install): MO2 opens, `play` launches Anomaly DX11
+via `moshortcut://:Anomaly (DX11)`, USVFS is mounted (577 mods served) and part runs.
 
 ```bash
-# création du préfixe seul (sentinelle officielle umu, sans rien lancer) :
+# prefix-only creation (official umu sentinel, launching nothing) :
 WINEPREFIX=~/Games/stalker-gamma/prefix GAMEID=umu-stalkergamma \
   PROTONPATH=<compatibilitytools.d>/GE-ProtonX-Y umu-run createprefix
-# verbs (un à la fois ; protonfixes embarque winetricks) :
+# verbs (one at a time; protonfixes ships winetricks) :
 WINEPREFIX=... GAMEID=... PROTONPATH=... umu-run winetricks -q vcrun2022
-# MO2 (interface) — équivalent de `stalker-gamma-linux mo2` :
+# MO2 (interface) — equivalent of `stalker-gamma-linux mo2` :
 WINEPREFIX=... GAMEID=... PROTONPATH=... umu-run \
   ~/Games/stalker-gamma/gamma/ModOrganizer.exe
-# jeu via MO2 (USVFS) — équivalent de `stalker-gamma-linux play` :
+# game via MO2 (USVFS) — equivalent of `stalker-gamma-linux play` :
 WINEPREFIX=... GAMEID=... PROTONPATH=... umu-run \
   ~/Games/stalker-gamma/gamma/ModOrganizer.exe "moshortcut://:Anomaly (DX11)"
 ```
 
-Constat T05 (umu 1.4.1 + GE-Proton11-1, préfixe **neuf** sur un autre disque) :
-`umu-run createprefix` **crée bien** le préfixe (« Upgrading prefix from None… »)
-mais umu tente ensuite de *lancer* la sentinelle comme un exécutable et sort en
-**code non nul** (`ShellExecuteEx: Fichier introuvable`). `create_prefix` traite
-donc l'initialisation du préfixe (`system.reg`), et non le code de retour, comme
-vérité : échec de commande + préfixe initialisé = succès.
+T05 finding (umu 1.4.1 + GE-Proton11-1, **new** prefix on another disk) :
+umu-run createprefix **does create** the prefix ("Upgrading prefix from None…")
+but umu then tries to *launch* the sentinel as an executable and exits with
+**a non-zero code** (`ShellExecuteEx: Fichier introuvable`). `create_prefix` treats
+therefore the prefix initialization (`system.reg`), and not the return code, as
+truth : command failure + initialized prefix = success.
 
-Constats du test réel : umu crée le préfixe *à plat* dans `WINEPREFIX` avec
-un symlink `pfx -> .` ; la sortie Wine contient des octets non-UTF-8 (lire
-en décodage tolérant) ; le premier run télécharge le runtime Steam
-(`steamrt4`, ~500 Mo) dans `~/.local/share/umu/`. Un raccourci bureau
-`.desktop` est ensuite installé (T06) ; l'ajout à Steam en jeu non-Steam
-(pour Steam Input / mode Gaming) reste, lui, manuel via le bouton natif de
+Findings of the real test: umu creates the prefix *flat* in `WINEPREFIX` with
+a symlink `pfx -> .` ; the Wine output contains non-UTF-8 bytes (read
+with a tolerant decoding) ; the first run downloads the Steam runtime
+(`steamrt4`, ~500 MB) in `~/.local/share/umu/`. A desktop shortcut
+`.desktop` is then installed (T06) ; adding to Steam as a non-Steam game
+(for Steam Input / Gaming mode) remains, for its part, manual via the native button of
 Steam — cf. §6.1.
 
 ---
 
-## 7. Configuration de Mod Organizer 2
+## 7. Configuring Mod Organizer 2
 
-Relancer l'entrée Steam (MO2 s'ouvre dans le préfixe équipé) :
+Re-run the Steam entry (MO2 opens in the equipped prefix) :
 
-1. Si MO2 demande le type d'instance : **instance portable** (l'instance
-   livrée par GAMMA dans `gamma/` est portable).
-2. MO2 signale que le chemin d'Anomaly est invalide (normal : l'instance a
-   été construite hors Wine) → désigner le dossier du jeu :
-   `Z:\home\<user>\Games\stalker-gamma\anomaly` (les chemins Linux sont vus
-   via le lecteur `Z:` dans le préfixe).
-   Comportement connu : MO2 enchaîne dossier du jeu → dossier d'instance
-   sans confirmation explicite — c'est normal, instance = `gamma/`.
-3. Vérifier en haut à droite que le profil actif est **G.A.M.M.A** et que
-   l'exécutable sélectionné est **Anomaly (DX11)** (ou
-   `AnomalyLauncher.exe` dans le panneau de droite selon la version de
-   l'instance).
+1. If MO2 asks for the instance type: **portable instance** (the instance
+   delivered by GAMMA in `gamma/` is portable).
+2. MO2 reports that the Anomaly path is invalid (expected : the instance was
+   built outside Wine) → point to the game folder :
+   `Z:\home\<user>\Games\stalker-gamma\anomaly` (Linux paths are seen
+   via the `Z:` drive in the prefix).
+   Known behavior: MO2 goes from game folder → instance folder
+   without explicit confirmation — that's expected, instance = `gamma/`.
+3. Check in the top right that the active profile is **G.A.M.M.A** and that
+   the selected executable is **Anomaly (DX11)** (or
+   `AnomalyLauncher.exe` in the right panel depending on the version of
+   the instance).
 
-Automatisation **implémentée (T05)** : `mo2/instance.py` écrit ces valeurs
-directement dans `ModOrganizer.ini` par édition chirurgicale, supprimant toute
-interaction. Confirmé sur une vraie instance GAMMA : `gameName=STALKER Anomaly`,
-`selected_profile=@ByteArray(G.A.M.M.A)`, `gamePath` en `@ByteArray(Z:\...)`
-(backslashes doublés). Les exécutables (« Anomaly (DX11) »…) sont des
-`[customExecutables]` aux **chemins absolus baked-in** vers l'ancien dossier
-Anomaly (`binary`/`workingDirectory` en slashs avant, `arguments` en
-backslashes doublés) : `configure_instance` les **rebase** vers le dossier réel
-pour que `moshortcut://` vise le bon binaire. La commande
-`stalker-gamma-linux mo2` configure puis ouvre MO2. `mo2/session.resolve_anomaly`
-tolère les deux layouts : `<install>/anomaly` (projet) et `<gamma>/anomaly`
-(GAMMA, Anomaly imbriqué dans l'instance).
+Automation **implemented (T05)**: `mo2/instance.py` writes these values
+directly into `ModOrganizer.ini` by surgical editing, removing any
+interaction. Confirmed on a real GAMMA instance: `gameName=STALKER Anomaly`,
+`selected_profile=@ByteArray(G.A.M.M.A)`, `gamePath` in `@ByteArray(Z:\...)`
+(backslashes doubled). The executables ("Anomaly (DX11)"…) are
+`[customExecutables]` with **baked-in absolute paths** to the old folder
+Anomaly (`binary`/`workingDirectory` with forward slashes, `arguments` with
+doubled backslashes) : `configure_instance` **rebases** them to the real folder
+so that `moshortcut://` targets the right binary. The command
+stalker-gamma-linux mo2 configures then opens MO2. `mo2/session.resolve_anomaly`
+tolerates both layouts: `<install>/anomaly` (project) and `<gamma>/anomaly`
+(GAMMA, Anomaly nested in the instance).
 
-**Vérification** : la colonne de gauche de MO2 liste les ~400 mods GAMMA,
-cochés, sans triangle d'avertissement bloquant.
-
----
-
-## 8. Premier lancement du jeu
-
-1. Dans MO2 : exécutable **Anomaly (DX11)** → *Run*.
-2. Premier lancement long (compilation shaders DXVK) — ne pas tuer le
-   process avant plusieurs minutes.
-3. Dans le menu principal : vérifier la présence du menu/HUD GAMMA (preuve
-   que USVFS monte bien les mods — un Anomaly vanilla au lancement =
-   USVFS mort, voir §9).
-
-Réglages recommandés premier run : renderer DX11, plein écran fenêtré
-d'abord (alt-tab plus sûr sous Wine), puis plein écran.
-
-**Vérification finale** : nouvelle partie se charge en zone de départ ;
-l'écran ne présente pas d'artefacts massifs (sinon → §5 ReShade/shaders).
+**Verification**: the left column of MO2 lists the ~400 GAMMA mods,
+checked, without a blocking warning triangle.
 
 ---
 
-## 9. Pièges connus et remèdes
+## 8. First launch of the game
 
-| Symptôme | Cause probable | Remède |
+1. In MO2: executable **Anomaly (DX11)** → *Run*.
+2. First launch is long (DXVK shader compilation) — do not kill the
+   process for several minutes.
+3. In the main menu: check for the presence of the GAMMA menu/HUD (proof
+   that USVFS mounts the mods correctly — a vanilla Anomaly at launch =
+   USVFS dead, see §9).
+
+Recommended settings for first run: DX11 renderer, windowed fullscreen
+first (alt-tab safer under Wine), then fullscreen.
+
+**Final verification**: a new game loads in the starting zone ;
+the screen shows no major artifacts (otherwise → §5 ReShade/shaders).
+
+---
+
+## 9. Known pitfalls and remedies
+
+| Symptom | Likely cause | Remediation |
 |---|---|---|
-| Le jeu se lance **vanilla** (pas de contenu GAMMA) | USVFS ne monte pas (version Proton incompatible) | Détecté par `play` (diagnostic USVFS) ; matrice `docs/MO2-PROTON-COMPAT.md` : Proton 9/10 vanilla → GE-Proton9-20 ; dernier recours : `play --flat` (annexe A) |
-| Crash/écran noir au lancement | ReShade encore présent | §5 (`remove-reshade` + `purge-shader-cache`) |
-| Artefacts visuels, shaders cassés | Cache shaders obsolète après update | `purge-shader-cache` + supprimer `anomaly/appdata/shaders_cache` |
-| Perfs médiocres sur gros mods shaders (surtout Deck) | Screen Space Shaders / Shaders Cumulative Pack trop lourds | Désactiver ces mods dans MO2 (source : guide maxastyler) |
-| `ModDB download link not found` pendant full-install | Miroir ModDB mort | Mettre à jour gamma-launcher, relancer (cache conservé) |
-| MO2 ne démarre pas du tout | Verbs manquants dans le préfixe | Rejouer §6.2 ; vérifier vcrun2022 |
-| Erreur `symbol lookup` avec le binaire release | libreadline embarquée | `LD_PRELOAD=/usr/lib/libreadline.so` |
-| Casse aléatoire d'extraction (Python 3.14) | bug py7zr grosses archives | venv en Python 3.11–3.13, ou patch 7z système (gist v1ld) |
-| Chemins avec espaces | traduction Wine des chemins | Réinstaller dans un chemin sans espaces |
+| The game launches **vanilla** (no GAMMA content) | USVFS does not mount (incompatible Proton version) | Detected by `play` (USVFS diagnostics) ; matrix `docs/MO2-PROTON-COMPAT.md` : Proton 9/10 vanilla → GE-Proton9-20 ; last resort: `play --flat` (Annex A) |
+| Crash/black screen at launch | ReShade still present | §5 (`remove-reshade` + `purge-shader-cache`) |
+| Visual artifacts, broken shaders | Outdated shader cache after update | `purge-shader-cache` + delete `anomaly/appdata/shaders_cache` |
+| Poor perf on large shader mods (especially Deck) | Screen Space Shaders / Shaders Cumulative Pack too heavy | Disable these mods in MO2 (source : maxastyler guide) |
+| `ModDB download link not found` during full-install | Dead ModDB mirror | Update gamma-launcher, re-run (cache kept) |
+| MO2 does not start at all | Missing verbs in the prefix | Re-run §6.2 ; check vcrun2022 |
+| `symbol lookup` error with the release binary | Bundled libreadline | `LD_PRELOAD=/usr/lib/libreadline.so` |
+| Random extraction crash (Python 3.14) | py7zr bug on large archives | venv on Python 3.11–3.13, or system 7z patch (gist v1ld) |
+| Paths with spaces | Wine translation of paths | Reinstall in a path without spaces |
 
-Performance USVFS : le hooking Windows→Wine ajoute un surcoût CPU
-(context-switching). Piste d'optimisation repérée : **RadTux** (VFS natif
-Linux remplaçant les hooks USVFS de MO2) — expérimental, testé sur
-Fallout 4/MO2 2.5.2, `⚠ À VALIDER` pour GAMMA → à évaluer en T05.
+USVFS performance : the Windows→Wine hooking adds a CPU overhead
+(context-switching). An optimization lead identified: **RadTux** (native VFS
+Linux replacing MO2's USVFS hooks) — experimental, tested on
+Fallout 4/MO2 2.5.2, `⚠ TO CONFIRM` for GAMMA → to be evaluated in T05.
 
 ---
 
-## Annexe A — Mode flat (fallback sans MO2)
+## Annex A — Flat mode (fallback without MO2)
 
-Uniquement si MO2 refuse de fonctionner sur la config :
+Only if MO2 refuses to work on the config :
 
 ```bash
 gamma-launcher usvfs-workaround \
@@ -364,60 +364,60 @@ gamma-launcher usvfs-workaround \
   --final   ~/Games/stalker-gamma/flat
 ```
 
-Produit une installation fusionnée jouable sans MO2 (lancer
-`AnomalyLauncher.exe` du dossier `flat/` sous Proton). **Perte de la
-flexibilité mods** (plus d'activation/désactivation) — c'est un fallback,
-pas le mode nominal de ce projet.
+Produces a playable merged installation without MO2 (run
+`AnomalyLauncher.exe` from the `flat/` folder under Proton). **Loss of the
+mods flexibility** (no more enable/disable) — it's a fallback,
+not the nominal mode of this project.
 
-## Annexe B — Notes Steam Deck
+## Annex B — Steam Deck notes
 
-- La procédure §1-8 s'applique (SteamOS a protontricks via Discover ;
-  gamma-launcher en binaire release ou via distrobox — `⚠ À VALIDER` :
-  le binaire Ubuntu tourne-t-il tel quel sur SteamOS ?).
-- Installer sur microSD : possible mais chemins
-  `/run/media/mmcblk0p1/...` — attention au formatage ext4/btrfs (pas de
-  FAT : les liens/casse de noms cassent l'install).
-- Perfs rapportées : ~60 FPS général, ~40 FPS base Clear Sky ; désactiver
-  les mods shaders lourds (§9) améliore nettement.
-- Mode Gaming : l'entrée non-Steam apparaît normalement ; prévoir un
-  layout manette communautaire (SteamInputDB en propose pour GAMMA).
+- The §1-8 procedure applies (SteamOS has protontricks via Discover ;
+  gamma-launcher as a release binary or via distrobox — `⚠ TO CONFIRM` :
+  does the Ubuntu binary run as-is on SteamOS ?).
+- Install on microSD : possible but paths
+  `/run/media/mmcblk0p1/...` — watch out for ext4/btrfs formatting (no
+  FAT : symlinks / name case break the install).
+- Reported perf : ~60 FPS overall, ~40 FPS base Clear Sky ; disable
+  the heavy shader mods (§9) improves it considerably.
+- Gaming mode : the non-Steam entry appears normally ; provide a
+  community controller layout (SteamInputDB offers some for GAMMA).
 
-## Annexe C — Contexte : distribution GOG
+## Annex C — Context: GOG distribution
 
-Fin 2025, GOG a ajouté G.A.M.M.A. en « mod en un clic ». La première version
-de cette annexe concluait « Galaxy est Windows-only, donc sans impact direct
-pour Linux » : c'est **faux**, et vérifié comme tel le 2026-08-15. Les
-joueurs Linux passent par **Heroic**, et l'installation s'y bloque après le
-téléchargement — 130 Gio sur le disque, blocage à 100 % sur « Processing
-files », contournement en annulant puis en important les fichiers, après quoi
-le jeu ne démarre pas correctement (Heroic#5063).
+End of 2025, GOG added G.A.M.M.A. as "one-click mod". The first version
+of this annex concluded "Galaxy is Windows-only, so no direct impact
+for Linux" : it is **false**, and verified as such on 2026-08-15. The
+Linux players go through **Heroic**, and the install blocks there after the
+download — 130 GiB on disk, blocked at 100% on "Processing
+files", workaround by cancelling then importing the files, after which
+the game does not start correctly (Heroic#5063).
 
-Conséquence pour ce projet : il existe un public qui a **déjà** les fichiers
-et aucune installation exploitable. C'est exactement ce que la commande
-`import` adopte (voir `adopt.py`) — repérage par marqueurs, liens symboliques
-si le layout diffère, aucun octet retéléchargé.
+Consequence for this project: there is an audience that already has the files
+and no usable install. It is exactly what the command
+`import` adopts (see `adopt.py`) — detection by markers, symlinks
+if the layout differs, no byte re-downloaded.
 
-Reste la piste, non explorée : GOG héberge le pack, ce qui pourrait offrir à
-terme une source de téléchargement alternative à ModDB (et donc au mur
+The remaining lead, unexplored: GOG hosts the pack, which could offer in
+time a download source alternative to ModDB (and thus to the wall
 Cloudflare).
 
 ---
 
 ## Sources
 
-- Gist v1ld (guide de référence, sept. 2025) :
+- v1ld gist (reference guide, Sept. 2025) :
   https://gist.github.com/v1ld/e9069af307bd90495e0b345f3a260725
-- Mord3rca/gamma-launcher (moteur, commandes) :
+- Mord3rca/gamma-launcher (engine, commands) :
   https://github.com/Mord3rca/gamma-launcher
-- FaithBeam/stalker-gamma-cli wiki Linux :
+- FaithBeam/stalker-gamma-cli Linux wiki :
   https://github.com/FaithBeam/stalker-gamma-cli/wiki/Linux-Install
-- Wiki officiel GAMMA (comportement cible Windows) :
+- Official GAMMA wiki (Windows target behavior) :
   https://github.com/Grokitach/Stalker_GAMMA/wiki/Installing-GAMMA
-- Guide Steam Deck (maxastyler) :
+- Steam Deck guide (maxastyler) :
   https://github.com/maxastyler/S.T.A.L.K.E.R.-Gamma-Steam-Deck-Install-Guide/
-- USVFS sous Wine (thread compat MO2) :
+- USVFS under Wine (MO2 compat thread) :
   https://github.com/ModOrganizer2/modorganizer/issues/372
-- RadTux (VFS natif expérimental pour MO2) :
+- RadTux (experimental native VFS for MO2) :
   https://www.nexusmods.com/fallout4/mods/105285
-- GOG one-click GAMMA (GamingOnLinux, déc. 2025) :
+- GOG one-click GAMMA (GamingOnLinux, Dec. 2025) :
   https://www.gamingonlinux.com/2025/12/gog-add-stalker-gamma-as-a-one-click-mod-install/
