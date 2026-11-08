@@ -1,218 +1,218 @@
 # CI (T10)
 
-Trois workflows GitHub Actions, chacun avec un rôle distinct :
+Three GitHub Actions workflows, each with a distinct role:
 
-| Workflow | Déclencheur | Rôle |
+| Workflow | Trigger | Role |
 |---|---|---|
-| `ci.yml` | push sur `main`, pull request | sept jobs indépendants (voir plus bas) : lint/types/tests sur une matrice Python, fumée GUI sous Xvfb, `install.sh` réel sur quatre distributions, build du paquet, scan de secrets, audit de dépendances, vérification des noms de paquets annoncés |
-| `upstream-watch.yml` | cron quotidien, `workflow_dispatch` | détecte une nouvelle révision de `Grokitach/Stalker_GAMMA` ou `Mord3rca/gamma-launcher` ; si oui, exécute un sous-ensemble non-graphique du pipeline dans un conteneur ; ouvre une issue si ça casse |
-| `release.yml` | tag `v*` | rejoue les vérifications, publie une GitHub Release (notes générées) — plus d'artefact de packaging depuis le retrait de Flatpak/AppImage (2026-07-26) |
+| `ci.yml` | push on `main`, pull request | seven independent jobs (see below): lint/types/tests on a Python matrix, GUI smoke under Xvfb, real `install.sh` on four distributions, package build, secret scan, dependency audit, verification of advertised package names |
+| `upstream-watch.yml` | daily cron, `workflow_dispatch` | detects a new revision of `Grokitach/Stalker_GAMMA` or `Mord3rca/gamma-launcher`; if so, runs a non-graphical subset of the pipeline in a container; opens an issue if it breaks |
+| `release.yml` | tag `v*` | reruns the checks, publishes a GitHub Release (generated notes) — no more packaging artifact since the removal of Flatpak/AppImage (2026-07-26) |
 
-Aucun secret requis : tout est public (dépôt, ModDB, GitHub releases), et les
-seules écritures (commit de l'état amont, création d'issue, publication de
-release) utilisent le `GITHUB_TOKEN` par défaut avec des permissions
-explicitement scoppées par job (`contents`/`issues` seulement là où
-nécessaire — `contents: read` au niveau du workflow partout ailleurs).
-`concurrency` annule les runs `ci.yml` obsolètes du même `ref` (pushes
-rapides sur une PR) ; `upstream-watch`/`release` ne s'annulent pas entre eux
-(un run en cours ne doit pas être tué par un second déclenchement accidentel
-pendant qu'il committe ou publie).
+No secret required: everything is public (repository, ModDB, GitHub releases), and the
+only writes (committing the upstream state, creating an issue, publishing a
+release) use the default `GITHUB_TOKEN` with permissions
+explicitly scoped per job (`contents`/`issues` only where
+needed — `contents: read` at the workflow level everywhere else).
+`concurrency` cancels the obsolete `ci.yml` runs of the same `ref` (pushes
+on a PR); `upstream-watch`/`release` do not cancel each other
+a run in progress must not be killed by a second accidental trigger
+while it commits or publishes).
 
-Les actions tierces sont épinglées par SHA de commit (pas par tag mobile,
-CWE-1357/CWE-494) ; `.github/dependabot.yml` ouvre chaque semaine les PR de
-bump vers le SHA à jour pour que ces épingles ne pourrissent pas sur place.
+Third-party actions are pinned by commit SHA (not by a moving tag,
+CWE-1357/CWE-494); `.github/dependabot.yml` opens PRs every week
+bump to the up-to-date SHA so these pins do not rot in place.
 
 ## `ci.yml`
 
-Sept jobs, tous indépendants sauf `build` (qui attend `test`) :
+Seven jobs, all independent except `build` (which waits for `test`):
 
 ### `test` — lint + types + tests
 
-Piège réel rencontré en écrivant ce job (validé dans un conteneur
-`ubuntu:24.04` avant d'être commité) : l'extra `dev` de `pyproject.toml`
-inclut `PyGObject-stubs`, qui déclare une dépendance dure sur `PyGObject`
-lui-même (confirmé via `pip show PyGObject-stubs` : `Requires: PyGObject,
-typing_extensions`). Sans en-têtes système, `pip install ".[dev]"` échoue à
-la compilation de `pycairo`/`PyGObject` (pas de roue manylinux, voir
-`pyproject.toml`). D'où l'étape `apt-get install libcairo2-dev
-libgirepository-2.0-dev gir1.2-gtk-4.0 gir1.2-adw-1 pkg-config` avant
-l'install Python : `ruff`, `ruff format --check`, `mypy src` puis `pytest -q`.
+Real pitfall met while writing this job (validated in a container
+`ubuntu:24.04` before committing): the `dev` extra of `pyproject.toml`
+includes `PyGObject-stubs`, which declares a hard dependency on `PyGObject`
+itself (confirmed via `pip show PyGObject-stubs`: `Requires: PyGObject,
+typing_extensions`). Without system headers, `pip install ".[dev]"` fails to
+compile `pycairo`/`PyGObject` (no manylinux wheel, see
+`pyproject.toml`). Hence the step `apt-get install libcairo2-dev
+libgirepository-2.0-dev gir1.2-gtk-4.0 gir1.2-adw-1 pkg-config` before
+the Python install: `ruff`, `ruff format --check`, `mypy src` then `pytest -q`.
 
-Matrice **Python 3.11 à 3.15** : la 3.14 a été ajoutée car c'est ce que
-livraient Fedora 44 et Arch — donc ce que fait tourner une grande partie des
-utilisateurs et la machine de dev. Son absence signifiait que « CI verte » et
-« ça marche chez moi » ne parlaient pas de la même chose. La 3.15 a suivi le
-2026-11-07, après coup : Fedora 45 l'a livrée et l'installation y cassait (voir
-`install-script` ci-dessous).
+Matrix **Python 3.11 to 3.15**: the 3.14 was added because that is what
+Fedora 44 and Arch shipped — so what a large part of users runs and
+users and the dev machine. Its absence meant that "green CI" and
+"it works on my machine" did not refer to the same thing. The 3.15 followed on
+2026-11-07, afterwards: Fedora 45 shipped it and the install broke there (see
+`install-script` below).
 
-### `gui` — fumée GTK4 sous Xvfb
+### `gui` — GTK4 smoke under Xvfb
 
-`install.sh` finit par lancer la GUI et l'entrée de menu aussi, mais ses
-~1360 lignes de widgets n'étaient jamais importées en CI : le job `test`
-n'installe PyGObject que pour les stubs `mypy`, et `install-script` tourne
-délibérément sans GTK. Ce job construit chaque écran pour de vrai, dans un
-venv `--system-site-packages` (PyGObject vient du paquet distro, pas d'une
-roue manylinux — comme sur la machine d'un utilisateur), sous serveur X
-virtuel (`xvfb-run`), via `tests/test_gui_smoke.py`.
+`install.sh` eventually launches the GUI and the menu entry too, but its
+~1360 lines of widgets were never imported in CI: the `test` job
+only installs PyGObject for the `mypy` stubs, and `install-script` runs
+deliberately without GTK. This job builds each screen for real, in a
+venv `--system-site-packages` (PyGObject comes from the distro package, not from a
+manylinux wheel — like on a user's machine), under a virtual X server
+(`xvfb-run`), via `tests/test_gui_smoke.py`.
 
-### `install-script` — l'installeur réel sur quatre distributions
+### `install-script` — the real installer on four distributions
 
-`install.sh` est le point d'entrée de 100 % des utilisateurs (`curl | bash`)
-et n'était exécuté nulle part d'autre que sur la Fedora du mainteneur, alors
-que le README promet « any Linux distribution ». Ce job le lance pour de vrai
-dans des conteneurs Debian 12, Ubuntu 24.04, Fedora et Arch, et vérifie : le
-remède GTK affiché est celui de la bonne distribution (GTK n'est
-volontairement pas installé — le script doit s'arrêter proprement en
-recommandant la commande adaptée), le venv/raccourcis/entrée de bureau sont
-en place, la CLI installée démarre, et relancer le script est idempotent.
+`install.sh` is the entry point for 100 % of users (`curl | bash`)
+and was never run anywhere but on the maintainer's Fedora, even though
+the README promises "any Linux distribution". This job runs it for real
+in Debian 12, Ubuntu 24.04, Fedora and Arch containers, and checks: the
+GTK remedy shown is that of the right distribution (GTK is not
+deliberately installed — the script must stop cleanly by
+recommending the appropriate command), the venv/shortcuts/desktop entry are
+in place, the installed CLI starts, and re-running the script is idempotent.
 
-Le premier passage se fait **sans compilateur**, comme chez un joueur. Sur
-Fedora 45 (Python 3.15), `inflate64`, `pybcj` et `pyppmd` — tirées par `py7zr`,
-que `gamma-launcher` importe au chargement — n'ont aucune roue, et la
-distribution ne les empaquette pas : pip doit les compiler. Le job vérifie alors
-qu'`install.sh` s'arrête sur le remède de la distribution (`build_hint` de la
-matrice, miroir d'`INSTALL_COMMANDS["build-tools"]`), l'applique
-(`build_tools`) et relance. Le jour où l'amont publie les roues, le premier
-passage réussit et ce repli ne sert plus, sans rien à retoucher.
+The first pass is done **without a compiler**, like on a player's machine. On
+Fedora 45 (Python 3.15), `inflate64`, `pybcj` and `pyppmd` — pulled in by `py7zr`,
+that `gamma-launcher` imports at load — have no wheel, and the
+distribution does not package them: pip must compile them. The job then verifies
+that `install.sh` stops on the distribution's remedy (`build_hint` of the
+matrix, mirror of `INSTALL_COMMANDS["build-tools"]`), applies it
+(`build_tools`) and reruns. The day upstream ships the wheels, the first
+pass succeeds and this fallback no longer serves any purpose, with nothing to change.
 
-### `build` — construction du paquet
+### `build` — package build
 
-`python -m build` (sdist + wheel), dépend de `test`. Artefact conservé
-14 jours.
+`python -m build` (sdist + wheel), depends on `test`. Artifact kept
+14 days.
 
 ### `secrets` — gitleaks
 
-Les règles du projet interdisent tout secret en dur ; ce job le vérifie au
-lieu de s'appuyer sur la seule revue humaine. `gitleaks` scanne **l'historique
-complet** (`fetch-depth: 0`), pas seulement l'arbre de travail — une clé
-committée puis retirée reste exploitable tant qu'elle est dans les objets
-git. Binaire épinglé par version et vérifié par somme SHA-256 (pas l'action
-officielle, qui exige une clé de licence pour un dépôt d'organisation).
+The project rules forbid any hard-coded secret; this job checks it at
+place of relying on human review alone. `gitleaks` scans **the complete
+history** (`fetch-depth: 0`), not just the working tree — a key
+committed then removed stays exploitable as long as it is in the git objects
+git. Binary pinned by version and verified by SHA-256 sum (not the action
+official, which requires a license key for an organization repository).
 
-### `deps` — pip-audit (non bloquant)
+### `deps` — pip-audit (non-blocking)
 
-`constraints.txt` fige la clôture transitive, mais figer n'est pas auditer :
-une version épinglée ne bouge pas quand un avis de sécurité tombe dessus.
-Ce job installe la clôture épinglée (Python 3.11, la plus large : `py7zr` n'y
-tire `backports.zstd` que sous 3.14) et interroge `pip-audit` sur
-l'environnement réellement installé. `continue-on-error: true` pour
-l'instant — à rendre bloquant quand plusieurs semaines seront vertes d'affilée
-et qu'une porte de sortie écrite existera pour les alertes non corrigeables en
-amont.
+`constraints.txt` freezes the transitive closure, but freezing is not auditing:
+a pinned version does not move when a security advisory lands on it.
+This job installs the pinned closure (Python 3.11, the widest: `py7zr` only pulls
+`backports.zstd` only under 3.14) and queries `pip-audit` on
+the actually installed environment. `continue-on-error: true` for
+now — to make it blocking when several weeks will be green in a row
+and a written escape route will exist for unfixable alerts
+upstream.
 
-### `package-names` — les paquets annoncés existent-ils vraiment ?
+### `package-names` — do the advertised packages really exist?
 
-Les noms de paquets pourrissent en silence (constaté le 2026-08-16 : `p7zip`
-avait disparu de Fedora/Arch au profit de `7zip`, et `libunrar5t64` n'existe
-pas sur Debian 13). Ce job interroge chaque distribution (Debian 12, Ubuntu
-24.04, Fedora, Arch, dépôts non-free/multilib activés comme le fait le remède
-affiché à l'utilisateur) pour vérifier que les noms extraits de
-`environment/commands.py` existent réellement chez elle. N'installe rien.
+Package names rot in silence (observed on 2026-08-16: `p7zip`
+had disappeared from Fedora/Arch in favor of `7zip`, and `libunrar5t64` does not
+exist on Debian 13. This job queries each distribution (Debian 12, Ubuntu
+24.04, Fedora, Arch, non-free/multilib repositories enabled like the remedy
+shown to the user) checks that the names extracted from
+`environment/commands.py` really exist there. Installs nothing.
 
 ## `upstream-watch.yml`
 
-### Suivi d'état
+### Status tracking
 
-`Grokitach/Stalker_GAMMA` ne publie **ni tags ni GitHub Releases** (vérifié
-via l'API : listes vides des deux côtés) — le seul signal de nouveauté est
-le dernier commit de sa branche par défaut (`main`). `Mord3rca/gamma-launcher`
-publie de vraies Releases (`v3.1` au moment d'écrire ceci, la même version
-épinglée dans `pyproject.toml`). D'où deux mécanismes différents dans
-`scripts/check_upstream_state.py` :
+`Grokitach/Stalker_GAMMA` publishes **neither tags nor GitHub Releases** (verified
+via the API: empty lists on both sides) — the only novelty signal is
+the last commit of its default branch (`main`). `Mord3rca/gamma-launcher`
+publishes real Releases (`v3.1` at the time of writing this, the same version
+pinned in `pyproject.toml`). Hence two different mechanisms in
+`scripts/check_upstream_state.py`:
 
-- `stalker_gamma` : `GET /repos/Grokitach/Stalker_GAMMA/commits/main` → sha.
-- `gamma_launcher` : `GET /repos/Mord3rca/gamma-launcher/releases/latest` →
-  tag, puis `GET .../tags` pour résoudre le sha du commit correspondant.
+- `stalker_gamma`: `GET /repos/Grokitach/Stalker_GAMMA/commits/main` → sha.
+- `gamma_launcher`: `GET /repos/Mord3rca/gamma-launcher/releases/latest` →
+  tag, then `GET .../tags` to resolve the sha of the matching commit.
 
-L'état connu est committé dans `.github/upstream-state.json` (préseedé avec
-les révisions réellement validées pendant le développement de T10 :
-`ab0f743a…` / `v3.1` @ `ade656e0…`) — **seulement avancé si le job
-d'intégration qui suit a réussi** (job `report`, branche succès). Une
-régression amont laisse donc l'état inchangé : le run du lendemain la
-redétecte et re-signale (commente l'issue existante au lieu d'en recréer une
-— label `upstream-regression`), au lieu de la marquer silencieusement comme
-« vue ».
+The known state is committed in `.github/upstream-state.json` (preseeded with
+the revisions actually validated during the development of T10:
+`ab0f743a…` / `v3.1` @ `ade656e0…`) — **only** advanced if the job
+of integration that follows has succeeded** (`report` job, success branch). A
+upstream regression therefore leaves the state unchanged: the next day's run
+re-detects and re-reports (comments the existing issue instead of recreating one
+— label `upstream-regression`), instead of silently marking it as
+"seen".
 
-### Job d'intégration : pourquoi un conteneur, et pourquoi si peu
+### Integration job: why a container, and why so little
 
-`scripts/upstream_smoke_test.py` exécute, sur un sous-ensemble minimal :
+`scripts/upstream_smoke_test.py` runs, on a minimal subset:
 
-1. `doctor` (informatif seulement — un conteneur CI n'a ni Steam ni GPU,
-   c'est attendu, jamais bloquant ici).
-2. Récupération de `modlist.txt` + `modpack_maker_list.txt` via
-   `raw.githubusercontent.com` (quelques dizaines de Ko) — **pas** le clone
-   de `Grokitach/Stalker_GAMMA`, dont l'archive complète pèse **674 Mo**
-   (constaté en testant : bien trop pour un check quotidien).
-3. Parsing via `launcher.mods.read_mod_maker` — le vrai parseur de
-   gamma-launcher, pour détecter une régression du format amont.
-4. Téléchargement + installation « à blanc » (répertoire temporaire) de 2
-   mods ModDB (`--mod-count`), jamais les ~700 du modpack complet : c'est le
-   chemin le plus fragile (mirroring ModDB + Cloudflare via `cloudscraper`),
-   donc celui qui vaut la peine d'être vérifié, mais aussi celui où il faut
-   le moins solliciter ModDB (rate-limits). Un `actions/cache` garde les
-   archives téléchargées entre runs, clé sur le sha de `Stalker_GAMMA` : une
-   même révision retestée (ex. `workflow_dispatch --force` répété) ne
-   retape jamais ModDB.
+1. `doctor` (informational only — a CI container has no Steam or GPU,
+   that is expected, never blocking here).
+2. Fetching `modlist.txt` + `modpack_maker_list.txt` via
+   `raw.githubusercontent.com` (a few tens of KB) — **not** the clone
+   of `Grokitach/Stalker_GAMMA`, whose complete archive weighs **674 MB**
+   (observed while testing: far too much for a daily check).
+3. Parsing via `launcher.mods.read_mod_maker` — the real parser of
+   gamma-launcher, to detect an upstream format regression.
+4. Download + installation "dry run" (temporary directory) of 2
+   ModDB mods (`--mod-count`), never the ~700 of the complete modpack: it is the
+   most fragile path (ModDB + Cloudflare mirroring via `cloudscraper`),
+   so the one worth verifying, but also the one where you must
+   solicit ModDB the least (rate-limits). An `actions/cache` keeps the
+   downloaded archives between runs, key on the sha of `Stalker_GAMMA`: a
+   same revision retested (e.g. `workflow_dispatch --force` repeated) never
+   taps ModDB again.
 
-Deux entrées sont explicitement exclues de la sélection (`skip_names`/
-`skip_titles` dans le script) : ce sont des placeholders ModDB connus
-(archive vide/invalide) que `FullInstall._install_mods()` lui-même saute
-toujours en amont (`gamma-launcher/launcher/commands/install.py`) — les
-inclure sans discernement aurait fait échouer le smoke test sur un problème
-déjà connu et géré, pas sur une vraie régression (rencontré pour de vrai en
-testant : `FDDA Redone Fixes`, une archive de 147 octets, casse
-l'installation FOMOD avec `AttributeError` avant l'exclusion).
+Two entries are explicitly excluded from the selection (`skip_names`/
+`skip_titles` in the script): these are known ModDB placeholders
+(empty/invalid archive) that `FullInstall._install_mods()` itself skips
+always upstream (`gamma-launcher/launcher/commands/install.py`) — including
+them without discernment would have failed the smoke test on a problem
+already known and handled, not on a real regression (encountered for real while
+testing: `FDDA Redone Fixes`, a 147-byte archive, breaks
+the FOMOD installation with `AttributeError` before the exclusion).
 
-Le job tourne dans `container: image: ubuntu:24.04` (pas juste le runner
-nu) : `read_mod_maker`/l'extraction d'archives importent `unrar` (ctypes) au
-chargement du module, qui cherche `libunrar.so` — absent d'une image de base
-et absent de `python:3.x-slim` (Debian, testé : `libunrar5` n'existe dans
-aucun composant activé par défaut). `ubuntu:24.04` a `multiverse` activé
-d'origine et y fournit `libunrar5t64` — **testé pour de vrai** (`ldconfig -p`
-trouve `libunrar.so.5`, `import unrar.unrarlib` réussit) avant d'écrire le
-workflow. Dépendances système minimales : `python3 python3-venv python3-pip
-libunrar5 p7zip-full git curl ca-certificates` — pas de PyGObject/GTK ici,
-`doctor` ne touche jamais ce chemin (`check_gtk_gui` n'est pas dans
-`build_report`, voir `environment/checks.py`).
+The job runs in `container: image: ubuntu:24.04` (not just the runner
+nu): `read_mod_maker`/archive extraction import `unrar` (ctypes) at
+module load, which looks for `libunrar.so` — absent from a base image
+and absent from `python:3.x-slim` (Debian, tested: `libunrar5` does not exist in
+component enabled by default). `ubuntu:24.04` has `multiverse` enabled
+by default and provides `libunrar5t64` there — **tested for real** (`ldconfig -p`
+finds `libunrar.so.5`, `import unrar.unrarlib` succeeds) before writing the
+workflow. Minimal system dependencies: `python3 python3-venv python3-pip
+libunrar5 p7zip-full git curl ca-certificates` — no PyGObject/GTK here,
+`doctor` never touches this path (`check_gtk_gui` is not in
+`build_report`, see `environment/checks.py`).
 
-Testé pour de vrai avant de committer (mêmes commandes que le workflow, dans
-un conteneur `ubuntu:24.04` avec accès réseau réel) : les deux mods se
-téléchargent depuis les vrais miroirs ModDB (Cloudflare inclus), s'extraient
-(zip + 7z), et `read_mod_maker` parse 486 entrées de la vraie révision
-amont — voir l'historique du projet pour la sortie complète.
+Tested for real before committing (same commands as the workflow, in
+a container `ubuntu:24.04` with real network access): the two mods
+download from the real ModDB mirrors (Cloudflare included), extract
+(zip + 7z), and `read_mod_maker` parses 486 entries of the real upstream
+revision — see the project history for the complete output.
 
-### Testable manuellement
+### Testable manually
 
-`workflow_dispatch` avec `force: true` lance le job d'intégration même sans
-changement détecté (`changed` devient `true` inconditionnellement) — utile
-pour vérifier la chaîne complète, y compris l'ouverture d'issue en cas
-d'échec réel, sans attendre une vraie release amont.
+`workflow_dispatch` with `force: true` runs the integration job even without
+change detected (`changed` becomes `true` unconditionally) — useful
+to check the complete chain, including opening an issue in case
+of real failure, without waiting for a real upstream release.
 
 ## `release.yml`
 
-Un tag `v*` : rejoue lint/types/tests (les tags ne passent pas forcément
-par une PR déjà vérifiée par `ci.yml`, qui ne se déclenche que sur `main`),
-vérifie que le tag correspond à `version` dans `pyproject.toml` (échoue avant
-de publier plutôt que de laisser passer une release mal étiquetée), puis
-publie la GitHub Release. Si `docs/release-notes/<tag>.md` existe, son
-contenu devient les notes (titre = premier `#`, reste du fichier = corps) —
-la liste de commits générée par GitHub s'adresse à quelqu'un qui connaît déjà
-le projet, pas au joueur qui découvre la release. Sans ce fichier,
-`gh release create --generate-notes` prend le relais (notes auto-générées à
-partir des PRs/commits depuis le tag précédent). Pas d'artefact à construire
-(le seul canal de distribution est `install.sh`, qui clone le repo).
+A tag `v*`: reruns lint/types/tests (tags do not necessarily go
+through a PR already verified by `ci.yml`, which only triggers on `main`),
+checks that the tag matches `version` in `pyproject.toml` (fails before
+publishing rather than letting a mislabeled release pass), then
+publishes the GitHub Release. If `docs/release-notes/<tag>.md` exists, its
+content becomes the notes (title = first `#`, rest of the file = body) —
+the commit list generated by GitHub is for someone who already knows
+the project, not the player discovering the release. Without this file,
+`gh release create --generate-notes` takes over (auto-generated notes
+from PRs/commits since the previous tag). No artifact to build
+(the only distribution channel is `install.sh`, which clones the repo).
 
-**Historique (T10, 2026-07-23)** : ce workflow construisait aussi un
-AppImage et un bundle Flatpak et les attachait à la release
+**History (T10, 2026-07-23)**: this workflow also built an
+AppImage and a Flatpak bundle and attached them to the release
 (`stalker-gamma-linux-x86_64.AppImage`, `org.stalkergammalinux.Gui.flatpak`
 — tag `v0.1.0`, https://github.com/Fleorens/stalker-gamma-linux/releases/tag/v0.1.0).
-Ces deux jobs (`build-appimage`, `build-flatpak`) ont été retirés le
-2026-07-26 avec le reste du packaging Flatpak/AppImage (voir
-`docs/ARCHITECTURE.md` « Packaging : Flatpak/AppImage retirés »).
+These two jobs (`build-appimage`, `build-flatpak`) were removed on
+2026-07-26 with the rest of the Flatpak/AppImage packaging (see
+`docs/ARCHITECTURE.md` "Packaging: Flatpak/AppImage removed").
 
-## Ce qui n'est pas testé en conditions CI réelles
+## What is not tested under real CI conditions
 
-- Steam Deck / SteamOS réel : aucun accès à une vraie machine SteamOS.
-  Les trois workflows (`ci.yml`, `upstream-watch.yml` via
-  `workflow_dispatch --force`, `release.yml` sur un vrai tag) ont, eux,
-  tous tourné avec succès sur GitHub pendant le développement de T10.
+- Real Steam Deck / SteamOS: no access to a real SteamOS machine.
+  The three workflows (`ci.yml`, `upstream-watch.yml` via
+  `workflow_dispatch --force`, `release.yml` on a real tag) have, themselves,
+  all run successfully on GitHub during the development of T10.
