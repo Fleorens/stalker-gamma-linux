@@ -1,399 +1,399 @@
-# Matrice de compatibilité MO2 × Proton × USVFS (état de l'art 2025-2026)
+# MO2 × Proton × USVFS compatibility matrix (state of the art 2025-2026)
 
-> **Rôle de ce document** : arbitrer le choix de la version de Proton pour le
-> **mode principal** de `stalker-gamma-linux` — Mod Organizer 2 tournant sous
-> Proton avec **USVFS actif**, seul moyen de préserver la flexibilité des mods
-> (activer/désactiver/ajouter) demandée par le projet.
+> **Role of this document**: arbitrate the choice of Proton version for the
+> **main mode** of `stalker-gamma-linux` — Mod Organizer 2 running under
+> Proton with **USVFS active**, the only way to preserve mod flexibility
+> (enable/disable/add) required by the project.
 >
-> Il est référencé par le code : le diagnostic post-lancement
-> (`mo2/diagnostics.py`) renvoie l'utilisateur ici quand il détecte un USVFS
-> mort (jeu lancé « vanilla »). Rédigé le 2026-07-22 à partir des sources
-> croisées listées en fin de document.
+> It is referenced by the code: the post-launch diagnostic
+> (`mo2/diagnostics.py`) sends the user here when it detects a dead USVFS
+> dead (game launched "vanilla"). Written on 2026-07-22 from cross-referenced
+> sources listed at the end of this document.
 
-## TL;DR — recommandation
+## TL;DR — recommendation
 
-1. **Défaut du projet : la dernière release GE-Proton** (décision utilisateur
-   2026-07-19, gérée par `prefix/`). Sur Wine 9/10, USVFS fonctionne dans la
-   très grande majorité des cas — **validé en réel le 2026-07-22** avec
-   **GE-Proton11-1** sur une install GAMMA complète (MO2 ouvert, 577 mods
-   servis via USVFS, Anomaly DX11 lancé et joué).
-2. **Si le jeu démarre en « vanilla » (0 mod, USVFS mort)** — symptôme n°1 de
-   ce document — bascule sur **Proton 9.0 ou 10.0 *vanilla* de Steam** : c'est
-   la combinaison la plus fiable et la plus rapportée pour USVFS + MO2. Le
-   `prefix/` accepte déjà « Proton - Experimental » ; pour un GE/vanilla précis,
-   pose-le dans `compatibilitytools.d` et relance.
-3. **Ne jamais** rester sous **Proton ≤ 8.x / GE-Proton8-x** avec le MO2 2.5.x
-   livré par GAMMA : ces builds sont **sous Wine 8.0**, antérieurs au correctif
-   USVFS requis (voir « Pourquoi ça casse »). C'est le piège le plus courant.
+1. **Project default: the latest GE-Proton release** (user decision
+   2026-07-19, handled by `prefix/`). On Wine 9/10, USVFS works in the
+   vast majority of cases — **validated in the field on 2026-07-22** with
+   **GE-Proton11-1** on a complete GAMMA install (MO2 open, 577 mods
+   served via USVFS, Anomaly DX11 launched and played).
+2. **If the game starts in "vanilla" (0 mod, dead USVFS)** — symptom No. 1 of
+   this document — switch to **Proton 9.0 or 10.0 *vanilla* from Steam**: it's
+   the most reliable and most reported combination for USVFS + MO2. The
+   `prefix/` already accepts "Proton - Experimental"; for a precise GE/vanilla,
+   put it in `compatibilitytools.d` and relaunch.
+3. **Never** stay under **Proton ≤ 8.x / GE-Proton8-x** with the MO2 2.5.x
+   shipped by GAMMA: these builds are **under Wine 8.0**, predating the required
+   USVFS fix (see "Why it breaks"). It's the most common trap.
 
-Le mode **flat** (`gamma-launcher usvfs-workaround`, annexe A de
-`INSTALL-MANUAL.md`) reste le dernier recours si aucune version de Proton ne
-monte l'USVFS sur la machine — au prix de la flexibilité des mods.
+The **flat** mode (`gamma-launcher usvfs-workaround`, annex A of
+`INSTALL-MANUAL.md`) remains the last resort if no Proton version
+mounts USVFS on the machine — at the cost of mod flexibility.
 
-## Pourquoi ça casse (racine technique)
+## Why it breaks (technical root cause)
 
-MO2 ne copie pas les mods dans le jeu : il monte un **système de fichiers
-virtuel local au processus** (USVFS, `usvfs_x64.dll`) par *API hooking* des
-appels fichiers Windows. Seuls les processus lancés **depuis MO2** voient cet
-overlay — d'où l'obligation de lancer le jeu *à travers* MO2 (`moshortcut://`),
-et non l'exécutable directement.
+MO2 does not copy mods into the game: it mounts a **local virtual file
+system local to the process** (USVFS, `usvfs_x64.dll`) by *API hooking* of
+Windows file calls. Only processes launched **from MO2** see this
+overlay — hence the obligation to launch the game *through* MO2 (`moshortcut://`),
+and not the executable directly.
 
-Sous Wine/Proton, ce hooking exige des syscalls Windows récents que Wine n'a
-implémentés que tardivement :
+Under Wine/Proton, this hooking requires recent Windows syscalls that Wine
+implemented only late:
 
-- **Wine bug 46697** : USVFS (MO2 ≥ 2.1.1) réclame
-  `ntdll.NtQueryDirectoryFileEx` (syscall Windows 10 build 1709+). Les deux
-  correctifs nécessaires ont d'abord atterri autour de **Wine 4.21**.
-- **MO2 2.5.x** (la lignée livrée par GAMMA) va plus loin et exige un correctif
-  supplémentaire **disponible seulement à partir de Wine 8.21** : en nov. 2023,
-  *aucun* build Proton/GE ne l'embarquait encore, et SteamTinkerLaunch épinglait
-  MO2 **2.4.4** en attendant. Ce correctif est aujourd'hui présent dans toute la
-  lignée **Wine 9.x / 10.x**, donc dans **Proton 9.0, 10.0** et les GE-Proton
-  correspondants.
-- **Observé en réel (GE-Proton11-1, Wine 10, usvfs 0.5.6.1)** : usvfs échoue à
-  hooker `NtQueryDirectoryFileEx` (`failed to hook NtQueryDirectoryFileEx: No
-  Error`) mais **hooke l'ancien `NtQueryDirectoryFile`** et le VFS fonctionne
-  parfaitement. Le correctif « Ex » de Wine 8.21 n'est donc pas strictement
-  requis sur cette pile ; le hook de repli suffit à GAMMA.
-- **Régressions propres à GE** : historiquement, USVFS a fonctionné sous le
-  Proton *vanilla* de Valve tout en **échouant sur certains builds GE** (patchs
-  additionnels de GE qui régressaient le hooking), *alors même* que le correctif
-  Wine était présent. C'est exactement le scénario « le jeu se lance mais en
-  vanilla » : Wine assez récent, mais VFS non monté. D'où la règle : GE par
-  défaut, **repli sur Proton vanilla 9/10 si le diagnostic échoue**.
+- **Wine bug 46697**: USVFS (MO2 ≥ 2.1.1) requires
+  `ntdll.NtQueryDirectoryFileEx` (Windows 10 build 1709+ syscall). The two
+  required fixes first landed around **Wine 4.21**.
+- **MO2 2.5.x** (the lineage shipped by GAMMA) goes further and requires a
+  additional fix **available only from Wine 8.21**: in Nov. 2023,
+  *no* Proton/GE build carried it yet, and SteamTinkerLaunch pinned
+  MO2 **2.4.4** meanwhile. This fix is today present throughout the
+  lineage **Wine 9.x / 10.x**, hence in **Proton 9.0, 10.0** and the GE-Proton
+  equivalents.
+- **Observed in the field (GE-Proton11-1, Wine 10, usvfs 0.5.6.1)**: usvfs fails to
+  hook `NtQueryDirectoryFileEx` (`failed to hook NtQueryDirectoryFileEx: No
+  Error`) but **hooks the old `NtQueryDirectoryFile`** and the VFS works
+  perfectly. The "Ex" fix of Wine 8.21 is therefore not strictly
+  required on this stack; the fallback hook is enough for GAMMA.
+- **GE-specific regressions**: historically, USVFS worked under the
+  Proton *vanilla* from Valve while **failing on certain GE builds** (additional
+  GE patches that regressed the hooking), *even while* the
+  Wine fix was present. This is exactly the "the game launches but in
+  vanilla" scenario: Wine recent enough, but VFS not mounted. Hence the rule: GE by
+  default, **fallback to Proton vanilla 9/10 if the diagnostic fails**.
 
-Surcoût connu : le hooking Windows→Wine ajoute un coût CPU (context-switching)
-sensible sur les gros modpacks comme GAMMA. Piste native expérimentale :
-**RadTux** (remplace les hooks USVFS par un démon VFS Linux) — hors périmètre,
-`⚠ À VALIDER` pour GAMMA.
+Known overhead: Windows→Wine hooking adds a noticeable CPU cost (context-switching)
+on large modpacks like GAMMA. Experimental native lead:
+**RadTux** (replaces USVFS hooks with a Linux VFS daemon) — out of scope,
+`⚠ TO CONFIRM` for GAMMA.
 
-## Matrice
+## Matrix
 
-Statut : ✅ fonctionne · ⚠️ variable/à surveiller · ❌ cassé. « MO2 GAMMA »
-désigne la lignée **2.5.x** empaquetée dans l'instance livrée par
+Status: ✅ works · ⚠️ variable/watch · ❌ broken. "MO2 GAMMA"
+designates the lineage **2.5.x** packed in the instance shipped by
 gamma-launcher.
 
 | MO2 | Proton / GE | Base Wine | USVFS | Notes & source |
 |---|---|---|---|---|
-| 2.5.x (GAMMA) | **Proton 10.0** (vanilla Steam) | 10.x | ✅ | Recommandé 2025 par les guides GAMMA (v1ld). Le plus fiable avec 9.0. |
-| 2.5.x (GAMMA) | **Proton 9.0** (vanilla Steam) | 9.x | ✅ | « Proton 9.0 recommandé » (modorganizer2-linux-installer). Valeur sûre. |
-| 2.5.x (GAMMA) | **Proton - Experimental** | 10.x+ | ⚠️ | Contient les derniers correctifs, mais bouge chaque semaine : peut casser puis se réparer. Accepté par `prefix/` en l'absence de GE. |
-| 2.5.x (GAMMA) | **GE-Proton11-1** | 10.x | ✅ | **Validé en réel (2026-07-22)** : USVFS 0.5.6.1 monté, 577 mods servis, partie jouée. C'est le défaut du projet. |
-| 2.5.x (GAMMA) | **GE-Proton10-x (dernier)** | 10.x | ⚠️→✅ | OK sur les builds récents ; en cas de « vanilla », repli vanilla 9/10. |
-| 2.5.x (GAMMA) | **GE-Proton9-20** | 9.x | ✅ | Version GE explicitement citée comme fonctionnelle (wiki FaithBeam). Bon repli GE épinglé. |
-| 2.5.x (GAMMA) | **GE-Proton8-x** | 8.0 | ❌ | Antérieur à Wine 8.21 → correctif MO2 2.5 absent. À éviter. |
-| 2.5.x (GAMMA) | **Proton ≤ 8.0** (vanilla) | ≤ 8.0 | ❌ | Idem : MO2 2.5.x ne monte pas l'USVFS. Piège classique. |
-| 2.4.4 | Proton 7/8 | 7–8 | ✅ | Combinaison de repli historique de SteamTinkerLaunch. Hors périmètre (GAMMA livre 2.5.x). |
-| toute | Proton 5.0–9 (vanilla) | ≥ 4.21 | ✅ (jeux Bethesda) | USVFS OK sous Proton vanilla « mais pas les builds GE » à l'époque (rockerbacon). Illustre la régression GE. |
+| 2.5.x (GAMMA) | **Proton 10.0** (vanilla Steam) | 10.x | ✅ | Recommended 2025 by GAMMA guides (v1ld). Most reliable with 9.0. |
+| 2.5.x (GAMMA) | **Proton 9.0** (vanilla Steam) | 9.x | ✅ | "Proton 9.0 recommended" (modorganizer2-linux-installer). Safe bet. |
+| 2.5.x (GAMMA) | **Proton - Experimental** | 10.x+ | ⚠️ | Contains the latest fixes, but changes every week: may break then self-heal. Accepted by `prefix/` when no GE is available. |
+| 2.5.x (GAMMA) | **GE-Proton11-1** | 10.x | ✅ | **Validated in the field (2026-07-22)**: USVFS 0.5.6.1 mounted, 577 mods served, a playthrough played. This is the project default. |
+| 2.5.x (GAMMA) | **GE-Proton10-x (latest)** | 10.x | ⚠️→✅ | OK on recent builds; in case of "vanilla", fallback vanilla 9/10. |
+| 2.5.x (GAMMA) | **GE-Proton9-20** | 9.x | ✅ | GE version explicitly cited as working (wiki FaithBeam). Good pinned GE fallback. |
+| 2.5.x (GAMMA) | **GE-Proton8-x** | 8.0 | ❌ | Before Wine 8.21 → MO2 2.5 fix absent. To avoid. |
+| 2.5.x (GAMMA) | **Proton ≤ 8.0** (vanilla) | ≤ 8.0 | ❌ | Same: MO2 2.5.x does not mount USVFS. A classic trap. |
+| 2.4.4 | Proton 7/8 | 7–8 | ✅ | Historical SteamTinkerLaunch fallback combination. Out of scope (GAMMA ships 2.5.x). |
+| all | Proton 5.0–9 (vanilla) | ≥ 4.21 | ✅ (Bethesda games) | USVFS OK under Proton vanilla "but not the GE builds" back then (rockerbacon). Illustrates the GE regression. |
 
-> Les cellules ⚠️ ne veulent pas dire « ne pas utiliser » : elles disent
-> « laisse le diagnostic post-lancement décider et prépare le repli ». Le GE le
-> plus récent est le défaut *justement* parce qu'il apporte les autres
-> correctifs de jeu ; on ne renonce à lui que si USVFS ne monte pas.
+> The ⚠️ cells do not mean "do not use": they mean
+> "let the post-launch diagnostic decide and prepare the fallback". The most recent GE
+> is the default *precisely* because it brings the other
+> game fixes; we only give it up if USVFS does not mount.
 
-## Symptôme → remède (utilisé par le diagnostic)
+## Symptom → remedy (used by diagnostics)
 
-| Symptôme observé | Cause probable | Remède (par ordre) |
+| Observed symptom | Likely cause | Remedy (in order) |
 |---|---|---|
-| Le jeu démarre mais **sans contenu GAMMA** (menu/HUD vanilla) ; le log USVFS de l'instance n'affiche pas `proxy run successful` | **USVFS mort** : version de Proton incompatible, ou jeu lancé hors MO2 | 1) Vérifier qu'on lance bien via `moshortcut://` (mode `play`, pas l'exe direct). 2) Passer en **Proton 9.0/10.0 vanilla**. 3) Essayer **GE-Proton9-20**. 4) Dernier recours : **mode flat** (`play --flat`). |
-| MO2 s'ouvre mais **0 mod actif** | Mauvais dossier de jeu / profil, instance non configurée | Reconfigurer l'instance (`gamePath` → dossier Anomaly, profil `G.A.M.M.A`) — automatisé par `mo2/instance.py`. |
-| MO2 **ne démarre pas du tout**, journal de lancement mentionnant `concrt140.dll`, `msvcp140.dll` ou `vcruntime140.dll` | Runtimes VC++ 2015-2022 manquants dans le préfixe (verbs non posés, ou préfixe bricolé/partiellement réparé) | `stalker-gamma-linux prefix-doctor --repair` (repose les verbs manquants). |
-| Erreur Wine illisible au lancement : `wine client error:0: version mismatch`, `wrong wineserver`, `prefix has an invalid version`, `your wine binary was not upgraded correctly` | Le préfixe partagé a été construit par une **autre version de Proton** que celle configurée. Ce n'est **pas** un problème de sélection du `wineserver` (mesuré, cf. « `WINESERVER` sous umu ») : c'est le contrôle de version du préfixe par Proton | `stalker-gamma-linux install --only prefix` (reconstruit le préfixe à partir de zéro avec le Proton actuellement configuré). |
-| Perfs médiocres (gros mods shaders) | Surcoût USVFS + shaders lourds | Désactiver Screen Space Shaders / Shaders Cumulative Pack ; évaluer RadTux (`⚠ À VALIDER`). |
+| The game starts but **without GAMMA content** (vanilla menu/HUD); the instance USVFS log does not show `proxy run successful` | **Dead USVFS**: incompatible Proton version, or game launched outside MO2 | 1) Check that you launch via `moshortcut://` (`play` mode, not the direct exe). 2) Switch to **Proton 9.0/10.0 vanilla**. 3) Try **GE-Proton9-20**. 4) Last resort: **flat mode** (`play --flat`). |
+| MO2 opens but **0 active mods** | Wrong game folder / profile, instance not configured | Reconfigure the instance (`gamePath` → Anomaly folder, profile `G.A.M.M.A`) — automated by `mo2/instance.py`. |
+| MO2 **does not start at all**, launch log mentioning `concrt140.dll`, `msvcp140.dll` or `vcruntime140.dll` | Missing VC++ 2015-2022 runtimes in the prefix (verbs not set, or a cobbled/partially repaired prefix) | `stalker-gamma-linux prefix-doctor --repair` (replaces the missing verbs). |
+| Unreadable Wine error at launch: `wine client error:0: version mismatch`, `wrong wineserver`, `prefix has an invalid version`, `your wine binary was not upgraded correctly` | The shared prefix was built by a **different Proton version** than the configured one. This is **not** a `wineserver` selection problem (measured, cf. "`WINESERVER` under umu"): it's the prefix version control by Proton | `stalker-gamma-linux install --only prefix` (rebuilds the prefix from scratch with the currently configured Proton). |
+| Poor perf (heavy shader mods) | USVFS overhead + heavy shaders | Disable Screen Space Shaders / Shaders Cumulative Pack; evaluate RadTux (`⚠ TO CONFIRM`). |
 
-Détection (`mo2/diagnostics.py`) : `diagnose_launch_log` lit le journal de
-lancement umu-run (`prefix.process`, `logs/mo2-game.log` de l'install — voir
-« Lancement détaché du terminal » ci-dessous pour ce nom fixe) à la recherche
-des deux échecs **en amont** de l'USVFS ci-dessus (runtime VC++ manquant,
-préfixe d'une autre version de Proton) — recherche insensible à la casse. Si
-l'un des deux est reconnu, son message de remède doit être affiché **à la
-place** du diagnostic USVFS (un utilisateur à qui on annonce deux problèmes
-n'en corrige aucun) : ces échecs empêchent le process cible de démarrer, donc
-l'USVFS n'a de toute façon jamais eu la moindre chance de monter.
+Detection (`mo2/diagnostics.py`): `diagnose_launch_log` reads the umu-run
+launch log (`prefix.process`, `logs/mo2-game.log` of the install — see
+"Detached launch from terminal" below for this fixed name) looking for
+the two failures **upstream** of USVFS above (missing VC++ runtime,
+prefix from another Proton version) — case-insensitive search. If
+either is recognized, its remedy message must be shown **instead**
+of the USVFS diagnostic (a user told about two problems fixes neither):
+these failures prevent the target process from starting, so
+USVFS never had the slightest chance of mounting.
 
-> Depuis T15 (`play` détaché, voir plus bas), `run_play` **n'appelle plus ces
-> fonctions automatiquement** : le jeu tourne encore quand `play` rend la
-> main, donc les lire à ce moment-là serait un faux négatif systématique
-> (rien n'a encore eu le temps de s'écrire). `diagnose_launch_log`/
-> `diagnose_usvfs` restent utilisables **après coup**, une fois le jeu fermé
-> (T14 de `docs/ROADMAP.md`, pas encore câblé en commande dédiée) — c'est
-> pour ça que `play` annonce désormais le chemin du journal au lieu de le
-> diagnostiquer lui-même.
+> Since T15 (`play` detached, see below), `run_play` **no longer calls these
+> functions automatically**: the game is still running when `play` returns
+> control, so reading them then would be a systematic false negative
+> (nothing has had time to be written yet). `diagnose_launch_log`/
+> `diagnose_usvfs` remain usable **afterwards**, once the game is closed
+> (T14 of `docs/ROADMAP.md`, not yet wired into a dedicated command) — that's
+> why `play` now announces the log path instead of diagnosing
+> itself.
 
-Sinon, on lit le dernier `logs/usvfs-*.log` de l'instance et on cherche les
-marqueurs d'un **VFS vivant** relevés sur un vrai run qui fonctionne (usvfs
-0.5.6.1, GE-Proton11-1) : `inithooks in process <pid> successful` (hooks posés
-dans le process du jeu) et `mapping file in vfs:` (le VFS sert effectivement des
-fichiers). Absents ⇒ avertissement (pas un échec : `play` réussit si le jeu
-s'est lancé). On vérifie aussi que le profil `G.A.M.M.A` a des mods activés
-(`modlist.txt`, lignes `+`).
+Otherwise, we read the latest `logs/usvfs-*.log` of the instance and look for
+the markers of a **live VFS** found on a real run that works (usvfs
+0.5.6.1, GE-Proton11-1): `inithooks in process <pid> successful` (hooks set
+in the game process) and `mapping file in vfs:` (the VFS actually serves
+files). Absent ⇒ warning (not a failure: `play` succeeds if the game
+launched). We also check that the profile `G.A.M.M.A` has active mods
+(`modlist.txt`, lines `+`).
 
-> Le marqueur `proxy run successful` cité par des guides de forum **n'existe
-> pas** dans usvfs 0.5.6.1 : l'avoir utilisé donnait un faux négatif (constaté
-> en réel le 2026-07-22).
+> The marker `proxy run successful` cited by forum guides **does not
+> exist** in usvfs 0.5.6.1: using it gave a false negative (observed
+> in the field on 2026-07-22).
 
-## Lancement détaché du terminal (T15, 2026-08-22)
+## Detached launch from terminal (T15, 2026-08-22)
 
-**Qualification.** Trois chemins de lancement du jeu, examinés séparément :
+**Qualification.** Three launch paths for the game, examined separately:
 
-1. Entrée `.desktop` « Play GAMMA (direct) » (`desktop/entry.py`) : `Terminal=false`,
-   pas de terminal contrôleur à fermer — **non concernée**, par construction.
-2. GUI (`gui/worker.py`) : l'opération tourne dans un thread démon **du même
-   process** que la fenêtre GTK ; fermer la fenêtre ne signale rien au
-   process enfant (umu-run/Wine), qui n'est de toute façon lancé sans
-   terminal contrôleur quand la GUI part de son `.desktop` — **non concernée**.
-3. `stalker-gamma-linux play` en ligne de commande : **c'était le cas
-   problématique**. `prefix.process.run_in_prefix` lançait `Popen` sans
-   `start_new_session` : l'enfant héritait de la session/du groupe de
-   processus du terminal appelant. Reproduit avec un pseudo-terminal
-   (`os.forkpty` + fermeture du côté maître, qui envoie SIGHUP au groupe de
-   processus au premier plan de la session — même mécanisme qu'un terminal
-   qu'on ferme) : le process enfant **mourait** dans la seconde.
+1. `.desktop` entry "Play GAMMA (direct)" (`desktop/entry.py`): `Terminal=false`,
+   no controlling terminal to close — **not concerned**, by construction.
+2. GUI (`gui/worker.py`): the operation runs in a daemon thread **of the same
+   process** as the GTK window; closing the window signals nothing to the
+   child process (umu-run/Wine), which is in any case launched without
+   a controlling terminal when the GUI starts from its `.desktop` — **not concerned**.
+3. `stalker-gamma-linux play` on the command line: **this was the
+   problematic case**. `prefix.process.run_in_prefix` launched `Popen` without
+   `start_new_session`: the child inherited the session/process group of
+   the calling terminal. Reproduced with a pseudo-terminal
+   (`os.forkpty` + closing the master side, which sends SIGHUP to the process
+   group at the foreground of the session — same mechanism as a terminal
+   you close): the child process **died** within the second.
 
-**Correctif.** `prefix.process.run_detached()` (nouvelle fonction sœur de
-`run_in_prefix`, dédiée aux lancements de *jeu*) : `start_new_session=True`,
-`stdin=DEVNULL`, sortie redirigée directement dans un fichier de log unique
-par lancement (`logs/mo2-game.log` / `logs/flat-game.log`, plus d'horodatage
-par lancement), tourné (1 backup `.log.1`) au-delà de 5 Mio, descripteur
-refermé côté parent dès le retour de `Popen`. `mo2.launch.launch_game` et
-`mo2.flat.launch_flat` l'utilisent désormais ; `mo2.launch.launch_mo2`
-(interface MO2 seule, commande `mo2`) et tout le pipeline d'installation
-(`engine`/`prefix.provision`) restent sur `run_in_prefix`, bloquant avec
-progression/`cancel_event` — deux modes explicites, jamais un mode qui devine
-lequel il est.
+**Correctif.** `prefix.process.run_detached()` (new sibling function of
+`run_in_prefix`, dedicated to game launches): `start_new_session=True`,
+`stdin=DEVNULL`, output redirected straight into a single log file per
+launch (`logs/mo2-game.log` / `logs/flat-game.log`, no more per-launch
+timestamp), rotated (1 backup `.log.1`) beyond 5 MiB, descriptor
+closed on the parent side as soon as `Popen` returns. `mo2.launch.launch_game` and
+`mo2.flat.launch_flat` now use it; `mo2.launch.launch_mo2`
+(MO2-only interface, `mo2` command) and the whole installation pipeline
+(`engine`/`prefix.provision`) stay on `run_in_prefix`, blocking with
+progression/`cancel_event` — two explicit modes, never a mode that guesses
+which one it is.
 
-**Revalidé en conditions réelles** (2026-08-22, install de test complète
-`/mnt/games_lexar/Games/GAMMA-test`, umu 1.4.1, GE-Proton11-3), même méthode
-que la qualification (`os.forkpty` + fermeture du côté maître = même
-mécanisme SIGHUP qu'un vrai terminal qu'on ferme), mais contre le vrai `play`
-lançant le vrai MO2/Anomaly :
+**Revalidated in real conditions** (2026-08-22, complete test install
+`/mnt/games_lexar/Games/GAMMA-test`, umu 1.4.1, GE-Proton11-3), same method
+of the qualification (`os.forkpty` + closing the master side = same
+SIGHUP mechanism as a real terminal you close), but against the real `play`
+launching the real MO2/Anomaly:
 
-- **Premier essai, avec `start_new_session=True` seul (sans `stdin=DEVNULL`)** :
-  échec. `play` rend bien la main immédiatement (mode détaché OK), mais
-  fermer le terminal juste après a tué **toute** la sandbox umu-run
-  (`srt-bwrap`, Proton, wineserver, MO2, le jeu) quelques secondes après son
-  lancement. Cause identifiée par inspection des process (`ps -eo
-  pid,ppid,sid,pgid,tty,stat`) : `run_detached` héritait quand même du
-  `stdin` du terminal appelant (rien ne le redirigeait) ; la sandbox interne
-  d'umu-run (`srt-bwrap`, steam-runtime/pressure-vessel) fait elle-même un
-  `setsid()` puis reprend ce descripteur comme **son propre** terminal de
-  contrôle via `TIOCSCTTY` — possible car la session d'origine devient
-  orpheline dès que `play` a rendu la main (plus aucun process vivant dedans).
-  `bwrap` se retrouvait donc process de premier plan du pseudo-terminal :
-  fermer celui-ci lui envoyait SIGHUP, qui tuait toute la sandbox en dessous —
-  le symptôme qu'on croyait avoir corrigé, reproduit un étage plus bas, à
-  l'intérieur même d'umu-run.
-- **Avec le correctif complet (`stdin=subprocess.DEVNULL` ajouté)** : succès.
-  Même scénario rejoué à l'identique (même install, `play` relancé) : après
-  fermeture simulée du terminal, toute la chaîne (`umu-run` → `srt-bwrap` →
+- **First attempt, with `start_new_session=True` alone (no `stdin=DEVNULL`)**:
+  failure. `play` returns control immediately (detached mode OK), but
+  closing the terminal just after killed **all** the umu-run sandbox
+  (`srt-bwrap`, Proton, wineserver, MO2, the game) a few seconds after its
+  launch. Cause identified by process inspection (`ps -eo
+  pid,ppid,sid,pgid,tty,stat`): `run_detached` still inherited the
+  `stdin` of the calling terminal (nothing redirected it); the internal
+  umu-run sandbox (`srt-bwrap`, steam-runtime/pressure-vessel) itself does a
+  `setsid()` then takes that descriptor back as **its own** terminal of
+  control via `TIOCSCTTY` — possible because the original session becomes
+  orphaned as soon as `play` returns control (no living process left in it).
+  `bwrap` ended up being the foreground process of the pseudo-terminal:
+  closing it sent SIGHUP, which killed all the sandbox below —
+  the symptom we thought we had fixed, reproduced one level down, inside
+  umu-run itself.
+- **With the complete fix (`stdin=subprocess.DEVNULL` added)**: success.
+  Same scenario replayed exactly (same install, `play` relaunched): after
+  the simulated closing of the terminal, the whole chain (`umu-run` → `srt-bwrap` →
   `pv-adverb` → `proton` → `wineserver` → `explorer.exe`/`ModOrganizer.exe`
-  (`main`) → **`AnomalyDX11.exe`**, le moteur du jeu) est restée vivante et a
-  continué à progresser (le jeu a fini de démarrer *après* la fermeture
-  simulée). Aucun process de la chaîne n'a plus de terminal de contrôle
-  (`tty=?` partout dans `ps`).
+  (`main`) → **`AnomalyDX11.exe`**, the game engine) stayed alive and
+  kept progressing (the game finished starting *after* the simulated
+  closing). No process in the chain has a controlling terminal anymore
+  (`tty=?` everywhere in `ps`).
 
-Conséquence sur `play` : la commande ne bloque plus jusqu'à la fermeture du
-jeu, elle annonce le chemin du journal et rend la main immédiatement. Le
-diagnostic USVFS automatique après lancement (`--no-diagnose`) a été retiré
-en même temps — il n'avait plus de sens en mode détaché (voir plus haut).
+Consequence for `play`: the command no longer blocks until the game is
+closed, it announces the log path and returns control immediately. The
+automatic USVFS diagnostics after launch (`--no-diagnose`) was removed
+at the same time — it no longer made sense in detached mode (see above).
 
-## `WINESERVER` sous umu — question tranchée (T16, 2026-08-22)
+## `WINESERVER` under umu — settled question (T16, 2026-08-22)
 
-**Question posée.** Quand MO2 lance le jeu à travers l'USVFS, un `wineserver`
-système (`/usr/bin/wineserver`, présent sur cette machine : `wine-core-11.0-3.fc44`)
-ou celui d'un Proton plus ancien peut-il être sélectionné à la place de celui du
-Proton du préfixe ? Un client et un serveur Wine dépareillés produisent exactement
-le `version mismatch` que le diagnostic de lancement apprend à reconnaître. La
-parade connue sur un `proton run` Steam direct est d'imposer
-`WINESERVER=<proton>/files/bin/wineserver` — mais ce n'est pas notre chemin : nous
-passons par `umu-run`, qui gère son propre runtime.
+**Question asked.** When MO2 launches the game through USVFS, a system `wineserver`
+(`/usr/bin/wineserver`, present on this machine: `wine-core-11.0-3.fc44`)
+or that of an older Proton — can one be selected instead of the one from the
+Proton of the prefix? A client and a mismatched Wine server produce exactly
+the `version mismatch` that launch diagnostics learn to recognize. The
+known workaround on a direct `proton run` from Steam is to force
+`WINESERVER=<proton>/files/bin/wineserver` — but that's not our path: we
+go through `umu-run`, which manages its own runtime.
 
-**Réponse : non. Aucun découplage n'existe sur ce chemin, et `WINESERVER` n'a pas
-à être imposé.** `_prefix_environment` reste inchangé — c'est la question tranchée
-qui a de la valeur, pas un patch. Le détail ci-dessous documente *pourquoi* c'est
-structurel et pas une chance, pour qu'on n'ait pas à reposer la question.
+**Answer: no. No decoupling exists on this path, and `WINESERVER` does not have
+to be forced.** `_prefix_environment` stays unchanged — this is the settled
+question that has value, not a patch. The detail below documents *why* it's
+structural and not a matter of luck, so that we don't have to ask the question again.
 
-### Méthode de mesure (reproductible)
+### Measurement method (reproducible)
 
-Le point décisif est de **ne pas se fier aux variables d'environnement seules** :
-elles disent ce qui a été *demandé*, pas quel binaire a *gagné*. Pour chaque
-process de la chaîne dont `/proc/<pid>/environ` pointe sur le préfixe partagé, on
-relève donc les deux :
+The decisive point is to **not rely on environment variables alone**:
+they say what was *asked*, not which binary *won*. For each
+process in the chain whose `/proc/<pid>/environ` points at the shared prefix, we
+record both:
 
-- `WINESERVER`, `WINELOADER`, `PROTONPATH` (dans `/proc/<pid>/environ`) ;
-- **`readlink /proc/<pid>/exe`** — le binaire réellement exécuté, seul verdict.
+- `WINESERVER`, `WINELOADER`, `PROTONPATH` (in `/proc/<pid>/environ`);
+- **`readlink /proc/<pid>/exe`** — the binary actually executed, the only verdict.
 
-Trois lancements réels sur l'install de test (`/mnt/games_lexar/Games/GAMMA-test`,
-umu 1.4.1), chacun jusqu'à `AnomalyDX11.exe` vivant, en imposant `PROTONPATH` via
-le code du projet (`mo2.launch.launch_game`) — donc le vrai chemin MO2 →
-`moshortcut://` → USVFS → jeu, pas un banc synthétique. Le préfixe a été
-sauvegardé avant et restauré après (les lancements le réécrivent, voir plus bas).
+Three real launches on the test install (`/mnt/games_lexar/Games/GAMMA-test`,
+umu 1.4.1), each up to a living `AnomalyDX11.exe`, forcing `PROTONPATH` via
+the project code (`mo2.launch.launch_game`) — hence the real path MO2 →
+`moshortcut://` → USVFS → game, not a synthetic bench. The prefix was
+backed up before and restored after (the launches rewrite it, see below).
 
-### Relevés
+### Readings
 
-Préfixe construit par **GE-Proton11-3**. `AnomalyDX11.exe` atteint dans les trois cas.
+Prefix built by **GE-Proton11-3**. `AnomalyDX11.exe` reached in all three cases.
 
-| Lancement | Proton imposé | Base Wine | `WINESERVER` | `wineserver` réellement exécuté | Loader de MO2 **et** du jeu | `/usr/bin/wineserver` utilisé |
+| Launch | Forced Proton | Wine base | `WINESERVER` | Actual `wineserver` executed | Loader for MO2 **and** the game | `/usr/bin/wineserver` used |
 |---|---|---|---|---|---|---|
-| 1 | GE-Proton11-3 (= celui du préfixe) | 11.0 | ∅ non posé | `GE-Proton11-3/files/bin/wineserver` | GE-Proton11-3 | non |
-| 2 | **GE-Proton9-20** (plus ancien que le préfixe) | 9.0 | ∅ non posé | `GE-Proton9-20/files/bin/wineserver` | GE-Proton9-20 | non |
-| 3 | GE-Proton11-1 (après le 9-20) | 11.0 | ∅ non posé | `GE-Proton11-1/files/bin/wineserver` | GE-Proton11-1 | non |
+| 1 | GE-Proton11-3 (= the prefix's) | 11.0 | ∅ not set | `GE-Proton11-3/files/bin/wineserver` | GE-Proton11-3 | no |
+| 2 | **GE-Proton9-20** (older than the prefix) | 9.0 | ∅ not set | `GE-Proton9-20/files/bin/wineserver` | GE-Proton9-20 | no |
+| 3 | GE-Proton11-1 (after the 9-20) | 11.0 | ∅ not set | `GE-Proton11-1/files/bin/wineserver` | GE-Proton11-1 | no |
 
-Dans les trois cas, **un seul dist Proton dans toute la chaîne** (13, 11 et 14
-process respectivement : `wineserver`, `services.exe`, `explorer.exe`,
-`ModOrganizer.exe`, `AnomalyDX11.exe`…), et `WINESERVER` posé **nulle part** —
-y compris sur le process enfant du jeu, là où le découplage était supposé se
-produire. Aucun `version mismatch` ni `wrong wineserver` sur aucun des trois.
+In all three cases, **a single Proton dist across the whole chain** (13, 11 and 14
+processes respectively: `wineserver`, `services.exe`, `explorer.exe`,
+`ModOrganizer.exe`, `AnomalyDX11.exe`…), and `WINESERVER` set **nowhere** —
+including on the game's child process, where the decoupling was supposed to
+happen. No `version mismatch` nor `wrong wineserver` on any of the three.
 
-`WINELOADER` : non posé sous GE-Proton11-x (build wow64), posé par Wine lui-même
-sous GE-Proton9-20 (`.../GE-Proton9-20/files/bin/wine64`) — cohérent avec le même
-dist dans les deux cas.
+`WINELOADER`: not set under GE-Proton11-x (wow64 build), set by Wine itself
+under GE-Proton9-20 (`.../GE-Proton9-20/files/bin/wine64`) — consistent with the same
+dist in both cases.
 
-### Pourquoi c'est structurel
+### Why it's structural
 
-Quatre couches, aucune ne laisse la place au découplage :
+Four layers, none of which leaves room for decoupling:
 
-1. **umu ne pose jamais `WINESERVER`** : zéro occurrence de la chaîne dans
-   l'intégralité du zipapp umu-launcher 1.4.1 (177 entrées). L'hypothèse de départ
-   (« umu pose probablement déjà un `WINESERVER` cohérent ») est donc fausse dans
-   sa lettre — mais la conclusion tient pour une autre raison, la suivante.
-2. **Proton ne le pose pas non plus** : zéro occurrence de `WINESERVER` dans son
-   script `proton`. Il garde son `wineserver_bin` comme chemin interne
-   (`files/bin/wineserver` relatif à son propre dist) et se contente de préfixer
-   son `bin_dir` au `PATH`.
-3. **Wine le dérive de lui-même.** `WINESERVER` non posé, `ntdll.so` résout le
-   serveur **relativement au loader qui l'a chargé** (`server/wineserver` +
-   `getenv("WINESERVER")` en surcharge optionnelle, visibles dans les symboles de
-   `files/lib/wine/x86_64-unix/ntdll.so`). La `cmdline` du `wineserver` mesuré le
-   montre littéralement :
-   `…/GE-Proton11-3/files/lib/wine/../../bin/wineserver` — un chemin dérivé du
-   `ntdll.so` chargé, ni un `PATH` ni une variable. Client et serveur viennent du
-   même dist **par construction**.
-4. **Le conteneur rend le wine hôte inatteignable.** Dans la sandbox umu
-   (pressure-vessel, Steam Runtime 3/4), `/usr` de l'hôte est *remplacé* :
-   `/usr/bin/wineserver` n'existe pas, `wineserver` n'est pas sur le `PATH`
-   (`/usr/bin:/bin`). Le wine Fedora n'est visible qu'en `/run/host/usr/bin/wineserver`,
-   chemin qu'aucun loader Wine ne consulte. Le scénario « le wineserver système est
-   sélectionné » est donc **impossible** sous umu, pas seulement improbable.
+1. **umu never sets `WINESERVER`**: zero occurrence of the string in
+   the entire umu-launcher zipapp 1.4.1 (177 entries). The starting hypothesis
+   ("umu probably already sets a coherent `WINESERVER`") is therefore false
+   in its letter — but the conclusion stands for another reason, the next one.
+2. **Proton doesn't set it either**: zero occurrence of `WINESERVER` in its
+   script `proton`. It keeps its `wineserver_bin` as an internal path
+   (`files/bin/wineserver` relative to its own dist) and just prefixes
+   its `bin_dir` to the `PATH`.
+3. **Wine derives it itself.** `WINESERVER` not set, `ntdll.so` resolves the
+   server **relative to the loader that loaded it** (`server/wineserver` +
+   `getenv("WINESERVER")` as an optional override, visible in the symbols of
+   `files/lib/wine/x86_64-unix/ntdll.so`). The `cmdline` of the measured `wineserver`
+   shows it literally:
+   `…/GE-Proton11-3/files/lib/wine/../../bin/wineserver` — a path derived from the
+   `ntdll.so` loaded, neither a `PATH` nor a variable. Client and server come from
+   the same dist **by construction**.
+4. **The container makes the host wine unreachable.** In the umu sandbox
+   (pressure-vessel, Steam Runtime 3/4), the host's `/usr` is *replaced*:
+   `/usr/bin/wineserver` doesn't exist, `wineserver` is not on the `PATH`
+   (`/usr/bin:/bin`). The Fedora wine is only visible in `/run/host/usr/bin/wineserver`,
+   a path no Wine loader checks. The scenario "the system wineserver is
+   selected" is therefore **impossible** under umu, not just unlikely.
 
-### Pourquoi il ne faut pas poser `WINESERVER` « par sécurité »
+### Why you should not set `WINESERVER` "just to be safe"
 
-Ce serait au mieux redondant, au pire nuisible : umu **réécrit** `PROTONPATH` dans
-plusieurs cas (nom de code type `GE-Proton`, repli `UMU-Latest`, résolution du
-runtime conteneur — `umu_run.py`, résolution de `PROTONPATH` avant lancement). Un
-`WINESERVER` dérivé du `PROTONPATH` que *nous* passons pointerait alors sur un
-autre dist que celui qu'umu finit par monter — ce qui **créerait** le découplage
-que la variable était censée prévenir. La sélection actuelle est correcte parce
-qu'elle est dérivée en bout de chaîne, par le loader effectivement chargé.
+At best it would be redundant, at worst harmful: umu **rewrites** `PROTONPATH` in
+several cases (code name like `GE-Proton`, fallback `UMU-Latest`, container runtime
+resolution — `umu_run.py`, resolution of `PROTONPATH` before launch). A
+`WINESERVER` derived from the `PROTONPATH` that *we* pass would then point to a
+different dist than the one umu ends up mounting — which would **create** the
+decoupling the variable was supposed to prevent. The current selection is correct
+because it's derived at the end of the chain, by the loader actually loaded.
 
-### Effet de bord mesuré : `Prefix has an invalid version?!` n'est pas fatal
+### Measured side effect: `Prefix has an invalid version?!` is not fatal
 
-Les lancements 2 et 3 ont fait tourner un Proton sur un préfixe construit par un
-autre. Proton l'a détecté, l'a annoncé, puis **a continué** :
+Launches 2 and 3 ran a Proton on a prefix built by another one. Proton detected it,
+announced it, then **kept going**:
 
 ```
 Proton: Upgrading prefix from GE-Proton11-3 to GE-Proton9-20 (…/prefix/)
 Proton: Prefix has an invalid version?! You may want to back up user files and delete this prefix.
 ```
 
-…et le jeu s'est lancé quand même, USVFS compris, en réécrivant le `version` du
-préfixe au passage (d'où la sauvegarde/restauration dans la méthode). Deux
-conséquences :
+…and the game still launched, USVFS included, rewriting the `version` of the
+prefix along the way (hence the backup/restore in the method). Two
+consequences:
 
-- Le `version mismatch` que reconnaît le diagnostic de lancement relève de la
-  **version du préfixe**, pas de la sélection du `wineserver` : imposer
-  `WINESERVER` n'y changerait rien. Le remède de la table ci-dessus
-  (`install --only prefix`) reste le bon — un préfixe réécrit d'une base Wine à
-  l'autre garde ses verbs et ses overrides posés pour l'autre.
-- `prefix has an invalid version` fait partie des marqueurs de
-  `mo2/diagnostics.py` (`_PREFIX_VERSION_MARKERS`), or il apparaît ici sur des
-  lancements **réussis** : lu après coup, le diagnostic conclurait à un échec de
-  préfixe alors que la partie a démarré. Faux positif connu, à traiter côté T14 —
-  hors périmètre de cette tâche, qui ne touche pas au code.
-  **Traité en T18** (voir « Post-mortem de session » ci-dessous) : le
-  post-mortem n'oppose pas un message à un autre, il compare les dates de
-  modification des deux journaux. Si le moteur a tourné pendant *ce* lancement,
-  l'avertissement de préfixe n'est pas l'histoire de cette partie et le crash
-  reprend la première place. Les marqueurs eux-mêmes sont inchangés : ils
-  restent justes quand le processus ne démarre pas.
+- The `version mismatch` that launch diagnostics recognize belongs to the
+  **version of the prefix**, not the `wineserver` selection: forcing
+  `WINESERVER` would change nothing there. The remedy from the table above
+  (`install --only prefix`) is still the right one — a prefix rewritten from one Wine base to
+  the other keeps its verbs and its overrides set for the other.
+- `prefix has an invalid version` is part of the markers of
+  `mo2/diagnostics.py` (`_PREFIX_VERSION_MARKERS`), yet it appears here on
+  successful launches: read afterwards, the diagnostic would conclude a prefix failure
+  even though the session started. Known false positive, to be handled on the T14 side —
+  out of scope for this task, which does not touch the code.
+  **Handled in T18** (see "Post-mortem of session" below): the
+  post-mortem does not pit one message against another, it compares the dates of
+  modification of the two logs. If the engine ran during *this* launch,
+  the prefix warning is not this session's story and the crash
+  takes back first place. The markers themselves are unchanged: they
+  stay correct when the process does not start.
 
-## Post-mortem de session — journal du moteur X-Ray (T18, 2026-09-07)
+## Post-mortem of session — X-Ray engine log (T18, 2026-09-07)
 
-Ce que la table « Symptôme → remède » ci-dessus ne couvrait pas : **le jeu a
-démarré, avec ses mods, et il est tombé en cours de partie.** Le journal
-umu-run ne dit rien de ce cas ; le seul endroit où il se lit est le journal du
-moteur lui-même, que rien n'ouvrait jusqu'ici.
+What the "Symptom → remedy" table above did not cover: **the game
+started, with its mods, and crashed mid-session.** The log
+umu-run says nothing about this case; the only place to read it is the
+engine itself, which nothing had opened until now.
 
-### Emplacement du journal — constaté, pas supposé
+### Log location — observed, not assumed
 
-Sur **les deux** installs GAMMA réelles de la machine de développement, le
-moteur écrit dans le dossier *Anomaly*, pas dans l'instance MO2 :
+On **both** real GAMMA installs on the development machine, the
+engine writes in the *Anomaly* folder, not in the MO2 instance:
 
 ```
 <anomaly>/appdata/logs/xray_steamuser.log
 ```
 
-`steamuser` est le compte Windows du préfixe Proton (d'où la recherche par
-glob `xray_*.log`). La redirection d'écriture de l'USVFS — tout ce qu'un
-processus lancé depuis MO2 crée atterrit dans `overwrite/` — **n'a pas eu
-lieu** : `appdata/` est hors de l'arborescence virtualisée (vérifié :
-`gamma/overwrite/` ne contient qu'`AnomalyLauncher.cfg`, `commandline.txt` et
-un `gamedata/`). Elle reste possible selon la configuration de l'instance, donc
-`postmortem/logfile.py` cherche aux **deux** emplacements et retient le fichier
-le plus récemment modifié — le nom n'étant pas horodaté, contrairement aux
-`usvfs-*.log`, c'est la date qui tranche.
+`steamuser` is the Windows account of the Proton prefix (hence the search by
+glob `xray_*.log`). The USVFS write redirection — everything a
+process launched from MO2 creates lands in `overwrite/` — **did not happen**
+: `appdata/` is outside the virtualized tree (verified:
+`gamma/overwrite/` contains only `AnomalyLauncher.cfg`, `commandline.txt` and
+a `gamedata/`). It remains possible depending on the instance configuration, so
+`postmortem/logfile.py` searches at **both** locations and keeps the file
+most recently modified — the name not being timestamped, unlike the
+`usvfs-*.log`, it's the date that settles it.
 
-Le journal est réécrit à chaque lancement (un seul `Game started:` par
-fichier) et fait couramment plusieurs mégaoctets : 5,2 Mo / 104 329 lignes sur
-la session mesurée. Il n'est donc jamais chargé en entier — en-tête d'un côté,
-queue de l'autre.
+The log is rewritten at every launch (a single `Game started:` per
+file) and commonly runs to several megabytes: 5.2 MiB / 104,329 lines on
+the measured session. It is therefore never loaded in full — header on one side,
+tail on the other.
 
-### Le piège : `[error]` et `stack trace` ne sont pas des marqueurs de crash
+### The trap: `[error]` and `stack trace` are not crash markers
 
-Mesuré sur une session **quittée normalement** (13/08/2026, 104 329 lignes) :
+Measured on a session **quit normally** (13/08/2026, 104,329 lines):
 
-| Motif cherché | Occurrences sur la session **propre** | sur la session **plantée** |
+| Pattern searched | Occurrences on the **clean** session | on the **crashed** session |
 |---|---|---|
-| `[error]` (insensible à la casse, n'importe où) | **65** | 55 |
-| `stack trace` (idem) | **27** | 63 |
-| `^stack trace:` (ancré en début de ligne) | **0** | **1** |
+| `[error]` (case-insensitive, anywhere) | **65** | 55 |
+| `stack trace` (same) | **27** | 63 |
+| `^stack trace:` (anchored at line start) | **0** | **1** |
 | `^FATAL ERROR` | 0 | 0 |
 | `^[xrLogger] InternalCloseLog` | **1** | **0** |
 
-Les 65 et les 27 sont des erreurs *applicatives* de GAMMA, dont le moteur se
-relève : `! [ERROR] --- Failed to load script mags_patches`,
-`~ STACK TRACEBACK:`. Le joueur a joué une heure de plus derrière. Ce qui
-distingue le bloc fatal du moteur est qu'il commence **en début de ligne** —
-Anomaly préfixe toujours les siennes d'un `! ` ou d'un `~ `. Les motifs de
-`postmortem/markers.py` sont donc ancrés ; l'insensibilité à la casse redevient
-alors sans danger.
+The 65 and the 27 are GAMMA *application* errors, from which the engine recovers
+itself: `! [ERROR] --- Failed to load script mags_patches`,
+`~ STACK TRACEBACK:`. The player played another hour behind. What
+distinguishes the engine's fatal block is that it starts **at line start** —
+Anomaly always prefixes its own with a `! ` or a `~ `. The patterns of
+`postmortem/markers.py` are therefore anchored; case-insensitivity becomes
+harmless then.
 
-### Marqueurs retenus, et d'où ils viennent
+### Markers kept, and where they come from
 
-- **Fin propre** : `[xrLogger] InternalCloseLog called, terminating thread` —
-  dernière ligne de la session propre, précédée du `RM_Dump` du gestionnaire de
-  ressources.
-- **Crash** : `stack trace:` en début de ligne, suivi du dump
-  `SymInit: Symbol-SearchPath:` / `OS-Version:` / `at address 0x…`, et pas de
-  `InternalCloseLog` derrière. C'est exactement ce sur quoi s'arrête la session
-  plantée du 26/08/2026 (`at address 0x0000000140B02DC1`).
-- **Bloc fatal** : `FATAL ERROR` seul sur sa ligne, puis
-  `[error]Expression    : …`, `[error]Description   : …`. Aucune des deux
-  sessions n'en contient ; les formats viennent des chaînes du binaire lui-même
-  (`%sFATAL ERROR%s%s`, `%sExpression    : %s%s` dans
+- **Clean end**: `[xrLogger] InternalCloseLog called, terminating thread` —
+  last line of the clean session, preceded by the `RM_Dump` from the resource
+  manager.
+- **Crash**: `stack trace:` at line start, followed by the dump
+  `SymInit: Symbol-SearchPath:` / `OS-Version:` / `at address 0x…`, and no
+  `InternalCloseLog` behind. This is exactly what the session
+  crashed on 26/08/2026 ends on (`at address 0x0000000140B02DC1`).
+- **Fatal block**: `FATAL ERROR` alone on its line, then
+  `[error]Expression    : …`, `[error]Description   : …`. Neither of the two
+  sessions contains any; the formats come from the strings of the binary itself
+  (`%sFATAL ERROR%s%s`, `%sExpression    : %s%s` in
   `anomaly/bin/AnomalyDX11.exe`, cf. `xrDebugNew.cpp`).
-- **Manque de mémoire** : `Out of memory. Memory request: <n> K` et
-  `* [x-ray]: OOM requesting <n> bytes`. **Cas jamais observé** : formats tirés
-  du binaire (`out_of_memory_handler`), et c'est écrit tel quel dans le code
-  plutôt que laissé croire qu'on l'a vu tourner.
+- **Out of memory**: `Out of memory. Memory request: <n> K` and
+  `* [x-ray]: OOM requesting <n> bytes`. **Never observed case**: formats taken
+  from the binary (`out_of_memory_handler`), and it's written as-is in the code
+  rather than letting one believe we saw it run.
 
-Quand aucun marqueur de fin n'apparaît, le verdict est « je ne peux pas
-conclure » : la partie tourne peut-être encore.
+When no end marker appears, the verdict is "I can't
+conclude": the session may still be running.
 
-### Attribution au mod — un suspect, pas un coupable
+### Mod attribution — a suspect, not a culprit
 
-Le moteur ne nomme jamais un mod, il nomme un fichier. Sur la session plantée,
-les dernières lignes avant la trace sont :
+The engine never names a mod, it names a file. On the crashed session,
+the last lines before the trace are:
 
 ```
 ! error in stalker [sim_default_csky_2], profile [dick_sim_default_csky_2_default_34]
@@ -401,178 +401,178 @@ les dernières lignes avant la trace sont :
 stack trace:
 ```
 
-`gamedata/meshes/actors/stalker_nebo/stalker_nebo3_exohead.ogf` existe : il est
-fourni par `29- Dux's Innemurable Characters Kit - DuxFortis`. Mais
-`31- Fixed Vanilla Models and Textures - Blackgrowl` fournit le reste du dossier
-`stalker_nebo/` **sans** ce fichier-là. Le mod nommé est donc celui à regarder
-en premier, pas celui à accuser : le fautif peut être son voisin dans l'ordre de
-chargement. D'où la formulation « suspect », et la liste de *tous* les
-propriétaires trouvés.
+`gamedata/meshes/actors/stalker_nebo/stalker_nebo3_exohead.ogf` exists: it is
+provided by `29- Dux's Innemurable Characters Kit - DuxFortis`. But
+`31- Fixed Vanilla Models and Textures - Blackgrowl` provides the rest of the
+`stalker_nebo/` folder **without** this file. The named mod is therefore the one to look at
+first, not the one to accuse: the culprit may be its neighbor in the
+load order. Hence the wording "suspect", and the list of *all* the
+owners found.
 
-Le rattachement chemin → mod n'est pas réécrit : c'est `integrity.report.mod_of`
-qui décide, comme pour `verify`.
+The path → mod mapping is not rewritten: it's `integrity.report.mod_of`
+that decides, as for `verify`.
 
-### Journal de lancement : append-only, donc dernière session seulement
+### Launch log: append-only, hence last session only
 
-`prefix.process.run_detached` ouvre `logs/mo2-game.log` en **append** — le
-fichier de l'install mesurée contient trois lancements. Diagnostiquer le fichier
-entier ferait ressortir l'échec d'il y a trois semaines comme s'il venait
-d'arriver ; `mo2.diagnostics.last_launch_session` ne garde donc que le dernier
-bloc `$ <commande>`. Au passage, la lecture de ce journal est devenue tolérante
-aux octets non-UTF-8 : `run_detached` y redirige la sortie brute du processus,
-sans le `errors="replace"` que `run_in_prefix` applique à son flux, et un seul
-octet invalide (0x88, constaté côté Wine) faisait taire le diagnostic sans un mot.
+`prefix.process.run_detached` opens `logs/mo2-game.log` in **append** — the
+file of the measured install contains three launches. Diagnosing the file
+in full would surface a failure from three weeks ago as if it had just
+happened; `mo2.diagnostics.last_launch_session` therefore keeps only the last
+`$ <command>` block. In passing, reading this log has become tolerant
+of non-UTF-8 bytes: `run_detached` redirects the raw process output here,
+without the `errors="replace"` that `run_in_prefix` applies to its stream, and a single
+invalid byte (0x88, observed on the Wine side) would silence the diagnostic without a word.
 
-## Cache de shaders DXVK/Mesa/NVIDIA — mesure et décision (T21, 2026-09-09/14)
+## DXVK/Mesa/NVIDIA shader cache — measurement and decision (T21, 2026-09-09/14)
 
-**Ce qui a changé.** `DXVK_SHADER_CACHE_PATH`, `MESA_SHADER_CACHE_DIR` (+ son
-plafond) et `__GL_SHADER_DISK_CACHE_PATH` (+ le sien) sont désormais posés par
-défaut dans `prefix.process._prefix_environment`
-(`environment.shader_cache.build_env`), pointés sous
-`<root>/cache/shaders/{dxvk,mesa,nvidia}` — hors du préfixe, donc épargnés par
-une reconstruction (`install --only prefix`, `prefix-doctor --repair`). Une
-variable pilote n'est posée que si le pilote correspondant est détecté présent
-sur la machine (`shader_cache.nvidia_present` / `mesa_present`). Voir le module
-pour le détail et les sources des noms de variables — `DXVK_STATE_CACHE_PATH`,
-qu'on trouve encore dans de vieux guides, n'existe plus dans DXVK actuel.
+**What changed.** `DXVK_SHADER_CACHE_PATH`, `MESA_SHADER_CACHE_DIR` (+ its
+ceiling) and `__GL_SHADER_DISK_CACHE_PATH` (+ its own) are now set by
+default in `prefix.process._prefix_environment`
+(`environment.shader_cache.build_env`), pointing under
+`<root>/cache/shaders/{dxvk,mesa,nvidia}` — outside the prefix, so spared by
+a reconstruction (`install --only prefix`, `prefix-doctor --repair`). A
+driver variable is set only if the corresponding driver is detected present
+on the machine (`shader_cache.nvidia_present` / `mesa_present`). See the module
+for the details and sources of the variable names — `DXVK_STATE_CACHE_PATH`,
+which you can still find in old guides, no longer exists in current DXVK.
 
-**Question posée par T21.** Le gain d'un cache persistant est évident en théorie
-(pas de recompilation après un `install --only prefix`) ; celui d'un
-**pré-chauffage automatique** (lancer le jeu une fois pendant l'installation
-pour peupler le cache avant que le joueur n'y touche) ne l'est pas — encore
-faut-il qu'il compile autre chose que ce qu'un lancement normal aurait de toute
-façon compilé en quelques secondes.
+**Question raised by T21.** The gain of a persistent cache is obvious in theory
+(no recompilation after an `install --only prefix`); the gain of a
+**automatic pre-heating** (launching the game once during installation
+to populate the cache before the player touches it) is not — still
+it must compile something other than what a normal launch would in any
+case compile in a few seconds.
 
-### Méthode de mesure, et sa limite
+### Measurement method, and its limit
 
-Deux lancements réels via `stalker-gamma-linux play` sur l'install de
-`/mnt/games_samsung/Games/GAMMA` (GE-Proton11-3, GPU AMD/Mesa — `radv`, pas de
-pilote NVIDIA sur cette machine), séparés de cinq jours :
+Two real launches via `stalker-gamma-linux play` on the install of
+`/mnt/games_samsung/Games/GAMMA` (GE-Proton11-3, AMD/Mesa GPU — `radv`, no
+NVIDIA driver on this machine), separated by five days:
 
-- **Lancement 1** (2026-09-09, cache froid — `cache/shaders/` n'existait pas
-  avant) : `ModOrganizer.exe` lancé, jeu atteint jusqu'au menu principal,
-  laissé inactif quelques minutes, fermé normalement.
-- **Lancement 2** (2026-09-14, cache chaud — rien entre les deux) : même
-  protocole, même session interactive (menu principal, ~1 minute d'inactivité,
-  fermeture normale), pour comparer à état équivalent.
+- **Launch 1** (2026-09-09, cold cache — `cache/shaders/` did not exist
+  before): `ModOrganizer.exe` launched, game reached up to the main menu,
+  left idle for a few minutes, closed normally.
+- **Launch 2** (2026-09-14, warm cache — nothing in between): same
+  protocol, same interactive session (main menu, ~1 minute of inactivity,
+  normal closure), to compare at equivalent state.
 
-**Limite assumée, à ne pas perdre de vue en relisant ces chiffres plus tard** :
-faute d'un outil d'automatisation des entrées sous Wayland disponible sur cette
-machine (`xdotool`/`ydotool`/`wtype` absents, KDE Plasma 6.7), aucun des deux
-lancements n'est allé au-delà du menu principal — ni chargement de partie, ni
-déplacement en jeu. C'est précisément là que se trouve la majorité de la
-diversité de shaders d'un modpack de cette taille (zones, météo, PNJ, armes…).
-La mesure ci-dessous parle donc du cache de shaders du **menu**, pas de celui
-d'une session de jeu réelle.
+**Assumed limit, not to lose sight of when rereading these numbers later**:
+due to the lack of an input automation tool under Wayland available on this
+machine (`xdotool`/`ydotool`/`wtype` absent, KDE Plasma 6.7), neither of the
+launches went beyond the main menu — no game load, no
+movement in game. It's precisely there that the majority of the
+shader diversity of a modpack this size (zones, weather, NPCs, weapons…).
+The measurement below therefore speaks of the shader cache of the **menu**, not of that
+of a real game session.
 
-### Relevés
+### Readings
 
-| | Lancement 1 (cache froid) | Lancement 2 (cache chaud) |
+| | Launch 1 (cold cache) | Launch 2 (warm cache) |
 |---|---|---|
-| `cache/shaders/dxvk/*.dxvk.bin` | 0 → **443 777 octets** (créé) | **443 777 octets** (inchangé) |
-| `cache/shaders/dxvk/*.dxvk.lut` | 0 → 12 445 octets (créé) | réécrit, taille quasi identique (12 427) |
-| `cache/shaders/mesa/` (radv) | **5,7 Mio** (créé) | 5,7 Mio (inchangé) |
-| Journal moteur (`xray_steamuser.log`) | fermeture propre, `DLTX Cache: Files Cached: 2842` | fermeture propre, mêmes chiffres |
-| Durée totale de la session (lancement → fermeture) | ≈ 3 min 30 (dont fenêtre d'attente non chronométrée avec précision) | ≈ 4 min (dont ~1 min d'attente volontaire) |
+| `cache/shaders/dxvk/*.dxvk.bin` | 0 → **443,777 bytes** (created) | **443,777 bytes** (unchanged) |
+| `cache/shaders/dxvk/*.dxvk.lut` | 0 → 12,445 bytes (created) | rewritten, size nearly identical (12,427) |
+| `cache/shaders/mesa/` (radv) | **5.7 MiB** (created) | 5.7 MiB (unchanged) |
+| Engine log (`xray_steamuser.log`) | clean shutdown, `DLTX Cache: Files Cached: 2842` | clean shutdown, same numbers |
+| Total session duration (launch → closure) | ≈ 3 min 30 (including a wait window not timed precisely) | ≈ 4 min (including ~1 min of deliberate waiting) |
 
-Le chiffre qui tranche : **zéro octet ajouté** au state cache DXVK ni au cache
-Mesa au lancement 2. Pour exactement le même contenu rendu (le menu), le
-pilote et DXVK n'ont rien eu à recompiler — le cache persistant fait ce qu'on
-lui demande, de façon vérifiée et pas seulement déduite du code.
+The number that settles it: **zero bytes added** to the DXVK cache state nor to the
+Mesa cache at launch 2. For exactly the same rendered content (the menu), the
+driver and DXVK had nothing to recompile — the persistent cache does what
+is asked of it, in a verified way and not just deduced from the code.
 
-### Décision : pas de pré-chauffage automatique
+### Decision: no automatic pre-heating
 
-**Le mécanisme de cache persistant (points 1 à 4 de T21) est confirmé par la
-mesure ci-dessus ; le pré-chauffage automatique, lui, n'est pas implémenté.**
+**The persistent cache mechanism (points 1 to 4 of T21) is confirmed by the
+measurement above; automatic pre-heating, for its part, is not implemented.**
 
-Le raisonnement, pas seulement la mesure : un pré-chauffage automatisé inséré
-dans le pipeline d'installation ne pourrait, avec les moyens de ce projet
-(pas de script de navigation en jeu, pas de commande de benchmark connue côté
-gamma-launcher/Anomaly), que lancer le jeu jusqu'au menu — exactement ce qu'on
-vient de mesurer. Or ce sous-ensemble de shaders compile déjà en dessous de la
-minute sur un cache froid (lancement 1, ci-dessus) : l'ajouter à
-l'installation ferait patienter le joueur pour un gain qu'il ne remarquerait
-pas, sans toucher au vrai problème — la compilation en jeu, qui se produit de
-toute façon au premier lancement réel, une seule fois, cache persistant ou
-pas. Un pré-chauffage qui ne couvre pas ce qui coûte cher serait décoratif :
-précisément ce que ce projet évite (cf. `WINESERVER`, T16, ci-dessus). Piste
-fermée proprement ; rouvrable si gamma-launcher expose un jour un mode
-« traverse toutes les zones » ou équivalent.
+The reasoning, not just the measurement: an automated pre-heating inserted
+into the installation pipeline could not, with the means of this project
+(no in-game navigation script, no known benchmark command on the
+gamma-launcher/Anomaly side), but launch the game up to the menu — exactly what we
+just measured. Yet this subset of shaders already compiles below the
+minute on a cold cache (launch 1, above): adding it
+to the installation would make the player wait for a gain they would not
+notice, without touching the real problem — in-game compilation, which happens
+in any case on the first real launch, only once, persistent cache or
+not. A pre-heating that does not cover what costs money would be decorative:
+precisely what this project avoids (cf. `WINESERVER`, T16, above). A lead
+closed cleanly; reopenable if gamma-launcher one day exposes a mode
+"traverse all the zones" or equivalent.
 
-### Ce qu'on ne fera jamais : distribuer un state cache pré-compilé
+### What we will never do: distribute a pre-compiled state cache
 
-Un cache DXVK/Mesa « communautaire », téléchargé et déposé dans
-`cache/shaders/` à l'installation, est explicitement exclu — pas par manque
-d'idée, mais parce que ça viole deux règles à la fois :
+A DXVK/Mesa "community" cache, downloaded and placed in
+`cache/shaders/` at installation, is explicitly excluded — not for lack
+of ideas, but because it violates two rules at once:
 
-1. **Il ne marcherait pas correctement.** Le state cache DXVK encode des
-   pipelines pour un GPU et une version de pilote précis ; un cache construit
-   sur une machine différente peut échouer à se charger, ou pire, charger un
-   pipeline qui ne correspond plus au binaire du pilote local — DXVK valide
-   par hash, donc le cas probable est un rejet silencieux (aucun gain), pas
-   une corruption, mais ça n'apporte jamais rien à qui ne l'a pas produit.
-2. **Ce serait du rehosting.** Héberger le binaire de quelqu'un d'autre —
-   fût-il un cache de shaders plutôt qu'une archive de mod — reste contraire
-   aux règles du projet (« jamais de rehosting », déjà appliqué au cache X-Ray
-   et aux archives ModDB). Le fait que ce binaire soit inutile hors de sa
-   machine d'origine (point 1) double la raison de ne pas le faire, il ne la
-   remplace pas.
+1. **It would not work correctly.** The DXVK state cache encodes
+   pipelines for a specific GPU and driver version; a cache built
+   on a different machine may fail to load, or worse, load a
+   pipeline that no longer matches the local driver binary — DXVK validates
+   by hash, so the likely case is a silent rejection (no gain), not
+   corruption, but it never brings anything to someone who didn't produce it.
+2. **That would be rehosting.** Hosting someone else's binary —
+   whether it's a shader cache rather than a mod archive — remains contrary
+   to the project's rules ("no rehosting ever", already applied to the X-Ray cache
+   and to ModDB archives). The fact that this binary is useless outside its
+   machine of origin (point 1) doubles the reason not to do it, it does not
+   replace it.
 
 ## Sources
 
-- MO2 — fil de compatibilité Linux/Wine USVFS (issue #372) :
+- MO2 — Linux/Wine USVFS compatibility thread (issue #372):
   https://github.com/ModOrganizer2/modorganizer/issues/372
-- usvfs (bibliothèque de hooking) :
+- usvfs (hooking library):
   https://github.com/ModOrganizer2/usvfs
-- Wine bug 46697 (USVFS ↔ `NtQueryDirectoryFileEx`, Win10 1709+) :
+- Wine bug 46697 (USVFS ↔ `NtQueryDirectoryFileEx`, Win10 1709+):
   https://bugs.winehq.org/show_bug.cgi?id=46697
-- ValveSoftware/wine #67 — « Merge USVFS patch » :
+- ValveSoftware/wine #67 — "Merge USVFS patch":
   https://github.com/ValveSoftware/wine/issues/67
-- SteamTinkerLaunch — wiki MO2 (MO2 2.5.0 exige Wine ≥ 8.21, repli 2.4.4) :
+- SteamTinkerLaunch — MO2 wiki (MO2 2.5.0 requires Wine ≥ 8.21, fallback 2.4.4):
   https://github.com/sonic2kk/steamtinkerlaunch/wiki/Mod-Organizer-2
 - modorganizer2-linux-installer (rockerbacon/Furglitch) — Proton 9.0
-  recommandé ; « USVFS OK sous Proton vanilla mais pas les builds GE » :
+  recommended; "USVFS OK under Proton vanilla but not the GE builds":
   https://github.com/rockerbacon/modorganizer2-linux-installer ·
   https://github.com/Furglitch/modorganizer2-linux-installer/wiki/Post%E2%80%90Install-Instructions ·
   https://github.com/rockerbacon/lutris-skyrimse-installers/issues/156
-- Guide GAMMA Linux (v1ld, réf. sept. 2025 — Proton 9/10, config MO2) :
+- GAMMA Linux guide (v1ld, ref. Sept. 2025 — Proton 9/10, MO2 config):
   https://gist.github.com/v1ld/e9069af307bd90495e0b345f3a260725
-- Wiki FaithBeam (GE-Proton9-20) :
+- FaithBeam wiki (GE-Proton9-20):
   https://github.com/FaithBeam/stalker-gamma-cli/wiki/Linux-Install
-- Guide Steam Deck (maxastyler) :
+- Steam Deck guide (maxastyler):
   https://github.com/maxastyler/S.T.A.L.K.E.R.-Gamma-Steam-Deck-Install-Guide/
-- Marqueurs réels d'un VFS vivant (`inithooks in process N successful`,
-  `mapping file in vfs:`) : relevés dans un `logs/usvfs-*.log` d'une install
-  GAMMA fonctionnelle (usvfs 0.5.6.1, GE-Proton11-1), 2026-07-22. Le
-  `proxy run successful` des guides Nexus/STEP ne s'y trouve pas.
-- RadTux — VFS natif Linux expérimental pour MO2 :
+- Real markers of a live VFS (`inithooks in process N successful`,
+  `mapping file in vfs:`): recorded in a `logs/usvfs-*.log` of a working
+  GAMMA install (usvfs 0.5.6.1, GE-Proton11-1), 2026-07-22. The
+  `proxy run successful` from Nexus/STEP guides is not there.
+- RadTux — experimental native Linux VFS for MO2:
   https://www.nexusmods.com/fallout4/mods/105285
-- Sélection du `wineserver` sous umu (T16) : relevés `/proc/<pid>/environ` +
-  `/proc/<pid>/exe` sur trois lancements réels (GE-Proton11-3, GE-Proton9-20,
-  GE-Proton11-1) de l'install de test, 2026-08-22 — voir la section dédiée
-  ci-dessus. Sources croisées : absence de `WINESERVER` dans le zipapp
-  umu-launcher 1.4.1 et dans le script `proton` de GE-Proton11-3 ; résolution
-  auto-relative du serveur par `ntdll.so`.
-- pressure-vessel / Steam Runtime (le conteneur qui remplace `/usr` et rend le
-  wine hôte inatteignable) :
+- Wineserver selection under umu (T16): recorded `/proc/<pid>/environ` +
+  `/proc/<pid>/exe` on three real launches (GE-Proton11-3, GE-Proton9-20,
+  GE-Proton11-1) on the test install, 2026-08-22 — see the dedicated section
+  above. Cross-referenced sources: no `WINESERVER` in the zipapp
+  umu-launcher 1.4.1 and in the `proton` script of GE-Proton11-3; resolution
+  auto-relative to the server by `ntdll.so`.
+- pressure-vessel / Steam Runtime (the container that replaces `/usr` and makes the
+  host wine unreachable):
   https://gitlab.steamos.cloud/steamrt/steam-runtime-tools/-/tree/main/pressure-vessel
-- Marqueurs du journal du moteur (T18) : deux journaux X-Ray complets d'installs
-  GAMMA réelles (X-Ray Monolith 1.5.3, `'xrCore' build 9959`) — une session
-  quittée normalement le 2026-08-13, une session plantée le 2026-08-26 — plus
-  les chaînes de format extraites de `anomaly/bin/AnomalyDX11.exe` (`strings`),
-  qui donnent littéralement ce que `xrDebugNew.cpp` peut écrire. Voir la section
-  « Post-mortem de session » ci-dessus.
-- Cache de shaders (T21) : deux lancements réels via `stalker-gamma-linux play`
-  sur `/mnt/games_samsung/Games/GAMMA` (GE-Proton11-3, GPU AMD/Mesa `radv`),
-  2026-09-09 et 2026-09-14 — tailles de `cache/shaders/dxvk/*.dxvk.bin` et
-  `cache/shaders/mesa/` relevées avant/après chaque session, journal moteur
-  (`xray_steamuser.log`) lu pour confirmer une fermeture propre. Noms et
-  comportement par défaut des variables d'environnement : README DXVK
+- Engine log markers (T18): two complete X-Ray logs from real
+  GAMMA installs (X-Ray Monolith 1.5.3, `'xrCore' build 9959`) — a session
+  quit normally on 2026-08-13, a crashed session on 2026-08-26 — plus
+  the format strings extracted from `anomaly/bin/AnomalyDX11.exe` (`strings`),
+  which give literally what `xrDebugNew.cpp` can write. See the section
+  "Post-mortem of session" above.
+- Shader cache (T21): two real launches via `stalker-gamma-linux play`
+  on `/mnt/games_samsung/Games/GAMMA` (GE-Proton11-3, AMD/Mesa GPU `radv`),
+  2026-09-09 and 2026-09-14 — sizes of `cache/shaders/dxvk/*.dxvk.bin` and
+  `cache/shaders/mesa/` recorded before/after each session, engine log
+  (`xray_steamuser.log`) read to confirm a clean shutdown. Names and
+  behavior by default of the environment variables: DXVK README
   (https://github.com/doitsujin/dxvk/blob/master/README.md), documentation
-  Mesa (https://docs.mesa3d.org/envvars.html), README du pilote NVIDIA
+  Mesa (https://docs.mesa3d.org/envvars.html), NVIDIA driver README
   (https://download.nvidia.com/XFree86/Linux-x86_64/470.239.06/README/openglenvvariables.html) —
-  vérifiés le 2026-09-08 après avoir constaté que `DXVK_STATE_CACHE_PATH`,
-  cité dans plusieurs guides plus anciens, ne correspond plus à aucune
-  variable lue par DXVK actuel.
+  verified on 2026-09-08 after finding that `DXVK_STATE_CACHE_PATH`,
+  cited in several older guides, no longer corresponds to any
+  variable read by current DXVK.
 </content>
 </invoke>
