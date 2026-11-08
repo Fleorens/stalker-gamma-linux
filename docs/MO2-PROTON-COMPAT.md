@@ -28,7 +28,7 @@
 
 The **flat** mode (`gamma-launcher usvfs-workaround`, annex A of
 `INSTALL-MANUAL.md`) remains the last resort if no Proton version
-   mounts USVFS on the machine — at the cost of mod flexibility.
+mounts USVFS on the machine — at the cost of mod flexibility.
 
 ## Why it breaks (technical root cause)
 
@@ -70,8 +70,8 @@ on large modpacks like GAMMA. Experimental native lead:
 ## Matrix
 
 Status: ✅ works · ⚠️ variable/watch · ❌ broken. "MO2 GAMMA"
-   designates the lineage **2.5.x** packed in the instance shipped by
-   gamma-launcher.
+designates the lineage **2.5.x** packed in the instance shipped by
+gamma-launcher.
 
 | MO2 | Proton / GE | Base Wine | USVFS | Notes & source |
 |---|---|---|---|---|
@@ -137,18 +137,18 @@ launched). We also check that the profile `G.A.M.M.A` has active mods
 **Qualification.** Three launch paths for the game, examined separately:
 
 1. `.desktop` entry "Play GAMMA (direct)" (`desktop/entry.py`): `Terminal=false`,
-  no controlling terminal to close — **not concerned**, by construction.
+   no controlling terminal to close — **not concerned**, by construction.
 2. GUI (`gui/worker.py`): the operation runs in a daemon thread **of the same
-  process** as the GTK window; closing the window signals nothing to the
-  child process (umu-run/Wine), which is in any case launched without
-  a controlling terminal when the GUI starts from its `.desktop` — **not concerned**.
+   process** as the GTK window; closing the window signals nothing to the
+   child process (umu-run/Wine), which is in any case launched without
+   a controlling terminal when the GUI starts from its `.desktop` — **not concerned**.
 3. `stalker-gamma-linux play` on the command line: **this was the
-  problematic case**. `prefix.process.run_in_prefix` launched `Popen` without
-  `start_new_session`: the child inherited the session/process group of
-  the calling terminal. Reproduced with a pseudo-terminal
-  (`os.forkpty` + closing the master side, which sends SIGHUP to the process
-  group at the foreground of the session — same mechanism as a terminal
-  you close): the child process **died** within the second.
+   problematic case**. `prefix.process.run_in_prefix` launched `Popen` without
+   `start_new_session`: the child inherited the session/process group of
+   the calling terminal. Reproduced with a pseudo-terminal
+   (`os.forkpty` + closing the master side, which sends SIGHUP to the process
+   group at the foreground of the session — same mechanism as a terminal
+   you close): the child process **died** within the second.
 
 **Correctif.** `prefix.process.run_detached()` (new sibling function of
 `run_in_prefix`, dedicated to game launches): `start_new_session=True`,
