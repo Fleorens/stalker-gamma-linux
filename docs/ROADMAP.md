@@ -151,7 +151,7 @@ what only Linux allows, and the failure modes that make people quit. Breakdown:
   measured in T16 no longer masks a real crash.
 - **T19** ✅ Steam / Gaming mode in one click: `steam-shortcut` writes the entry
   **and** its artwork in `shortcuts.vdf`, without the user touching
-  Steam. **Reverses the T06 out-of-scope** : the "gain limited to players
+  Steam. **Reverses the T06 out-of-scope**: the "gain limited to players
   Deck" has become the growing audience, and in Gaming mode the user *can't*
   follow our instruction ("Add a non-Steam game" requires the Desktop
   mode). The T06 reservations have become the spec: VDF codec
@@ -187,7 +187,7 @@ what only Linux allows, and the failure modes that make people quit. Breakdown:
   doesn't apply on Steam Deck — where gamescope *is* the session. Without a Deck
   to check the nominal case, we don't deliver a switch that kills the
   game on the only testable machine. Conditions for a return: docs/ARCHITECTURE.md.
-  ⚠ **Known debt** : the vkBasalt upstream is dead (last commit Oct. 2023,
+  ⚠ **Known debt**: the vkBasalt upstream is dead (last commit Oct. 2023,
   80 open issues). We keep it because it's the only packaged one and it
   works; the successor to watch is vkShade, to switch when it
   leaves pre-alpha **and** enters the repositories.
