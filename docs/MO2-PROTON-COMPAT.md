@@ -65,7 +65,7 @@ implemented only late:
 Known overhead: Windows→Wine hooking adds a noticeable CPU cost (context-switching)
 on large modpacks like GAMMA. Experimental native lead:
 **RadTux** (replaces USVFS hooks with a Linux VFS daemon) — out of scope,
-`⚠ NEEDS VERIFICATION` for GAMMA.
+`⚠ TO CONFIRM` for GAMMA.
 
 ## Matrix
 
@@ -99,7 +99,7 @@ gamma-launcher.
 | MO2 opens but **0 active mods** | Wrong game folder / profile, instance not configured | Reconfigure the instance (`gamePath` → Anomaly folder, profile `G.A.M.M.A`) — automated by `mo2/instance.py`. |
 | MO2 **does not start at all**, launch log mentioning `concrt140.dll`, `msvcp140.dll` or `vcruntime140.dll` | Missing VC++ 2015-2022 runtimes in the prefix (verbs not set, or a cobbled/partially repaired prefix) | `stalker-gamma-linux prefix-doctor --repair` (replaces the missing verbs). |
 | Unreadable Wine error at launch: `wine client error:0: version mismatch`, `wrong wineserver`, `prefix has an invalid version`, `your wine binary was not upgraded correctly` | The shared prefix was built by a **different Proton version** than the configured one. This is **not** a `wineserver` selection problem (measured, cf. "`WINESERVER` under umu"): it's the prefix version control by Proton | `stalker-gamma-linux install --only prefix` (rebuilds the prefix from scratch with the currently configured Proton). |
-| Poor perf (heavy shader mods) | USVFS overhead + heavy shaders | Disable Screen Space Shaders / Shaders Cumulative Pack; evaluate RadTux (`⚠ NEEDS VERIFICATION`). |
+| Poor perf (heavy shader mods) | USVFS overhead + heavy shaders | Disable Screen Space Shaders / Shaders Cumulative Pack; evaluate RadTux (`⚠ TO CONFIRM`). |
 
 Detection (`mo2/diagnostics.py`): `diagnose_launch_log` reads the umu-run
 launch log (`prefix.process`, `logs/mo2-game.log` of the install — see
